@@ -43,11 +43,34 @@ app.use('/admin/*', cors());
 // Health check
 app.get('/', (c) => {
   return c.json({
-    name: 'AgentForge',
-    version: '0.1.0',
+    name: 'WorkerIAGO',
+    version: '1.0.0',
     status: 'running',
     docs: '/admin'
   });
+});
+
+// Test AI endpoint
+app.get('/api/test-ai', async (c) => {
+  try {
+    const ai = c.env.AI;
+    if (!ai) {
+      return c.json({ error: 'AI binding not available' }, 500);
+    }
+    
+    const result = await ai.run('@cf/meta/llama-3.1-8b-instruct', {
+      messages: [{ role: 'user', content: 'Responde solo: Hola mundo' }],
+      max_tokens: 10
+    });
+    
+    return c.json({ 
+      success: true, 
+      response: result.response,
+      model: '@cf/meta/llama-3.1-8b-instruct'
+    });
+  } catch (error: any) {
+    return c.json({ error: error?.message || 'Unknown error' }, 500);
+  }
 });
 
 // Webhook de Telegram

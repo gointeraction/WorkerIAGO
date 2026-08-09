@@ -30,14 +30,23 @@ export async function chat(
   messages: ChatMessage[],
   options?: { temperature?: number; maxTokens?: number; model?: string }
 ): Promise<string> {
+  // Verificar que AI binding está disponible
+  if (!config.ai) {
+    throw new Error('AI binding not available');
+  }
+
   const model = options?.model || MODELS.chat;
   
+  console.log('Calling AI model:', model);
+  console.log('Messages count:', messages.length);
+
   const result = await config.ai.run(model, {
     messages,
     temperature: options?.temperature ?? 0.7,
     max_tokens: options?.maxTokens ?? 512
   });
 
+  console.log('AI response:', result);
   return result.response;
 }
 
@@ -114,6 +123,10 @@ export async function generateEmbedding(
   config: AIConfig,
   text: string
 ): Promise<number[]> {
+  if (!config.ai) {
+    throw new Error('AI binding not available');
+  }
+
   const result = await config.ai.run(MODELS.embedding, {
     text: [text]
   });
@@ -125,6 +138,10 @@ export async function generateImage(
   config: AIConfig,
   prompt: string
 ): Promise<string> {
+  if (!config.ai) {
+    throw new Error('AI binding not available');
+  }
+
   const result = await config.ai.run(MODELS.image, {
     prompt
   });
@@ -136,6 +153,10 @@ export async function transcribeAudio(
   config: AIConfig,
   audio: ArrayBuffer
 ): Promise<string> {
+  if (!config.ai) {
+    throw new Error('AI binding not available');
+  }
+
   const result = await config.ai.run(MODELS.audio, {
     audio: [...new Uint8Array(audio)]
   });
@@ -148,6 +169,10 @@ export async function classifyText(
   text: string,
   classes: string[]
 ): Promise<{ label: string; score: number }> {
+  if (!config.ai) {
+    throw new Error('AI binding not available');
+  }
+
   const result = await config.ai.run(MODELS.classification, {
     text
   });
