@@ -18,7 +18,7 @@ database_name = "workeriago-db"
 database_id = "98d488d9-41ed-48b8-b972-593379718782"
 
 # =============================================================================
-# VECTORIZE - Base de conocimiento RAG (embeddings bge-m3)
+# VECTORIZE - Base de conocimiento RAG (embeddings bge-base-en-v1.5, 768 dim)
 # =============================================================================
 [[vectorize]]
 binding = "VECTORIZE"
