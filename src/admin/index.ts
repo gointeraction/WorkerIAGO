@@ -1,8 +1,11 @@
 import { Hono } from 'hono';
 import { html } from 'hono/html';
+import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 
 type Bindings = {
   DB: D1Database;
+  STORAGE?: R2Bucket;
+  AI?: any;
   ADMIN_PASSWORD?: string;
   ENVIRONMENT?: string;
 };
@@ -98,25 +101,197 @@ interface UsageRow {
 
 const admin = new Hono<{ Bindings: Bindings }>();
 
-// Simple auth middleware
+// Session token helper
+function generateToken(): string {
+  return crypto.randomUUID();
+}
+
+// Auth middleware - cookie-based session
 const auth = async (c: any, next: any) => {
+  const path = new URL(c.req.url).pathname;
+
+  // Skip auth for login page and login API
+  if (path === '/admin/login' || path === '/admin/api/login') {
+    return next();
+  }
+
   const password = c.env.ADMIN_PASSWORD;
   if (!password) {
     return next();
   }
 
-  const authHeader = c.req.header('Authorization');
-  if (!authHeader || authHeader !== 'Bearer ' + password) {
-    return c.json({ error: 'Unauthorized' }, 401);
+  const session = getCookie(c, 'admin_session');
+  if (session === 'authenticated') {
+    return next();
   }
-  return next();
+
+  // Also check Bearer token for API clients
+  const authHeader = c.req.header('Authorization');
+  if (authHeader && authHeader === 'Bearer ' + password) {
+    return next();
+  }
+
+  return c.redirect('/admin/login');
 };
 
 // Apply auth to all routes
 admin.use('*', auth);
 
-// Layout helper - GoInteraction style
-const layout = (title: string, activeTab: string, body: string) => html`<!DOCTYPE html>
+// Login page
+admin.get('/login', async (c) => {
+  const session = getCookie(c, 'admin_session');
+  if (session === 'authenticated') {
+    return c.redirect('/admin');
+  }
+
+  return c.html(loginPage(''));
+});
+
+// Login API
+admin.post('/api/login', async (c) => {
+  const form = await c.req.formData();
+  const password = String(form.get('password') || '');
+  const adminPassword = c.env.ADMIN_PASSWORD;
+
+  if (!adminPassword) {
+    setCookie(c, 'admin_session', 'authenticated', { path: '/', httpOnly: true, secure: true, sameSite: 'Lax', maxAge: 86400 });
+    return c.redirect('/admin');
+  }
+
+  if (password === adminPassword) {
+    setCookie(c, 'admin_session', 'authenticated', { path: '/', httpOnly: true, secure: true, sameSite: 'Lax', maxAge: 86400 });
+    return c.redirect('/admin');
+  }
+
+  return c.html(loginPage('Contraseña incorrecta. Intenta de nuevo.'));
+});
+
+// Logout
+admin.get('/logout', async (c) => {
+  deleteCookie(c, 'admin_session', { path: '/' });
+  return c.redirect('/admin/login');
+});
+
+// Login page template - GIM Style
+function loginPage(error: string) {
+  return html`<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Iniciar Sesión - WorkerIAGO Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            gim: {
+              orange: { 50:'#fff7ed',100:'#ffedd5',200:'#fed7aa',300:'#fdba74',400:'#fb923c',500:'#f97316',600:'#ea580c',700:'#c2410c' },
+              cyan: { 50:'#ecfeff',100:'#cffafe',200:'#a5f3fc',400:'#22d3ee',500:'#06b6d4',600:'#0891b2' },
+              purple: { 400:'#c084fc',500:'#a855f7',600:'#9333ea',700:'#7e22ce' },
+              neutral: { 50:'#fafafa',100:'#f5f5f5',200:'#e5e5e5',300:'#d4d4d4',400:'#a3a3a3',500:'#737373',600:'#52525b',700:'#404040',800:'#262626',900:'#18181b',950:'#0a0a0a' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .text-gradient-orange { background: linear-gradient(135deg, #f97316, #ea580c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .bg-gradient-orange { background: linear-gradient(135deg, #f97316, #ea580c); }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-20px)} }
+    @keyframes pulse-glow { 0%,100%{opacity:0.6;transform:scale(1)} 50%{opacity:1;transform:scale(1.1)} }
+    @keyframes shimmer { 0%{background-position:-200%} 100%{background-position:200%} }
+    .animate-float { animation: float 6s ease-in-out infinite; }
+    .animate-pulse-glow { animation: pulse-glow 3s infinite; }
+  </style>
+</head>
+<body class="bg-white min-h-screen flex items-center justify-center relative overflow-hidden">
+  <!-- Background decorations -->
+  <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
+    <div class="absolute -top-40 right-[-10%] h-[500px] w-[500px] rounded-full bg-gradient-to-br from-gim-orange-400/40 to-amber-300/25 blur-[120px] animate-float"></div>
+    <div class="absolute -bottom-40 left-[-5%] h-[450px] w-[450px] rounded-full bg-gradient-to-tr from-gim-cyan-400/35 to-teal-300/20 blur-[120px] animate-float" style="animation-delay: 2s;"></div>
+    <div class="absolute left-1/2 top-1/2 h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-gim-orange-300/25 to-gim-cyan-300/20 blur-[100px] animate-pulse-glow"></div>
+  </div>
+
+  <!-- Login Card -->
+  <div class="relative z-10 w-full max-w-md mx-4">
+    <!-- Logo -->
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center gap-3 mb-4">
+        <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/25">
+          <span class="text-2xl">🤖</span>
+        </div>
+        <div class="text-left">
+          <h1 class="text-2xl font-extrabold text-gim-neutral-900">WorkerIAGO</h1>
+          <p class="text-xs text-gim-neutral-500 font-medium">Admin Panel</p>
+        </div>
+      </div>
+      <p class="text-gim-neutral-500 text-sm">Ingresa para gestionar tus agentes</p>
+    </div>
+
+    <!-- Card -->
+    <div class="bg-white rounded-3xl border-2 border-gim-neutral-100 p-8 shadow-2xl shadow-gim-neutral-900/5">
+      ${error ? html`
+        <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium flex items-center gap-2">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path></svg>
+          ${error}
+        </div>
+      ` : ''}
+
+      <form method="POST" action="/admin/api/login">
+        <div class="mb-6">
+          <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Contraseña</label>
+          <div class="relative">
+            <input type="password" name="password" id="password" required autofocus
+                   placeholder="••••••••"
+                   class="w-full px-4 py-3.5 rounded-xl border-2 border-gim-neutral-200 bg-gim-neutral-50 text-gim-neutral-900 text-sm font-medium placeholder-gim-neutral-400 focus:outline-none focus:border-gim-orange-400 focus:bg-white transition-all">
+            <button type="button" onclick="togglePassword()" class="absolute right-3 top-1/2 -translate-y-1/2 text-gim-neutral-400 hover:text-gim-neutral-600 transition-colors">
+              <svg id="eye-open" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+              <svg id="eye-closed" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" 
+                class="w-full py-3.5 rounded-xl bg-gradient-to-r from-gim-orange-500 to-gim-orange-600 text-white font-bold text-sm shadow-lg shadow-gim-orange-500/25 hover:shadow-xl hover:shadow-gim-orange-500/35 hover:from-gim-orange-600 hover:to-gim-orange-700 transition-all active:scale-[0.98]">
+          Iniciar Sesión
+        </button>
+      </form>
+    </div>
+
+    <!-- Footer -->
+    <p class="text-center text-xs text-gim-neutral-400 mt-6">
+      Powered by <span class="font-semibold text-gim-orange-500">WorkerIAGO</span> · Cloudflare Workers
+    </p>
+  </div>
+
+  <script>
+    function togglePassword() {
+      const input = document.getElementById('password');
+      const open = document.getElementById('eye-open');
+      const closed = document.getElementById('eye-closed');
+      if (input.type === 'password') {
+        input.type = 'text';
+        open.classList.add('hidden');
+        closed.classList.remove('hidden');
+      } else {
+        input.type = 'password';
+        open.classList.remove('hidden');
+        closed.classList.add('hidden');
+      }
+    }
+  </script>
+</body>
+</html>`;
+}
+
+// Layout helper - GIM Style (returns raw string, NOT html tagged)
+const layout = (title: string, activeTab: string, body: string) => `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -129,19 +304,13 @@ const layout = (title: string, activeTab: string, body: string) => html`<!DOCTYP
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-          },
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
           colors: {
-            dark: {
-              900: '#0a0a0f',
-              800: '#12121a',
-              700: '#1a1a25',
-              600: '#252530',
-            },
-            accent: {
-              from: '#3b82f6',
-              to: '#8b5cf6',
+            gim: {
+              orange: { 50:'#fff7ed',100:'#ffedd5',200:'#fed7aa',300:'#fdba74',400:'#fb923c',500:'#f97316',600:'#ea580c',700:'#c2410c' },
+              cyan: { 50:'#ecfeff',100:'#cffafe',200:'#a5f3fc',400:'#22d3ee',500:'#06b6d4',600:'#0891b2' },
+              purple: { 400:'#c084fc',500:'#a855f7',600:'#9333ea',700:'#7e22ce' },
+              neutral: { 50:'#fafafa',100:'#f5f5f5',200:'#e5e5e5',300:'#d4d4d4',400:'#a3a3a3',500:'#737373',600:'#52525b',700:'#404040',800:'#262626',900:'#18181b',950:'#0a0a0a' }
             }
           }
         }
@@ -149,161 +318,122 @@ const layout = (title: string, activeTab: string, body: string) => html`<!DOCTYP
     }
   </script>
   <style>
-    body {
-      font-family: 'Inter', sans-serif;
-      background: #0a0a0f;
-    }
-    
-    .gradient-text {
-      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    
-    .gradient-bg {
-      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-    }
-    
-    .gradient-border {
-      border: 1px solid transparent;
-      background: linear-gradient(#12121a, #12121a) padding-box,
-                  linear-gradient(135deg, #3b82f6, #8b5cf6) border-box;
-    }
-    
-    .card-hover {
-      transition: all 0.3s ease;
-    }
-    
-    .card-hover:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 20px 40px rgba(59, 130, 246, 0.1);
-    }
-    
-    .glow {
-      box-shadow: 0 0 60px rgba(59, 130, 246, 0.15);
-    }
-    
-    .stat-card {
-      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
-      border: 1px solid rgba(59, 130, 246, 0.2);
-    }
-    
-    .nav-item {
-      transition: all 0.2s ease;
-    }
-    
-    .nav-item:hover {
-      background: rgba(59, 130, 246, 0.1);
-    }
-    
-    .nav-item.active {
-      background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.2));
-      border-left: 3px solid #3b82f6;
-    }
-    
-    .pulse-dot {
-      animation: pulse 2s infinite;
-    }
-    
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-    
-    .fade-in {
-      animation: fadeIn 0.5s ease;
-    }
-    
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    ::-webkit-scrollbar {
-      width: 8px;
-    }
-    
-    ::-webkit-scrollbar-track {
-      background: #12121a;
-    }
-    
-    ::-webkit-scrollbar-thumb {
-      background: #3b82f6;
-      border-radius: 4px;
-    }
+    body { font-family: 'Inter', sans-serif; background: #fafafa; }
+    .text-gradient-orange { background: linear-gradient(135deg, #f97316, #ea580c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .text-gradient-cyan { background: linear-gradient(135deg, #06b6d4, #0891b2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .bg-gradient-orange { background: linear-gradient(135deg, #f97316, #ea580c); }
+    .bg-gradient-cyan { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+    .bg-gradient-purple { background: linear-gradient(135deg, #a855f7, #9333ea); }
+    .gradient-border { border: 1px solid transparent; background: linear-gradient(#ffffff, #ffffff) padding-box, linear-gradient(135deg, #f97316, #06b6d4) border-box; }
+    .card-hover { transition: all 0.3s ease; }
+    .card-hover:hover { transform: translateY(-2px); box-shadow: 0 20px 40px rgba(249,115,22,0.1); border-color: #fdba74; }
+    .stat-card-orange { background: linear-gradient(135deg, rgba(249,115,22,0.08), rgba(251,146,60,0.05)); border: 1px solid rgba(249,115,22,0.15); }
+    .stat-card-cyan { background: linear-gradient(135deg, rgba(6,182,212,0.08), rgba(34,211,238,0.05)); border: 1px solid rgba(6,182,212,0.15); }
+    .stat-card-purple { background: linear-gradient(135deg, rgba(168,85,247,0.08), rgba(192,132,252,0.05)); border: 1px solid rgba(168,85,247,0.15); }
+    .stat-card-green { background: linear-gradient(135deg, rgba(34,197,94,0.08), rgba(74,222,128,0.05)); border: 1px solid rgba(34,197,94,0.15); }
+    .nav-item { transition: all 0.2s ease; border-left: 3px solid transparent; }
+    .nav-item:hover { background: rgba(249,115,22,0.06); color: #ea580c; }
+    .nav-item.active { background: linear-gradient(90deg, rgba(249,115,22,0.1), rgba(249,115,22,0.02)); border-left-color: #f97316; color: #ea580c; font-weight: 600; }
+    .pulse-dot { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+    .fade-in { animation: fadeIn 0.5s ease; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f5f5f5; }
+    ::-webkit-scrollbar-thumb { background: #d4d4d4; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a3a3a3; }
   </style>
 </head>
-<body class="text-white min-h-screen">
+<body class="text-gim-neutral-900 min-h-screen">
   <div class="flex min-h-screen">
     <!-- Sidebar -->
-    <aside class="w-72 bg-dark-800 border-r border-dark-600 fixed h-full flex flex-col">
+    <aside class="w-72 bg-white border-r border-gim-neutral-200 fixed h-full flex flex-col">
       <!-- Logo -->
-      <div class="p-6 border-b border-dark-600">
+      <div class="p-6 border-b border-gim-neutral-100">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center">
-            <span class="text-xl">🔨</span>
+          <div class="w-10 h-10 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/20">
+            <span class="text-xl">🤖</span>
           </div>
           <div>
-            <h1 class="font-bold text-lg">WorkerIAGO</h1>
-            <p class="text-xs text-gray-500">Admin Panel v2.0</p>
+            <h1 class="font-extrabold text-lg text-gim-neutral-900">WorkerIAGO</h1>
+            <p class="text-xs text-gim-neutral-400 font-medium">Admin Panel v2.0</p>
           </div>
         </div>
       </div>
       
       <!-- Navigation -->
       <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
-        <a href="/admin" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 ${activeTab === 'overview' ? 'active' : ''}">
+        <a href="/admin" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'overview' ? 'active' : ''}">
           <span class="text-lg">📊</span>
           <span>Resumen</span>
         </a>
-        <a href="/admin/conversations" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 ${activeTab === 'conversations' ? 'active' : ''}">
+        <a href="/admin/conversations" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'conversations' ? 'active' : ''}">
           <span class="text-lg">💬</span>
           <span>Conversaciones</span>
         </a>
-        <a href="/admin/tickets" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 ${activeTab === 'tickets' ? 'active' : ''}">
+        <a href="/admin/tickets" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'tickets' ? 'active' : ''}">
           <span class="text-lg">🎫</span>
           <span>Tickets</span>
         </a>
-        <a href="/admin/leads" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 ${activeTab === 'leads' ? 'active' : ''}">
+        <a href="/admin/leads" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'leads' ? 'active' : ''}">
           <span class="text-lg">👥</span>
           <span>Leads</span>
         </a>
-        <a href="/admin/knowledge" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 ${activeTab === 'knowledge' ? 'active' : ''}">
+        <a href="/admin/knowledge" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'knowledge' ? 'active' : ''}">
           <span class="text-lg">📚</span>
           <span>Base de Conocimiento</span>
         </a>
-        <a href="/admin/agents" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 ${activeTab === 'agents' ? 'active' : ''}">
+        <a href="/admin/agents" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'agents' ? 'active' : ''}">
           <span class="text-lg">🤖</span>
           <span>Agentes</span>
         </a>
-        <a href="/admin/insights" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 ${activeTab === 'insights' ? 'active' : ''}">
+        <a href="/admin/mcp-tools" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'mcp-tools' ? 'active' : ''}">
+          <span class="text-lg">🔧</span>
+          <span>MCP Tools</span>
+        </a>
+        <a href="/admin/ai-gateway" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'ai-gateway' ? 'active' : ''}">
+          <span class="text-lg">📊</span>
+          <span>AI Gateway</span>
+        </a>
+        <a href="/admin/workflows" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'workflows' ? 'active' : ''}">
+          <span class="text-lg">⚡</span>
+          <span>Workflows</span>
+        </a>
+        <a href="/admin/connectors" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'connectors' ? 'active' : ''}">
+          <span class="text-lg">🔌</span>
+          <span>Conectores</span>
+        </a>
+        <a href="/admin/insights" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'insights' ? 'active' : ''}">
           <span class="text-lg">💡</span>
           <span>Insights</span>
         </a>
-        <a href="/admin/campaigns" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 ${activeTab === 'campaigns' ? 'active' : ''}">
+        <a href="/admin/campaigns" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'campaigns' ? 'active' : ''}">
           <span class="text-lg">📢</span>
           <span>Campañas</span>
         </a>
-        <a href="/admin/costs" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 ${activeTab === 'costs' ? 'active' : ''}">
+        <a href="/admin/costs" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'costs' ? 'active' : ''}">
           <span class="text-lg">💰</span>
           <span>Costos</span>
         </a>
-        <a href="/admin/config" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 ${activeTab === 'config' ? 'active' : ''}">
+        <a href="/admin/config" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'config' ? 'active' : ''}">
           <span class="text-lg">⚙️</span>
           <span>Configuración</span>
         </a>
       </nav>
       
       <!-- Footer -->
-      <div class="p-4 border-t border-dark-600">
-        <div class="flex items-center gap-2 text-sm text-gray-500">
+      <div class="p-4 border-t border-gim-neutral-100">
+        <div class="flex items-center gap-2 text-sm text-gim-neutral-500">
           <span class="w-2 h-2 bg-green-500 rounded-full pulse-dot"></span>
           <span>Sistema activo</span>
         </div>
-        <div class="mt-2 text-xs text-gray-600">
+        <div class="mt-2 text-xs text-gim-neutral-400">
           Última actualización: <span id="last-update">--</span>
         </div>
+        <a href="/admin/logout" class="mt-3 flex items-center gap-2 text-sm text-gim-neutral-400 hover:text-red-500 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+          Cerrar sesión
+        </a>
       </div>
     </aside>
     
@@ -329,115 +459,115 @@ admin.get('/', async (c) => {
     <div class="fade-in">
       <!-- Header -->
       <div class="mb-8">
-        <h1 class="text-4xl font-bold mb-2">
-          <span class="gradient-text">Resumen</span>
+        <h1 class="text-4xl font-extrabold mb-2">
+          <span class="text-gradient-orange">Resumen</span>
         </h1>
-        <p class="text-gray-400">Monitorea el rendimiento de tus agentes en tiempo real</p>
+        <p class="text-gim-neutral-500">Monitorea el rendimiento de tus agentes en tiempo real</p>
       </div>
       
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div class="stat-card rounded-2xl p-6 card-hover">
+        <div class="stat-card-orange rounded-2xl p-6 card-hover">
           <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 gradient-bg rounded-xl flex items-center justify-center">
+            <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/20">
               <span class="text-2xl">💬</span>
             </div>
-            <span class="text-green-400 text-sm">↑ 12%</span>
+            <span class="text-green-500 text-sm font-semibold">↑ 12%</span>
           </div>
-          <div class="text-3xl font-bold mb-1" id="stats-conversations">-</div>
-          <div class="text-gray-400 text-sm">Conversaciones (24h)</div>
+          <div class="text-3xl font-extrabold text-gim-neutral-900 mb-1" id="stats-conversations">-</div>
+          <div class="text-gim-neutral-500 text-sm">Conversaciones (24h)</div>
         </div>
         
-        <div class="stat-card rounded-2xl p-6 card-hover">
+        <div class="stat-card-cyan rounded-2xl p-6 card-hover">
           <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 gradient-bg rounded-xl flex items-center justify-center">
+            <div class="w-12 h-12 bg-gradient-cyan rounded-xl flex items-center justify-center shadow-lg shadow-gim-cyan-500/20">
               <span class="text-2xl">👥</span>
             </div>
-            <span class="text-green-400 text-sm">↑ 8%</span>
+            <span class="text-green-500 text-sm font-semibold">↑ 8%</span>
           </div>
-          <div class="text-3xl font-bold mb-1" id="stats-leads">-</div>
-          <div class="text-gray-400 text-sm">Leads Nuevos (24h)</div>
+          <div class="text-3xl font-extrabold text-gim-neutral-900 mb-1" id="stats-leads">-</div>
+          <div class="text-gim-neutral-500 text-sm">Leads Nuevos (24h)</div>
         </div>
         
-        <div class="stat-card rounded-2xl p-6 card-hover">
+        <div class="stat-card-purple rounded-2xl p-6 card-hover">
           <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 gradient-bg rounded-xl flex items-center justify-center">
+            <div class="w-12 h-12 bg-gradient-purple rounded-xl flex items-center justify-center shadow-lg shadow-gim-purple-500/20">
               <span class="text-2xl">🎫</span>
             </div>
-            <span class="text-yellow-400 text-sm">3 urgentes</span>
+            <span class="text-gim-orange-500 text-sm font-semibold">3 urgentes</span>
           </div>
-          <div class="text-3xl font-bold mb-1" id="stats-tickets">-</div>
-          <div class="text-gray-400 text-sm">Tickets Abiertos</div>
+          <div class="text-3xl font-extrabold text-gim-neutral-900 mb-1" id="stats-tickets">-</div>
+          <div class="text-gim-neutral-500 text-sm">Tickets Abiertos</div>
         </div>
         
-        <div class="stat-card rounded-2xl p-6 card-hover">
+        <div class="stat-card-green rounded-2xl p-6 card-hover">
           <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 gradient-bg rounded-xl flex items-center justify-center">
+            <div class="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/20">
               <span class="text-2xl">💰</span>
             </div>
-            <span class="text-gray-400 text-sm">Proyección</span>
+            <span class="text-gim-neutral-400 text-sm">Proyección</span>
           </div>
-          <div class="text-3xl font-bold mb-1" id="stats-cost">$0.00</div>
-          <div class="text-gray-400 text-sm">Costo IA (24h)</div>
+          <div class="text-3xl font-extrabold text-gim-neutral-900 mb-1" id="stats-cost">$0.00</div>
+          <div class="text-gim-neutral-500 text-sm">Costo IA (24h)</div>
         </div>
       </div>
       
       <!-- Main Content Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Recent Conversations -->
-        <div class="lg:col-span-2 bg-dark-800 rounded-2xl p-6 border border-dark-600">
+        <div class="lg:col-span-2 bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
           <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-semibold">💬 Conversaciones Recientes</h2>
-            <a href="/admin/conversations" class="text-blue-400 hover:text-blue-300 text-sm">Ver todas →</a>
+            <h2 class="text-xl font-bold text-gim-neutral-900">💬 Conversaciones Recientes</h2>
+            <a href="/admin/conversations" class="text-gim-orange-500 hover:text-gim-orange-600 text-sm font-semibold transition-colors">Ver todas →</a>
           </div>
           <div id="recent-conversations" class="space-y-4">
-            <div class="text-gray-500 text-center py-8">Cargando...</div>
+            <div class="text-gim-neutral-400 text-center py-8">Cargando...</div>
           </div>
         </div>
         
         <!-- Active Tickets -->
-        <div class="bg-dark-800 rounded-2xl p-6 border border-dark-600">
+        <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
           <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-semibold">🎫 Tickets Activos</h2>
-            <a href="/admin/tickets" class="text-blue-400 hover:text-blue-300 text-sm">Ver todos →</a>
+            <h2 class="text-xl font-bold text-gim-neutral-900">🎫 Tickets Activos</h2>
+            <a href="/admin/tickets" class="text-gim-orange-500 hover:text-gim-orange-600 text-sm font-semibold transition-colors">Ver todos →</a>
           </div>
           <div id="active-tickets" class="space-y-4">
-            <div class="text-gray-500 text-center py-8">Cargando...</div>
+            <div class="text-gim-neutral-400 text-center py-8">Cargando...</div>
           </div>
         </div>
       </div>
       
       <!-- Quick Actions -->
-      <div class="mt-6 bg-dark-800 rounded-2xl p-6 border border-dark-600">
-        <h2 class="text-xl font-semibold mb-6">⚡ Acciones Rápidas</h2>
+      <div class="mt-6 bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+        <h2 class="text-xl font-bold text-gim-neutral-900 mb-6">⚡ Acciones Rápidas</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <a href="/admin/agents" class="gradient-border rounded-xl p-4 flex items-center gap-4 card-hover">
-            <div class="w-12 h-12 gradient-bg rounded-xl flex items-center justify-center">
+            <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
               <span class="text-2xl">🤖</span>
             </div>
             <div>
-              <div class="font-medium">Nuevo Agente</div>
-              <div class="text-sm text-gray-400">Crear agente IA</div>
+              <div class="font-semibold text-gim-neutral-900">Nuevo Agente</div>
+              <div class="text-sm text-gim-neutral-500">Crear agente IA</div>
             </div>
           </a>
           
           <a href="/admin/knowledge" class="gradient-border rounded-xl p-4 flex items-center gap-4 card-hover">
-            <div class="w-12 h-12 gradient-bg rounded-xl flex items-center justify-center">
+            <div class="w-12 h-12 bg-gradient-cyan rounded-xl flex items-center justify-center shadow-lg shadow-gim-cyan-500/15">
               <span class="text-2xl">📚</span>
             </div>
             <div>
-              <div class="font-medium">Agregar Documento</div>
-              <div class="text-sm text-gray-400">Base de conocimiento</div>
+              <div class="font-semibold text-gim-neutral-900">Agregar Documento</div>
+              <div class="text-sm text-gim-neutral-500">Base de conocimiento</div>
             </div>
           </a>
           
           <a href="/admin/campaigns" class="gradient-border rounded-xl p-4 flex items-center gap-4 card-hover">
-            <div class="w-12 h-12 gradient-bg rounded-xl flex items-center justify-center">
+            <div class="w-12 h-12 bg-gradient-purple rounded-xl flex items-center justify-center shadow-lg shadow-gim-purple-500/15">
               <span class="text-2xl">📢</span>
             </div>
             <div>
-              <div class="font-medium">Nueva Campaña</div>
-              <div class="text-sm text-gray-400">Enviar mensajes</div>
+              <div class="font-semibold text-gim-neutral-900">Nueva Campaña</div>
+              <div class="text-sm text-gim-neutral-500">Enviar mensajes</div>
             </div>
           </a>
         </div>
@@ -445,31 +575,31 @@ admin.get('/', async (c) => {
       
       <!-- System Status -->
       <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="bg-dark-800 rounded-2xl p-6 border border-dark-600">
+        <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
           <div class="flex items-center gap-3 mb-4">
             <span class="w-3 h-3 bg-green-500 rounded-full pulse-dot"></span>
-            <h3 class="font-medium">Sistema</h3>
+            <h3 class="font-semibold text-gim-neutral-900">Sistema</h3>
           </div>
-          <div class="text-2xl font-bold text-green-400">Operativo</div>
-          <div class="text-sm text-gray-400 mt-1">99.9% uptime</div>
+          <div class="text-2xl font-extrabold text-green-500">Operativo</div>
+          <div class="text-sm text-gim-neutral-500 mt-1">99.9% uptime</div>
         </div>
         
-        <div class="bg-dark-800 rounded-2xl p-6 border border-dark-600">
+        <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
           <div class="flex items-center gap-3 mb-4">
-            <span class="w-3 h-3 bg-blue-500 rounded-full pulse-dot"></span>
-            <h3 class="font-medium">Modelo IA</h3>
+            <span class="w-3 h-3 bg-gim-orange-500 rounded-full pulse-dot"></span>
+            <h3 class="font-semibold text-gim-neutral-900">Modelo IA</h3>
           </div>
-          <div class="text-2xl font-bold gradient-text">Llama 3.1 8B</div>
-          <div class="text-sm text-gray-400 mt-1">Cloudflare Workers AI</div>
+          <div class="text-2xl font-extrabold text-gradient-orange">Llama 3.1 8B</div>
+          <div class="text-sm text-gim-neutral-500 mt-1">Cloudflare Workers AI</div>
         </div>
         
-        <div class="bg-dark-800 rounded-2xl p-6 border border-dark-600">
+        <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
           <div class="flex items-center gap-3 mb-4">
-            <span class="w-3 h-3 bg-purple-500 rounded-full pulse-dot"></span>
-            <h3 class="font-medium">Base de Datos</h3>
+            <span class="w-3 h-3 bg-gim-cyan-500 rounded-full pulse-dot"></span>
+            <h3 class="font-semibold text-gim-neutral-900">Base de Datos</h3>
           </div>
-          <div class="text-2xl font-bold text-purple-400">D1</div>
-          <div class="text-sm text-gray-400 mt-1">SQLite en edge</div>
+          <div class="text-2xl font-extrabold text-gradient-cyan">D1</div>
+          <div class="text-sm text-gim-neutral-500 mt-1">SQLite en edge</div>
         </div>
       </div>
       
@@ -493,23 +623,23 @@ admin.get('/', async (c) => {
             const data = await res.json();
             const container = document.getElementById('recent-conversations');
             if (data.length === 0) {
-              container.innerHTML = '<div class="text-gray-500 text-center py-8">No hay conversaciones recientes</div>';
+              container.innerHTML = '<div class="text-gim-neutral-400 text-center py-8">No hay conversaciones recientes</div>';
               return;
             }
             container.innerHTML = data.map(c => 
-              '<div class="flex items-center justify-between p-4 bg-dark-700 rounded-xl card-hover">' +
+              '<div class="flex items-center justify-between p-4 bg-gim-neutral-50 rounded-xl card-hover border border-gim-neutral-100">' +
                 '<div class="flex items-center gap-4">' +
-                  '<div class="w-10 h-10 gradient-bg rounded-lg flex items-center justify-center">' +
+                  '<div class="w-10 h-10 bg-gradient-orange rounded-lg flex items-center justify-center">' +
                     '<span class="text-lg">' + (c.channel === 'telegram' ? '📱' : c.channel === 'whatsapp' ? '💬' : '🌐') + '</span>' +
                   '</div>' +
                   '<div>' +
-                    '<div class="font-medium">' + (c.user_name || 'Anónimo') + '</div>' +
-                    '<div class="text-sm text-gray-400">' + c.channel + ' · ' + (c.intent || 'sin clasificar') + '</div>' +
+                    '<div class="font-semibold text-gim-neutral-900">' + (c.user_name || 'Anónimo') + '</div>' +
+                    '<div class="text-sm text-gim-neutral-500">' + c.channel + ' · ' + (c.intent || 'sin clasificar') + '</div>' +
                   '</div>' +
                 '</div>' +
-                '<span class="px-3 py-1 rounded-full text-xs ' + 
-                  (c.status === 'active' ? 'bg-green-900/50 text-green-300' : 
-                   c.status === 'escalated' ? 'bg-yellow-900/50 text-yellow-300' : 'bg-gray-700 text-gray-300') + 
+                '<span class="px-3 py-1 rounded-full text-xs font-medium ' + 
+                  (c.status === 'active' ? 'bg-green-100 text-green-600' : 
+                   c.status === 'escalated' ? 'bg-gim-orange-100 text-gim-orange-600' : 'bg-gim-neutral-100 text-gim-neutral-600') + 
                 '">' + c.status + '</span>' +
               '</div>'
             ).join('');
@@ -524,17 +654,17 @@ admin.get('/', async (c) => {
             const data = await res.json();
             const container = document.getElementById('active-tickets');
             if (data.length === 0) {
-              container.innerHTML = '<div class="text-gray-500 text-center py-8">No hay tickets activos 🎉</div>';
+              container.innerHTML = '<div class="text-gim-neutral-400 text-center py-8">No hay tickets activos 🎉</div>';
               return;
             }
             container.innerHTML = data.map(t => 
-              '<div class="p-4 bg-dark-700 rounded-xl card-hover">' +
-                '<div class="font-medium mb-2">' + t.title + '</div>' +
+              '<div class="p-4 bg-gim-neutral-50 rounded-xl card-hover border border-gim-neutral-100">' +
+                '<div class="font-semibold text-gim-neutral-900 mb-2">' + t.title + '</div>' +
                 '<div class="flex items-center justify-between">' +
-                  '<span class="text-sm text-gray-400">' + t.category + '</span>' +
-                  '<span class="px-3 py-1 rounded-full text-xs ' + 
-                    (t.priority === 3 ? 'bg-red-900/50 text-red-300' : 
-                     t.priority === 2 ? 'bg-orange-900/50 text-orange-300' : 'bg-gray-700 text-gray-300') + 
+                  '<span class="text-sm text-gim-neutral-500">' + t.category + '</span>' +
+                  '<span class="px-3 py-1 rounded-full text-xs font-medium ' + 
+                    (t.priority === 3 ? 'bg-red-100 text-red-600' : 
+                     t.priority === 2 ? 'bg-gim-orange-100 text-gim-orange-600' : 'bg-gim-neutral-100 text-gim-neutral-600') + 
                   '">' + ['Baja', 'Media', 'Alta', 'Urgente'][t.priority] + '</span>' +
                 '</div>' +
               '</div>'
@@ -561,38 +691,43 @@ admin.get('/conversations', async (c) => {
   const limit = 20;
   const offset = (page - 1) * limit;
   
-  const { results: conversations } = await c.env.DB.prepare(
-    `SELECT c.*, a.name as agent_name,
-     (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id) as message_count
-     FROM conversations c 
-     LEFT JOIN agents a ON c.agent_id = a.id 
-     ORDER BY c.updated_at DESC 
-     LIMIT ? OFFSET ?`
-  ).bind(limit, offset).all<ConversationRow>();
-  
-  const totalResult = await c.env.DB.prepare(
-    'SELECT COUNT(*) as count FROM conversations'
-  ).first<{ count: number }>();
-  const total = totalResult?.count || 0;
+  let conversations: ConversationRow[] = [];
+  let total = 0;
+  try {
+    const result = await c.env.DB.prepare(
+      `SELECT c.*, a.name as agent_name,
+       (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id) as message_count
+       FROM conversations c 
+       LEFT JOIN agents a ON c.agent_id = a.id 
+       ORDER BY c.updated_at DESC 
+       LIMIT ? OFFSET ?`
+    ).bind(limit, offset).all<ConversationRow>();
+    conversations = result.results || [];
+    
+    const totalResult = await c.env.DB.prepare(
+      'SELECT COUNT(*) as count FROM conversations'
+    ).first<{ count: number }>();
+    total = totalResult?.count || 0;
+  } catch (e) { conversations = []; total = 0; }
   
   return c.html(layout('Conversaciones', 'conversations', `
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
         <div>
-          <h1 class="text-4xl font-bold mb-2">
-            <span class="gradient-text">Conversaciones</span>
+          <h1 class="text-4xl font-extrabold mb-2">
+            <span class="text-gradient-orange">Conversaciones</span>
           </h1>
-          <p class="text-gray-400">${total || 0} conversaciones totales</p>
+          <p class="text-gim-neutral-500">${total || 0} conversaciones totales</p>
         </div>
         <div class="flex gap-3">
           <input type="text" 
                  placeholder="Buscar..." 
-                 class="bg-dark-700 border border-dark-600 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
+                 class="bg-white border-2 border-gim-neutral-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors"
                  hx-get="/admin/conversations/search"
                  hx-trigger="keyup changed delay:300ms"
                  hx-target="#conversations-list"
                  name="q">
-          <select class="bg-dark-700 border border-dark-600 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-blue-500">
+          <select class="bg-white border-2 border-gim-neutral-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors">
             <option value="">Todos los canales</option>
             <option value="telegram">Telegram</option>
             <option value="whatsapp">WhatsApp</option>
@@ -603,43 +738,43 @@ admin.get('/conversations', async (c) => {
       
       <div id="conversations-list" class="space-y-4">
         ${conversations.map((c: ConversationRow) => `
-          <div class="bg-dark-800 rounded-2xl p-6 border border-dark-600 card-hover cursor-pointer"
+          <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover cursor-pointer shadow-sm"
                hx-get="/admin/conversations/${c.id}/thread"
                hx-target="#thread-panel"
                hx-swap="innerHTML">
             <div class="flex justify-between items-start">
               <div class="flex items-center gap-4">
-                <div class="w-12 h-12 gradient-bg rounded-xl flex items-center justify-center">
+                <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
                   <span class="text-xl">${c.channel === 'telegram' ? '📱' : c.channel === 'whatsapp' ? '💬' : '🌐'}</span>
                 </div>
                 <div>
-                  <div class="font-medium text-lg">${c.user_name || 'Anónimo'}</div>
-                  <div class="text-gray-400">${c.channel} · ${c.intent || 'sin clasificar'}</div>
-                  <div class="text-sm text-gray-500 mt-1">${c.message_count} mensajes · ${new Date(c.updated_at).toLocaleString()}</div>
+                  <div class="font-semibold text-lg text-gim-neutral-900">${c.user_name || 'Anónimo'}</div>
+                  <div class="text-gim-neutral-500">${c.channel} · ${c.intent || 'sin clasificar'}</div>
+                  <div class="text-sm text-gim-neutral-400 mt-1">${c.message_count} mensajes · ${new Date(c.updated_at).toLocaleString()}</div>
                 </div>
               </div>
               <div class="flex items-center gap-3">
-                <span class="px-4 py-2 rounded-full text-sm ${
-                  c.status === 'active' ? 'bg-green-900/50 text-green-300' :
-                  c.status === 'escalated' ? 'bg-yellow-900/50 text-yellow-300' :
-                  'bg-gray-700 text-gray-300'
+                <span class="px-4 py-2 rounded-full text-sm font-medium ${
+                  c.status === 'active' ? 'bg-green-100 text-green-600' :
+                  c.status === 'escalated' ? 'bg-gim-orange-100 text-gim-orange-600' :
+                  'bg-gim-neutral-100 text-gim-neutral-600'
                 }">${c.status}</span>
-                ${(c.priority || 0) > 0 ? `<span class="px-4 py-2 rounded-full text-sm bg-red-900/50 text-red-300">P${c.priority}</span>` : ''}
+                ${(c.priority || 0) > 0 ? `<span class="px-4 py-2 rounded-full text-sm font-medium bg-red-100 text-red-600">P${c.priority}</span>` : ''}
               </div>
             </div>
           </div>
-        `).join('') || '<div class="text-gray-500 text-center py-12">No hay conversaciones</div>'}
+        `).join('') || '<div class="text-gim-neutral-400 text-center py-12">No hay conversaciones</div>'}
       </div>
       
       <!-- Pagination -->
       <div class="flex justify-center gap-2 mt-8">
-        ${page > 1 ? `<a href="/admin/conversations?page=${page - 1}" class="px-4 py-2 bg-dark-700 rounded-xl hover:bg-dark-600 transition">← Anterior</a>` : ''}
-        <span class="px-4 py-2 text-gray-400">Página ${page} de ${Math.ceil((total || 0) / limit)}</span>
-        ${page < Math.ceil((total || 0) / limit) ? `<a href="/admin/conversations?page=${page + 1}" class="px-4 py-2 bg-dark-700 rounded-xl hover:bg-dark-600 transition">Siguiente →</a>` : ''}
+        ${page > 1 ? `<a href="/admin/conversations?page=${page - 1}" class="px-4 py-2 bg-white border border-gim-neutral-200 rounded-xl hover:bg-gim-neutral-50 transition font-medium text-sm">← Anterior</a>` : ''}
+        <span class="px-4 py-2 text-gim-neutral-500 text-sm">Página ${page} de ${Math.ceil((total || 0) / limit)}</span>
+        ${page < Math.ceil((total || 0) / limit) ? `<a href="/admin/conversations?page=${page + 1}" class="px-4 py-2 bg-white border border-gim-neutral-200 rounded-xl hover:bg-gim-neutral-50 transition font-medium text-sm">Siguiente →</a>` : ''}
       </div>
       
       <!-- Thread Panel -->
-      <div id="thread-panel" class="fixed right-0 top-0 w-[450px] h-full bg-dark-800 border-l border-dark-600 hidden overflow-y-auto">
+      <div id="thread-panel" class="fixed right-0 top-0 w-[450px] h-full bg-white border-l border-gim-neutral-200 hidden overflow-y-auto shadow-2xl">
       </div>
     </div>
   `));
@@ -649,49 +784,56 @@ admin.get('/conversations', async (c) => {
 admin.get('/conversations/:id/thread', async (c) => {
   const id = c.req.param('id');
   
-  const conversation = await c.env.DB.prepare(
-    'SELECT * FROM conversations WHERE id = ?'
-  ).bind(id).first();
-  
-  if (!conversation) {
-    return c.html('<div class="p-6 text-red-400">Conversación no encontrada</div>');
+  let conversation: any = null;
+  let messages: MessageRow[] = [];
+  try {
+    conversation = await c.env.DB.prepare(
+      'SELECT * FROM conversations WHERE id = ?'
+    ).bind(id).first();
+    
+    if (!conversation) {
+      return c.html('<div class="p-6 text-red-500">Conversación no encontrada</div>');
+    }
+    
+    const result = await c.env.DB.prepare(
+      'SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC'
+    ).bind(id).all<MessageRow>();
+    messages = result.results || [];
+  } catch (e) {
+    return c.html('<div class="p-6 text-red-500">Error al cargar conversación</div>');
   }
-  
-  const { results: messages } = await c.env.DB.prepare(
-    'SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC'
-  ).bind(id).all<MessageRow>();
   
   return c.html(`
     <div class="p-6">
-      <div class="flex justify-between items-center mb-6 pb-6 border-b border-dark-600">
+      <div class="flex justify-between items-center mb-6 pb-6 border-b border-gim-neutral-100">
         <div class="flex items-center gap-4">
-          <div class="w-12 h-12 gradient-bg rounded-xl flex items-center justify-center">
+          <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
             <span class="text-xl">${conversation.channel === 'telegram' ? '📱' : '💬'}</span>
           </div>
           <div>
-            <div class="font-semibold text-lg">${conversation.user_name || 'Anónimo'}</div>
-            <div class="text-sm text-gray-400">${conversation.channel} · ${conversation.intent}</div>
+            <div class="font-semibold text-lg text-gim-neutral-900">${conversation.user_name || 'Anónimo'}</div>
+            <div class="text-sm text-gim-neutral-500">${conversation.channel} · ${conversation.intent}</div>
           </div>
         </div>
         <button onclick="document.getElementById('thread-panel').classList.add('hidden')" 
-                class="w-8 h-8 bg-dark-700 rounded-lg flex items-center justify-center hover:bg-dark-600 transition">
+                class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500">
           ✕
         </button>
       </div>
       
       <!-- Actions -->
       <div class="grid grid-cols-3 gap-3 mb-6">
-        <button class="gradient-bg rounded-xl py-3 px-4 font-medium hover:opacity-90 transition"
+        <button class="bg-gradient-orange rounded-xl py-3 px-4 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20"
                 hx-post="/admin/conversations/${id}/reply"
                 hx-target="#reply-status"
                 hx-vals='js:{"text": document.getElementById("reply-input").value}'>
           📤 Responder
         </button>
-        <button class="bg-dark-700 rounded-xl py-3 px-4 font-medium hover:bg-dark-600 transition border border-dark-600"
+        <button class="bg-gim-neutral-100 rounded-xl py-3 px-4 font-semibold hover:bg-gim-neutral-200 transition text-gim-neutral-700"
                 hx-post="/admin/conversations/${id}/pause">
           ⏸️ Pausar
         </button>
-        <button class="bg-red-600/20 rounded-xl py-3 px-4 font-medium hover:bg-red-600/30 transition border border-red-500/30 text-red-300"
+        <button class="bg-red-50 rounded-xl py-3 px-4 font-semibold hover:bg-red-100 transition border border-red-200 text-red-600"
                 hx-post="/admin/conversations/${id}/escalate">
           🚨 Escalar
         </button>
@@ -700,7 +842,7 @@ admin.get('/conversations/:id/thread', async (c) => {
       <!-- Reply input -->
       <div class="mb-6">
         <textarea id="reply-input" 
-                  class="w-full bg-dark-700 border border-dark-600 rounded-xl p-4 text-sm focus:outline-none focus:border-blue-500 resize-none"
+                  class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl p-4 text-sm focus:outline-none focus:border-gim-orange-400 resize-none transition-colors"
                   rows="3"
                   placeholder="Escribe tu respuesta..."></textarea>
         <div id="reply-status" class="text-sm mt-2"></div>
@@ -711,11 +853,11 @@ admin.get('/conversations/:id/thread', async (c) => {
         ${messages.map(m => `
           <div class="flex ${m.role === 'user' ? 'justify-start' : 'justify-end'}">
             <div class="max-w-[85%] rounded-2xl p-4 ${
-              m.role === 'user' ? 'bg-dark-700' :
-              m.role === 'owner' ? 'gradient-bg' :
-              'bg-dark-600'
+              m.role === 'user' ? 'bg-gim-neutral-100 text-gim-neutral-900' :
+              m.role === 'owner' ? 'bg-gradient-orange text-white' :
+              'bg-gim-neutral-200 text-gim-neutral-900'
             }">
-              <div class="text-xs text-gray-400 mb-2">${m.role} · ${new Date(m.created_at).toLocaleTimeString()}</div>
+              <div class="text-xs ${m.role === 'owner' ? 'text-white/70' : 'text-gim-neutral-500'} mb-2">${m.role} · ${new Date(m.created_at).toLocaleTimeString()}</div>
               <div class="text-sm">${m.content}</div>
             </div>
           </div>
@@ -729,57 +871,61 @@ admin.get('/conversations/:id/thread', async (c) => {
 admin.get('/tickets', async (c) => {
   const status = c.req.query('status') || 'all';
   
-  let query = `SELECT t.*, a.name as agent_name, c.user_name 
-               FROM tickets t 
-               LEFT JOIN agents a ON t.agent_id = a.id 
-               LEFT JOIN conversations c ON t.conversation_id = c.id`;
-  
-  if (status !== 'all') {
-    query += ` WHERE t.status = '${status}'`;
-  }
-  
-  query += ' ORDER BY t.priority DESC, t.created_at DESC';
-  
-  const { results: tickets } = await c.env.DB.prepare(query).all<TicketRow>();
+  let tickets: TicketRow[] = [];
+  try {
+    let query = `SELECT t.*, a.name as agent_name, c.user_name 
+                 FROM tickets t 
+                 LEFT JOIN agents a ON t.agent_id = a.id 
+                 LEFT JOIN conversations c ON t.conversation_id = c.id`;
+    
+    if (status !== 'all') {
+      query += ` WHERE t.status = '${status}'`;
+    }
+    
+    query += ' ORDER BY t.priority DESC, t.created_at DESC';
+    
+    const result = await c.env.DB.prepare(query).all<TicketRow>();
+    tickets = result.results || [];
+  } catch (e) { tickets = []; }
   
   return c.html(layout('Tickets', 'tickets', `
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
         <div>
-          <h1 class="text-4xl font-bold mb-2">
-            <span class="gradient-text">Tickets</span>
+          <h1 class="text-4xl font-extrabold mb-2">
+            <span class="text-gradient-orange">Tickets</span>
           </h1>
-          <p class="text-gray-400">Sistema de soporte con prioridades</p>
+          <p class="text-gim-neutral-500">Sistema de soporte con prioridades</p>
         </div>
         <div class="flex gap-2">
-          <a href="/admin/tickets?status=all" class="px-4 py-2 rounded-xl text-sm ${status === 'all' ? 'gradient-bg' : 'bg-dark-700 hover:bg-dark-600'} transition">Todos</a>
-          <a href="/admin/tickets?status=new" class="px-4 py-2 rounded-xl text-sm ${status === 'new' ? 'gradient-bg' : 'bg-dark-700 hover:bg-dark-600'} transition">Nuevos</a>
-          <a href="/admin/tickets?status=in_progress" class="px-4 py-2 rounded-xl text-sm ${status === 'in_progress' ? 'gradient-bg' : 'bg-dark-700 hover:bg-dark-600'} transition">En Progreso</a>
-          <a href="/admin/tickets?status=resolved" class="px-4 py-2 rounded-xl text-sm ${status === 'resolved' ? 'gradient-bg' : 'bg-dark-700 hover:bg-dark-600'} transition">Resueltos</a>
+          <a href="/admin/tickets?status=all" class="px-4 py-2 rounded-xl text-sm font-medium ${status === 'all' ? 'bg-gradient-orange text-white shadow-lg shadow-gim-orange-500/20' : 'bg-white border border-gim-neutral-200 text-gim-neutral-700 hover:bg-gim-neutral-50'} transition">Todos</a>
+          <a href="/admin/tickets?status=new" class="px-4 py-2 rounded-xl text-sm font-medium ${status === 'new' ? 'bg-gradient-orange text-white shadow-lg shadow-gim-orange-500/20' : 'bg-white border border-gim-neutral-200 text-gim-neutral-700 hover:bg-gim-neutral-50'} transition">Nuevos</a>
+          <a href="/admin/tickets?status=in_progress" class="px-4 py-2 rounded-xl text-sm font-medium ${status === 'in_progress' ? 'bg-gradient-orange text-white shadow-lg shadow-gim-orange-500/20' : 'bg-white border border-gim-neutral-200 text-gim-neutral-700 hover:bg-gim-neutral-50'} transition">En Progreso</a>
+          <a href="/admin/tickets?status=resolved" class="px-4 py-2 rounded-xl text-sm font-medium ${status === 'resolved' ? 'bg-gradient-orange text-white shadow-lg shadow-gim-orange-500/20' : 'bg-white border border-gim-neutral-200 text-gim-neutral-700 hover:bg-gim-neutral-50'} transition">Resueltos</a>
         </div>
       </div>
       
       <div class="space-y-4">
         ${tickets.map((t: TicketRow) => `
-          <div class="bg-dark-800 rounded-2xl p-6 border border-dark-600 card-hover">
+          <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
             <div class="flex justify-between items-start">
               <div class="flex-1">
-                <div class="font-semibold text-lg mb-2">${t.title}</div>
-                <div class="text-gray-400 mb-4">${t.description || 'Sin descripción'}</div>
+                <div class="font-semibold text-lg text-gim-neutral-900 mb-2">${t.title}</div>
+                <div class="text-gim-neutral-500 mb-4">${t.description || 'Sin descripción'}</div>
                 <div class="flex gap-3">
-                  <span class="px-3 py-1 rounded-full text-xs bg-dark-700">${t.category || 'general'}</span>
-                  <span class="px-3 py-1 rounded-full text-xs bg-dark-700">${t.agent_name || 'N/A'}</span>
-                  <span class="text-xs text-gray-500">${new Date(t.created_at).toLocaleString()}</span>
+                  <span class="px-3 py-1 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600">${t.category || 'general'}</span>
+                  <span class="px-3 py-1 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600">${t.agent_name || 'N/A'}</span>
+                  <span class="text-xs text-gim-neutral-400">${new Date(t.created_at).toLocaleString()}</span>
                 </div>
               </div>
               <div class="flex items-center gap-4">
-                <span class="px-4 py-2 rounded-full text-sm ${
-                  t.priority === 3 ? 'bg-red-900/50 text-red-300' :
-                  t.priority === 2 ? 'bg-orange-900/50 text-orange-300' :
-                  t.priority === 1 ? 'bg-yellow-900/50 text-yellow-300' :
-                  'bg-dark-700 text-gray-300'
+                <span class="px-4 py-2 rounded-full text-sm font-medium ${
+                  t.priority === 3 ? 'bg-red-100 text-red-600' :
+                  t.priority === 2 ? 'bg-gim-orange-100 text-gim-orange-600' :
+                  t.priority === 1 ? 'bg-yellow-100 text-yellow-600' :
+                  'bg-gim-neutral-100 text-gim-neutral-600'
                 }">${['Baja', 'Media', 'Alta', 'Urgente'][t.priority] || 'Baja'}</span>
-                <select class="bg-dark-700 border border-dark-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                <select class="bg-white border-2 border-gim-neutral-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors"
                         hx-post="/admin/tickets/${t.id}/status"
                         hx-vals='js:{"status": event.target.value}'>
                   <option value="new" ${t.status === 'new' ? 'selected' : ''}>Nuevo</option>
@@ -791,7 +937,7 @@ admin.get('/tickets', async (c) => {
               </div>
             </div>
           </div>
-        `).join('') || '<div class="text-gray-500 text-center py-12">No hay tickets</div>'}
+        `).join('') || '<div class="text-gim-neutral-400 text-center py-12">No hay tickets</div>'}
       </div>
     </div>
   `));
@@ -799,62 +945,66 @@ admin.get('/tickets', async (c) => {
 
 // Knowledge Base page
 admin.get('/knowledge', async (c) => {
-  const { results: documents } = await c.env.DB.prepare(
-    'SELECT * FROM knowledge_base ORDER BY updated_at DESC'
-  ).all<KnowledgeRow>();
+  let documents: KnowledgeRow[] = [];
+  try {
+    const result = await c.env.DB.prepare(
+      'SELECT * FROM knowledge_base ORDER BY updated_at DESC'
+    ).all<KnowledgeRow>();
+    documents = result.results || [];
+  } catch (e) { documents = []; }
   
   return c.html(layout('Base de Conocimiento', 'knowledge', `
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
         <div>
-          <h1 class="text-4xl font-bold mb-2">
-            <span class="gradient-text">Base de Conocimiento</span>
+          <h1 class="text-4xl font-extrabold mb-2">
+            <span class="text-gradient-orange">Base de Conocimiento</span>
           </h1>
-          <p class="text-gray-400">${documents.length} documentos indexados</p>
+          <p class="text-gim-neutral-500">${documents.length} documentos indexados</p>
         </div>
-        <button onclick="showCreateDocument()" class="gradient-bg rounded-xl px-6 py-3 font-medium hover:opacity-90 transition">
+        <button onclick="showCreateDocument()" class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
           + Nuevo Documento
         </button>
       </div>
       
       <!-- Create/Edit Form -->
-      <div id="kb-form" class="hidden bg-dark-800 rounded-2xl p-6 border border-dark-600 mb-8">
-        <h3 class="text-xl font-semibold mb-6">Nuevo Documento</h3>
+      <div id="kb-form" class="hidden bg-white rounded-2xl p-6 border border-gim-neutral-200 mb-8 shadow-sm">
+        <h3 class="text-xl font-bold text-gim-neutral-900 mb-6">Nuevo Documento</h3>
         <form hx-post="/admin/kb/save" hx-target="#kb-list" hx-swap="innerHTML">
           <input type="hidden" id="doc-id" name="id" value="">
           
           <div class="grid grid-cols-2 gap-6 mb-6">
             <div>
-              <label class="block text-sm text-gray-400 mb-2">Título</label>
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Título</label>
               <input type="text" name="title" id="doc-title" required
-                     class="w-full bg-dark-700 border border-dark-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500">
+                     class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors">
             </div>
             <div>
-              <label class="block text-sm text-gray-400 mb-2">Categoría</label>
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Categoría</label>
               <input type="text" name="category" id="doc-category"
-                     class="w-full bg-dark-700 border border-dark-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500"
+                     class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors"
                      placeholder="ej: FAQ, Productos, Políticas">
             </div>
           </div>
           
           <div class="mb-6">
-            <label class="block text-sm text-gray-400 mb-2">Contenido</label>
+            <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Contenido</label>
             <textarea name="content" id="doc-content" required rows="8"
-                      class="w-full bg-dark-700 border border-dark-600 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-blue-500"></textarea>
+                      class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-gim-orange-400 transition-colors"></textarea>
           </div>
           
           <div class="mb-6">
-            <label class="block text-sm text-gray-400 mb-2">Tags (separados por coma)</label>
+            <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Tags (separados por coma)</label>
             <input type="text" name="tags" id="doc-tags"
-                   class="w-full bg-dark-700 border border-dark-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500"
+                   class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors"
                    placeholder="precio, envío, garantía">
           </div>
           
           <div class="flex gap-3">
-            <button type="submit" class="gradient-bg rounded-xl px-6 py-3 font-medium hover:opacity-90 transition">
+            <button type="submit" class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
               💾 Guardar
             </button>
-            <button type="button" onclick="hideCreateDocument()" class="bg-dark-700 rounded-xl px-6 py-3 font-medium hover:bg-dark-600 transition border border-dark-600">
+            <button type="button" onclick="hideCreateDocument()" class="bg-gim-neutral-100 rounded-xl px-6 py-3 font-semibold hover:bg-gim-neutral-200 transition text-gim-neutral-700">
               Cancelar
             </button>
           </div>
@@ -864,28 +1014,28 @@ admin.get('/knowledge', async (c) => {
       <!-- Documents list -->
       <div id="kb-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         ${documents.map((d: KnowledgeRow) => `
-          <div class="bg-dark-800 rounded-2xl p-6 border border-dark-600 card-hover">
+          <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
             <div class="flex justify-between items-start mb-4">
-              <div class="w-10 h-10 gradient-bg rounded-lg flex items-center justify-center">
+              <div class="w-10 h-10 bg-gradient-cyan rounded-lg flex items-center justify-center">
                 <span class="text-lg">📄</span>
               </div>
               <div class="flex gap-2">
                 <button onclick="editDocument('${d.id}', '${d.title}', '${d.category || ''}', '${d.content.replace(/'/g, "\\'")}')"
-                        class="w-8 h-8 bg-dark-700 rounded-lg flex items-center justify-center hover:bg-dark-600 transition">✏️</button>
+                        class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500">✏️</button>
                 <button hx-delete="/admin/kb/${d.id}" 
                         hx-confirm="¿Eliminar este documento?"
                         hx-target="#kb-list"
-                        class="w-8 h-8 bg-dark-700 rounded-lg flex items-center justify-center hover:bg-red-600/20 transition">🗑️</button>
+                        class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-red-100 transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
               </div>
             </div>
-            <div class="font-medium mb-2">${d.title}</div>
-            <div class="text-sm text-gray-400 mb-4 line-clamp-2">${d.content.substring(0, 150)}...</div>
+            <div class="font-semibold text-gim-neutral-900 mb-2">${d.title}</div>
+            <div class="text-sm text-gim-neutral-500 mb-4 line-clamp-2">${d.content.substring(0, 150)}...</div>
             <div class="flex gap-2">
-              <span class="px-3 py-1 rounded-full text-xs bg-dark-700">${d.category || 'Sin categoría'}</span>
-              <span class="text-xs text-gray-500">${d.view_count || 0} vistas</span>
+              <span class="px-3 py-1 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600">${d.category || 'Sin categoría'}</span>
+              <span class="text-xs text-gim-neutral-400">${d.view_count || 0} vistas</span>
             </div>
           </div>
-        `).join('') || '<div class="col-span-3 text-gray-500 text-center py-12">No hay documentos. ¡Crea el primero!</div>'}
+        `).join('') || '<div class="col-span-3 text-gim-neutral-400 text-center py-12">No hay documentos. ¡Crea el primero!</div>'}
       </div>
       
       <script>
@@ -902,12 +1052,12 @@ admin.get('/knowledge', async (c) => {
           document.getElementById('kb-form').classList.add('hidden');
         }
         
-        function editDocument(id: string, title: string, category: string, content: string) {
+        function editDocument(id, title, category, content) {
           document.getElementById('kb-form').classList.remove('hidden');
-          (document.getElementById('doc-id') as HTMLInputElement).value = id;
-          (document.getElementById('doc-title') as HTMLInputElement).value = title;
-          (document.getElementById('doc-category') as HTMLInputElement).value = category;
-          (document.getElementById('doc-content') as HTMLTextAreaElement).value = content;
+          document.getElementById('doc-id').value = id;
+          document.getElementById('doc-title').value = title;
+          document.getElementById('doc-category').value = category;
+          document.getElementById('doc-content').value = content;
         }
       </script>
     </div>
@@ -918,33 +1068,37 @@ admin.get('/knowledge', async (c) => {
 admin.get('/leads', async (c) => {
   const status = c.req.query('status') || 'all';
   
-  let query = `SELECT l.*, a.name as agent_name 
-               FROM leads l 
-               LEFT JOIN agents a ON l.agent_id = a.id`;
-  
-  if (status !== 'all') {
-    query += ` WHERE l.status = '${status}'`;
-  }
-  
-  query += ' ORDER BY l.score DESC, l.created_at DESC';
-  
-  const { results: leads } = await c.env.DB.prepare(query).all<LeadRow>();
+  let leads: LeadRow[] = [];
+  try {
+    let query = `SELECT l.*, a.name as agent_name 
+                 FROM leads l 
+                 LEFT JOIN agents a ON l.agent_id = a.id`;
+    
+    if (status !== 'all') {
+      query += ` WHERE l.status = '${status}'`;
+    }
+    
+    query += ' ORDER BY l.score DESC, l.created_at DESC';
+    
+    const result = await c.env.DB.prepare(query).all<LeadRow>();
+    leads = result.results || [];
+  } catch (e) { leads = []; }
   
   return c.html(layout('Leads', 'leads', `
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
         <div>
-          <h1 class="text-4xl font-bold mb-2">
-            <span class="gradient-text">Leads</span>
+          <h1 class="text-4xl font-extrabold mb-2">
+            <span class="text-gradient-orange">Leads</span>
           </h1>
-          <p class="text-gray-400">${leads.length} leads totales</p>
+          <p class="text-gim-neutral-500">${leads.length} leads totales</p>
         </div>
         <div class="flex gap-2">
-          <a href="/admin/leads?status=all" class="px-4 py-2 rounded-xl text-sm ${status === 'all' ? 'gradient-bg' : 'bg-dark-700 hover:bg-dark-600'} transition">Todos</a>
-          <a href="/admin/leads?status=new" class="px-4 py-2 rounded-xl text-sm ${status === 'new' ? 'gradient-bg' : 'bg-dark-700 hover:bg-dark-600'} transition">Nuevos</a>
-          <a href="/admin/leads?status=contacted" class="px-4 py-2 rounded-xl text-sm ${status === 'contacted' ? 'gradient-bg' : 'bg-dark-700 hover:bg-dark-600'} transition">Contactados</a>
-          <a href="/admin/leads?status=converted" class="px-4 py-2 rounded-xl text-sm ${status === 'converted' ? 'gradient-bg' : 'bg-dark-700 hover:bg-dark-600'} transition">Convertidos</a>
-          <button class="gradient-bg rounded-xl px-4 py-2 text-sm font-medium hover:opacity-90 transition ml-4">
+          <a href="/admin/leads?status=all" class="px-4 py-2 rounded-xl text-sm font-medium ${status === 'all' ? 'bg-gradient-orange text-white shadow-lg shadow-gim-orange-500/20' : 'bg-white border border-gim-neutral-200 text-gim-neutral-700 hover:bg-gim-neutral-50'} transition">Todos</a>
+          <a href="/admin/leads?status=new" class="px-4 py-2 rounded-xl text-sm font-medium ${status === 'new' ? 'bg-gradient-orange text-white shadow-lg shadow-gim-orange-500/20' : 'bg-white border border-gim-neutral-200 text-gim-neutral-700 hover:bg-gim-neutral-50'} transition">Nuevos</a>
+          <a href="/admin/leads?status=contacted" class="px-4 py-2 rounded-xl text-sm font-medium ${status === 'contacted' ? 'bg-gradient-orange text-white shadow-lg shadow-gim-orange-500/20' : 'bg-white border border-gim-neutral-200 text-gim-neutral-700 hover:bg-gim-neutral-50'} transition">Contactados</a>
+          <a href="/admin/leads?status=converted" class="px-4 py-2 rounded-xl text-sm font-medium ${status === 'converted' ? 'bg-gradient-orange text-white shadow-lg shadow-gim-orange-500/20' : 'bg-white border border-gim-neutral-200 text-gim-neutral-700 hover:bg-gim-neutral-50'} transition">Convertidos</a>
+          <button class="bg-gradient-cyan rounded-xl px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-cyan-500/20 ml-4">
             📥 Exportar CSV
           </button>
         </div>
@@ -952,28 +1106,28 @@ admin.get('/leads', async (c) => {
       
       <div class="space-y-4">
         ${leads.map((l: LeadRow) => `
-          <div class="bg-dark-800 rounded-2xl p-6 border border-dark-600 card-hover">
+          <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
             <div class="flex justify-between items-start">
               <div class="flex items-center gap-4">
-                <div class="w-12 h-12 gradient-bg rounded-xl flex items-center justify-center">
+                <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
                   <span class="text-xl">👤</span>
                 </div>
                 <div>
-                  <div class="font-medium text-lg">${l.name || 'Anónimo'}</div>
-                  <div class="text-gray-400">${l.interest || 'Sin interés definido'}</div>
+                  <div class="font-semibold text-lg text-gim-neutral-900">${l.name || 'Anónimo'}</div>
+                  <div class="text-gim-neutral-500">${l.interest || 'Sin interés definido'}</div>
                   <div class="flex gap-2 mt-2">
-                    ${l.phone ? `<span class="px-3 py-1 rounded-full text-xs bg-dark-700">📱 ${l.phone}</span>` : ''}
-                    ${l.email ? `<span class="px-3 py-1 rounded-full text-xs bg-dark-700">📧 ${l.email}</span>` : ''}
-                    <span class="text-xs text-gray-500">${new Date(l.created_at).toLocaleString()}</span>
+                    ${l.phone ? `<span class="px-3 py-1 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600">📱 ${l.phone}</span>` : ''}
+                    ${l.email ? `<span class="px-3 py-1 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600">📧 ${l.email}</span>` : ''}
+                    <span class="text-xs text-gim-neutral-400">${new Date(l.created_at).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
               <div class="flex items-center gap-6">
                 <div class="text-right">
-                  <div class="text-3xl font-bold gradient-text">${l.score}</div>
-                  <div class="text-xs text-gray-500">Score</div>
+                  <div class="text-3xl font-extrabold text-gradient-orange">${l.score}</div>
+                  <div class="text-xs text-gim-neutral-400">Score</div>
                 </div>
-                <select class="bg-dark-700 border border-dark-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                <select class="bg-white border-2 border-gim-neutral-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors"
                         hx-post="/admin/leads/${l.id}/status"
                         hx-vals='js:{"status": event.target.value}'>
                   <option value="new" ${l.status === 'new' ? 'selected' : ''}>Nuevo</option>
@@ -985,7 +1139,7 @@ admin.get('/leads', async (c) => {
               </div>
             </div>
           </div>
-        `).join('') || '<div class="text-gray-500 text-center py-12">No hay leads</div>'}
+        `).join('') || '<div class="text-gim-neutral-400 text-center py-12">No hay leads</div>'}
       </div>
     </div>
   `));
@@ -993,61 +1147,265 @@ admin.get('/leads', async (c) => {
 
 // Agents page
 admin.get('/agents', async (c) => {
-  const { results: agents } = await c.env.DB.prepare(
-    'SELECT * FROM agents ORDER BY created_at DESC'
-  ).all<AgentRow>();
+  let agents: AgentRow[] = [];
+  let kbDocs: KnowledgeRow[] = [];
+  try {
+    const result = await c.env.DB.prepare(
+      'SELECT * FROM agents ORDER BY created_at DESC'
+    ).all<AgentRow>();
+    agents = result.results || [];
+  } catch (e) { agents = []; }
+  try {
+    const result = await c.env.DB.prepare(
+      'SELECT * FROM knowledge_base ORDER BY updated_at DESC'
+    ).all<KnowledgeRow>();
+    kbDocs = result.results || [];
+  } catch (e) { kbDocs = []; }
   
   return c.html(layout('Agentes', 'agents', `
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
         <div>
-          <h1 class="text-4xl font-bold mb-2">
-            <span class="gradient-text">Agentes</span>
+          <h1 class="text-4xl font-extrabold mb-2">
+            <span class="text-gradient-orange">Agentes</span>
           </h1>
-          <p class="text-gray-400">${agents.length} agentes configurados</p>
+          <p class="text-gim-neutral-500">${agents.length} agentes configurados</p>
         </div>
-        <button class="gradient-bg rounded-xl px-6 py-3 font-medium hover:opacity-90 transition">
+        <button onclick="showCreateAgent()" class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
           + Nuevo Agente
         </button>
       </div>
       
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Create/Edit Agent Form -->
+      <div id="agent-form" class="hidden bg-white rounded-2xl p-8 border border-gim-neutral-200 mb-8 shadow-sm">
+        <h3 id="agent-form-title" class="text-xl font-bold text-gim-neutral-900 mb-6">Nuevo Agente</h3>
+        <form hx-post="/admin/agents/save" hx-target="#agent-list" hx-swap="innerHTML">
+          <input type="hidden" id="agent-id" name="id" value="">
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div>
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Nombre</label>
+              <input type="text" name="name" id="agent-name" required
+                     class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors"
+                     placeholder="Ej: Soporte General">
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Tipo</label>
+              <select name="type" id="agent-type" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors">
+                <option value="general">General</option>
+                <option value="ventas">Ventas</option>
+                <option value="soporte">Soporte</option>
+                <option value="reservas">Reservas</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Modelo</label>
+              <select name="model" id="agent-model" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors">
+                <option value="@cf/meta/llama-3.1-8b-instruct-fp8">Llama 3.1 8B</option>
+                <option value="@cf/meta/llama-3.2-3b-instruct">Llama 3.2 3B (Rápido)</option>
+                <option value="@cf/meta/llama-3.3-70b-instruct-fp8-fast">Llama 3.3 70B (Mejor)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Temperatura</label>
+              <input type="number" name="temperature" id="agent-temperature" step="0.1" min="0" max="1" value="0.7"
+                     class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors">
+            </div>
+          </div>
+          
+          <div class="mb-6">
+            <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Descripción</label>
+            <input type="text" name="description" id="agent-description"
+                   class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors"
+                   placeholder="Breve descripción del agente">
+          </div>
+          
+          <div class="mb-6">
+            <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">System Prompt</label>
+            <textarea name="system_prompt" id="agent-system-prompt" rows="5" required
+                      class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-gim-orange-400 transition-colors"
+                      placeholder="Instrucciones del agente..."></textarea>
+          </div>
+          
+          <div class="flex gap-3">
+            <button type="submit" class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
+              💾 Guardar
+            </button>
+            <button type="button" onclick="hideAgentForm()" class="bg-gim-neutral-100 rounded-xl px-6 py-3 font-semibold hover:bg-gim-neutral-200 transition text-gim-neutral-700">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+      
+      <!-- Agent cards -->
+      <div id="agent-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         ${agents.map((a: AgentRow) => `
-          <div class="bg-dark-800 rounded-2xl p-6 border border-dark-600 card-hover">
+          <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
             <div class="flex justify-between items-start mb-4">
-              <div class="w-14 h-14 gradient-bg rounded-xl flex items-center justify-center">
+              <div class="w-14 h-14 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
                 <span class="text-2xl">🤖</span>
               </div>
-              <span class="px-3 py-1 rounded-full text-xs ${a.is_active ? 'bg-green-900/50 text-green-300' : 'bg-red-900/50 text-red-300'}">
+              <span class="px-3 py-1 rounded-full text-xs font-medium ${a.is_active ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}">
                 ${a.is_active ? 'Activo' : 'Inactivo'}
               </span>
             </div>
             
-            <div class="font-semibold text-lg mb-2">${a.name}</div>
-            <div class="text-gray-400 text-sm mb-4">${a.description || 'Sin descripción'}</div>
+            <div class="font-semibold text-lg text-gim-neutral-900 mb-2">${a.name}</div>
+            <div class="text-gim-neutral-500 text-sm mb-4">${a.description || 'Sin descripción'}</div>
             
             <div class="space-y-3 mb-6">
               <div class="flex justify-between text-sm">
-                <span class="text-gray-500">Tipo</span>
-                <span class="px-3 py-1 rounded-full text-xs bg-dark-700">${a.type}</span>
+                <span class="text-gim-neutral-500">Tipo</span>
+                <span class="px-3 py-1 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600">${a.type}</span>
               </div>
               <div class="flex justify-between text-sm">
-                <span class="text-gray-500">Modelo</span>
-                <span class="text-xs font-mono">${a.model.split('/').pop()}</span>
+                <span class="text-gim-neutral-500">Modelo</span>
+                <span class="text-xs font-mono text-gim-neutral-700">${a.model.split('/').pop()}</span>
               </div>
               <div class="flex justify-between text-sm">
-                <span class="text-gray-500">Temperatura</span>
-                <span>${a.temperature}</span>
+                <span class="text-gim-neutral-500">Temperatura</span>
+                <span class="text-gim-neutral-700">${a.temperature}</span>
               </div>
             </div>
             
+            <!-- KB Link -->
+            <div class="mb-4">
+              <button onclick="showKBModal('${a.id}', '${a.name}')" class="w-full bg-gim-cyan-50 hover:bg-gim-cyan-100 border border-gim-cyan-200 rounded-xl py-2 text-sm font-semibold text-gim-cyan-600 transition">
+                📚 Base de Conocimiento
+              </button>
+            </div>
+            
             <div class="flex gap-3">
-              <button class="flex-1 bg-dark-700 hover:bg-dark-600 rounded-xl py-2 text-sm transition border border-dark-600">✏️ Editar</button>
-              <button class="bg-dark-700 hover:bg-red-600/20 rounded-xl py-2 px-4 text-sm transition border border-dark-600">🗑️</button>
+              <button onclick="editAgent('${a.id}', '${a.name}', '${a.type}', '${a.model}', ${a.temperature}, '${(a.description || '').replace(/'/g, "\\'")}', \`${(a.system_prompt || '').replace(/`/g, '\\`')}\`)" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">✏️ Editar</button>
+              <button hx-delete="/admin/agents/${a.id}" hx-confirm="¿Eliminar este agente?" hx-target="#agent-list" hx-swap="innerHTML" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
             </div>
           </div>
-        `).join('') || '<div class="col-span-3 text-gray-500 text-center py-12">No hay agentes configurados</div>'}
+        `).join('') || '<div class="col-span-3 text-gim-neutral-400 text-center py-12">No hay agentes configurados</div>'}
       </div>
+      
+      <!-- KB Modal -->
+      <div id="kb-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="hideKBModal()"></div>
+        <div class="relative bg-white rounded-2xl p-8 w-full max-w-2xl mx-4 shadow-2xl border border-gim-neutral-200 max-h-[80vh] overflow-y-auto">
+          <div class="flex justify-between items-center mb-6">
+            <div>
+              <h3 class="text-xl font-bold text-gim-neutral-900">Base de Conocimiento</h3>
+              <p id="kb-agent-name" class="text-sm text-gim-neutral-500"></p>
+            </div>
+            <button onclick="hideKBModal()" class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500">✕</button>
+          </div>
+          
+          <div id="kb-linked-list" class="mb-6">
+            <div class="text-sm text-gim-neutral-400">Cargando documentos vinculados...</div>
+          </div>
+          
+          <div class="border-t border-gim-neutral-100 pt-6">
+            <h4 class="text-sm font-semibold text-gim-neutral-700 mb-3">Vincular documento existente</h4>
+            <div id="kb-available-list" class="space-y-2">
+              <div class="text-sm text-gim-neutral-400">Cargando documentos...</div>
+            </div>
+          </div>
+          
+          <div class="border-t border-gim-neutral-100 pt-6 mt-6">
+            <h4 class="text-sm font-semibold text-gim-neutral-700 mb-3">Crear nuevo documento</h4>
+            <form hx-post="/admin/agents/kb/link" hx-target="#kb-linked-list" hx-swap="innerHTML">
+              <input type="hidden" name="agent_id" id="kb-modal-agent-id">
+              <div class="grid grid-cols-2 gap-4 mb-4">
+                <input type="text" name="title" placeholder="Título" required
+                       class="bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors">
+                <input type="text" name="category" placeholder="Categoría"
+                       class="bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors">
+              </div>
+              <textarea name="content" rows="3" placeholder="Contenido del documento..." required
+                        class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors mb-4"></textarea>
+              <button type="submit" class="bg-gradient-cyan rounded-xl px-5 py-2.5 font-semibold text-white text-sm hover:opacity-90 transition shadow-lg shadow-gim-cyan-500/20">
+                📚 Crear y Vincular
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+      
+      <script>
+        function showCreateAgent() {
+          document.getElementById('agent-form').classList.remove('hidden');
+          document.getElementById('agent-form-title').textContent = 'Nuevo Agente';
+          document.getElementById('agent-id').value = '';
+          document.getElementById('agent-name').value = '';
+          document.getElementById('agent-type').value = 'general';
+          document.getElementById('agent-model').value = '@cf/meta/llama-3.1-8b-instruct-fp8';
+          document.getElementById('agent-temperature').value = '0.7';
+          document.getElementById('agent-description').value = '';
+          document.getElementById('agent-system-prompt').value = '';
+          document.getElementById('agent-form').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function editAgent(id, name, type, model, temperature, description, systemPrompt) {
+          document.getElementById('agent-form').classList.remove('hidden');
+          document.getElementById('agent-form-title').textContent = 'Editar Agente';
+          document.getElementById('agent-id').value = id;
+          document.getElementById('agent-name').value = name;
+          document.getElementById('agent-type').value = type;
+          document.getElementById('agent-model').value = model;
+          document.getElementById('agent-temperature').value = temperature;
+          document.getElementById('agent-description').value = description;
+          document.getElementById('agent-system-prompt').value = systemPrompt;
+          document.getElementById('agent-form').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function hideAgentForm() {
+          document.getElementById('agent-form').classList.add('hidden');
+        }
+        
+        async function showKBModal(agentId, agentName) {
+          document.getElementById('kb-modal').classList.remove('hidden');
+          document.getElementById('kb-modal-agent-id').value = agentId;
+          document.getElementById('kb-agent-name').textContent = 'Agente: ' + agentName;
+          
+          // Load linked docs
+          try {
+            const res = await fetch('/admin/api/agents/' + agentId + '/kb');
+            const linked = await res.json();
+            const linkedHtml = linked.length > 0 ? linked.map(d =>
+              '<div class="flex items-center justify-between p-3 bg-gim-cyan-50 rounded-xl border border-gim-cyan-200">' +
+                '<div>' +
+                  '<div class="font-semibold text-sm text-gim-neutral-900">' + d.title + '</div>' +
+                  '<div class="text-xs text-gim-neutral-500">' + (d.category || 'Sin categoría') + '</div>' +
+                '</div>' +
+                '<button hx-delete="/admin/agents/' + agentId + '/kb/' + d.id + '" hx-target="#kb-linked-list" hx-swap="innerHTML" hx-confirm="¿Desvincular documento?" class="text-red-500 hover:text-red-600 text-sm font-medium">✕</button>' +
+              '</div>'
+            ).join('') : '<div class="text-sm text-gim-neutral-400 text-center py-4">No hay documentos vinculados</div>';
+            document.getElementById('kb-linked-list').innerHTML = linkedHtml;
+            htmx.process(document.getElementById('kb-linked-list'));
+          } catch (e) {
+            document.getElementById('kb-linked-list').innerHTML = '<div class="text-sm text-gim-neutral-400">No hay documentos vinculados</div>';
+          }
+          
+          // Load available docs
+          try {
+            const res = await fetch('/admin/api/kb');
+            const allDocs = await res.json();
+            const availHtml = allDocs.length > 0 ? allDocs.map(d =>
+              '<div class="flex items-center justify-between p-3 bg-gim-neutral-50 rounded-xl border border-gim-neutral-200">' +
+                '<div>' +
+                  '<div class="font-semibold text-sm text-gim-neutral-900">' + d.title + '</div>' +
+                  '<div class="text-xs text-gim-neutral-500">' + (d.category || 'Sin categoría') + '</div>' +
+                '</div>' +
+                '<button hx-post="/admin/agents/' + agentId + '/kb/attach/' + d.id + '" hx-target="#kb-linked-list" hx-swap="innerHTML" class="bg-gim-cyan-500 hover:bg-gim-cyan-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition">Vincular</button>' +
+              '</div>'
+            ).join('') : '<div class="text-sm text-gim-neutral-400 text-center py-4">No hay documentos disponibles</div>';
+            document.getElementById('kb-available-list').innerHTML = availHtml;
+            htmx.process(document.getElementById('kb-available-list'));
+          } catch (e) {
+            document.getElementById('kb-available-list').innerHTML = '<div class="text-sm text-gim-neutral-400">No hay documentos disponibles</div>';
+          }
+        }
+        
+        function hideKBModal() {
+          document.getElementById('kb-modal').classList.add('hidden');
+        }
+      </script>
     </div>
   `));
 });
@@ -1057,33 +1415,33 @@ admin.get('/insights', async (c) => {
   return c.html(layout('Insights', 'insights', `
     <div class="fade-in">
       <div class="mb-8">
-        <h1 class="text-4xl font-bold mb-2">
-          <span class="gradient-text">Insights</span>
+        <h1 class="text-4xl font-extrabold mb-2">
+          <span class="text-gradient-orange">Insights</span>
         </h1>
-        <p class="text-gray-400">Analytics y métricas de rendimiento</p>
+        <p class="text-gim-neutral-500">Analytics y métricas de rendimiento</p>
       </div>
       
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="stat-card rounded-2xl p-6">
-          <div class="text-gray-400 text-sm mb-2">Satisfacción Promedio</div>
-          <div class="text-4xl font-bold text-green-400">85%</div>
-          <div class="text-sm text-gray-500 mt-2">↑ 3% vs mes anterior</div>
+        <div class="stat-card-green rounded-2xl p-6">
+          <div class="text-gim-neutral-500 text-sm mb-2">Satisfacción Promedio</div>
+          <div class="text-4xl font-extrabold text-green-500">85%</div>
+          <div class="text-sm text-gim-neutral-400 mt-2">↑ 3% vs mes anterior</div>
         </div>
-        <div class="stat-card rounded-2xl p-6">
-          <div class="text-gray-400 text-sm mb-2">Tiempo Promedio de Respuesta</div>
-          <div class="text-4xl font-bold gradient-text">2.3s</div>
-          <div class="text-sm text-gray-500 mt-2">↓ 0.5s vs mes anterior</div>
+        <div class="stat-card-orange rounded-2xl p-6">
+          <div class="text-gim-neutral-500 text-sm mb-2">Tiempo Promedio de Respuesta</div>
+          <div class="text-4xl font-extrabold text-gradient-orange">2.3s</div>
+          <div class="text-sm text-gim-neutral-400 mt-2">↓ 0.5s vs mes anterior</div>
         </div>
-        <div class="stat-card rounded-2xl p-6">
-          <div class="text-gray-400 text-sm mb-2">Resolución sin Escalar</div>
-          <div class="text-4xl font-bold text-purple-400">78%</div>
-          <div class="text-sm text-gray-500 mt-2">↑ 5% vs mes anterior</div>
+        <div class="stat-card-cyan rounded-2xl p-6">
+          <div class="text-gim-neutral-500 text-sm mb-2">Resolución sin Escalar</div>
+          <div class="text-4xl font-extrabold text-gradient-cyan">78%</div>
+          <div class="text-sm text-gim-neutral-400 mt-2">↑ 5% vs mes anterior</div>
         </div>
       </div>
       
-      <div class="bg-dark-800 rounded-2xl p-8 border border-dark-600">
-        <h2 class="text-xl font-semibold mb-6">📈 Tendencias (Últimos 7 días)</h2>
-        <div class="h-64 flex items-center justify-center text-gray-500">
+      <div class="bg-white rounded-2xl p-8 border border-gim-neutral-200 shadow-sm">
+        <h2 class="text-xl font-bold text-gim-neutral-900 mb-6">📈 Tendencias (Últimos 7 días)</h2>
+        <div class="h-64 flex items-center justify-center text-gim-neutral-400">
           <div class="text-center">
             <div class="text-4xl mb-4">📊</div>
             <div>Gráfico de tendencias (próximamente)</div>
@@ -1100,20 +1458,20 @@ admin.get('/campaigns', async (c) => {
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
         <div>
-          <h1 class="text-4xl font-bold mb-2">
-            <span class="gradient-text">Campañas</span>
+          <h1 class="text-4xl font-extrabold mb-2">
+            <span class="text-gradient-orange">Campañas</span>
           </h1>
-          <p class="text-gray-400">Envío masivo de mensajes</p>
+          <p class="text-gim-neutral-500">Envío masivo de mensajes</p>
         </div>
-        <button class="gradient-bg rounded-xl px-6 py-3 font-medium hover:opacity-90 transition">
+        <button class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
           + Nueva Campaña
         </button>
       </div>
       
-      <div class="bg-dark-800 rounded-2xl p-12 border border-dark-600 text-center">
+      <div class="bg-white rounded-2xl p-12 border border-gim-neutral-200 text-center shadow-sm">
         <div class="text-6xl mb-6">🚧</div>
-        <h2 class="text-2xl font-semibold mb-4">Próximamente</h2>
-        <p class="text-gray-400 max-w-md mx-auto">El sistema de campañas estará disponible en la próxima versión. Permite enviar mensajes masivos por WhatsApp y Telegram.</p>
+        <h2 class="text-2xl font-bold text-gim-neutral-900 mb-4">Próximamente</h2>
+        <p class="text-gim-neutral-500 max-w-md mx-auto">El sistema de campañas estará disponible en la próxima versión. Permite enviar mensajes masivos por WhatsApp y Telegram.</p>
       </div>
     </div>
   `));
@@ -1121,16 +1479,20 @@ admin.get('/campaigns', async (c) => {
 
 // Costs page
 admin.get('/costs', async (c) => {
-  const { results: usage } = await c.env.DB.prepare(
-    `SELECT date(created_at) as date, 
-     SUM(tokens_input) as input_tokens,
-     SUM(tokens_output) as output_tokens,
-     SUM(cost_usd) as cost
-     FROM usage_logs 
-     WHERE created_at > datetime('now', '-30 days')
-     GROUP BY date(created_at)
-     ORDER BY date DESC`
-  ).all<UsageRow>();
+  let usage: UsageRow[] = [];
+  try {
+    const result = await c.env.DB.prepare(
+      `SELECT date(created_at) as date, 
+       SUM(tokens_input) as input_tokens,
+       SUM(tokens_output) as output_tokens,
+       SUM(cost_usd) as cost
+       FROM usage_logs 
+       WHERE created_at > datetime('now', '-30 days')
+       GROUP BY date(created_at)
+       ORDER BY date DESC`
+    ).all<UsageRow>();
+    usage = result.results || [];
+  } catch (e) { usage = []; }
   
   const totalCost = usage.reduce((sum: number, u: UsageRow) => sum + (u.cost || 0), 0);
   const totalTokens = usage.reduce((sum: number, u: UsageRow) => sum + (u.input_tokens || 0) + (u.output_tokens || 0), 0);
@@ -1138,40 +1500,40 @@ admin.get('/costs', async (c) => {
   return c.html(layout('Costos', 'costs', `
     <div class="fade-in">
       <div class="mb-8">
-        <h1 class="text-4xl font-bold mb-2">
-          <span class="gradient-text">Costos</span>
+        <h1 class="text-4xl font-extrabold mb-2">
+          <span class="text-gradient-orange">Costos</span>
         </h1>
-        <p class="text-gray-400">Tracking de uso y costos de IA</p>
+        <p class="text-gim-neutral-500">Tracking de uso y costos de IA</p>
       </div>
       
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="stat-card rounded-2xl p-6">
-          <div class="text-gray-400 text-sm mb-2">Costo Total (30 días)</div>
-          <div class="text-4xl font-bold text-green-400">$${totalCost.toFixed(4)}</div>
+        <div class="stat-card-green rounded-2xl p-6">
+          <div class="text-gim-neutral-500 text-sm mb-2">Costo Total (30 días)</div>
+          <div class="text-4xl font-extrabold text-green-500">$${totalCost.toFixed(4)}</div>
         </div>
-        <div class="stat-card rounded-2xl p-6">
-          <div class="text-gray-400 text-sm mb-2">Tokens Totales</div>
-          <div class="text-4xl font-bold gradient-text">${(totalTokens / 1000).toFixed(1)}K</div>
+        <div class="stat-card-orange rounded-2xl p-6">
+          <div class="text-gim-neutral-500 text-sm mb-2">Tokens Totales</div>
+          <div class="text-4xl font-extrabold text-gradient-orange">${(totalTokens / 1000).toFixed(1)}K</div>
         </div>
-        <div class="stat-card rounded-2xl p-6">
-          <div class="text-gray-400 text-sm mb-2">Proyección Mensual</div>
-          <div class="text-4xl font-bold text-purple-400">$${((totalCost / 30) * 30).toFixed(2)}</div>
+        <div class="stat-card-cyan rounded-2xl p-6">
+          <div class="text-gim-neutral-500 text-sm mb-2">Proyección Mensual</div>
+          <div class="text-4xl font-extrabold text-gradient-cyan">$${((totalCost / 30) * 30).toFixed(2)}</div>
         </div>
       </div>
       
-      <div class="bg-dark-800 rounded-2xl p-6 border border-dark-600">
-        <h2 class="text-xl font-semibold mb-6">📊 Uso Diario</h2>
+      <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+        <h2 class="text-xl font-bold text-gim-neutral-900 mb-6">📊 Uso Diario</h2>
         <div class="space-y-3">
           ${usage.slice(0, 10).map((u: UsageRow) => `
-            <div class="flex justify-between items-center py-4 px-4 bg-dark-700 rounded-xl">
-              <span class="font-medium">${u.date}</span>
+            <div class="flex justify-between items-center py-4 px-4 bg-gim-neutral-50 rounded-xl border border-gim-neutral-100">
+              <span class="font-semibold text-gim-neutral-900">${u.date}</span>
               <div class="flex gap-6 text-sm">
-                <span class="text-gray-400">${((u.input_tokens || 0) / 1000).toFixed(1)}K in</span>
-                <span class="text-gray-400">${((u.output_tokens || 0) / 1000).toFixed(1)}K out</span>
-                <span class="text-green-400 font-medium">$${(u.cost || 0).toFixed(4)}</span>
+                <span class="text-gim-neutral-500">${((u.input_tokens || 0) / 1000).toFixed(1)}K in</span>
+                <span class="text-gim-neutral-500">${((u.output_tokens || 0) / 1000).toFixed(1)}K out</span>
+                <span class="text-green-500 font-semibold">$${(u.cost || 0).toFixed(4)}</span>
               </div>
             </div>
-          `).join('') || '<div class="text-gray-500 text-center py-8">No hay datos de uso</div>'}
+          `).join('') || '<div class="text-gim-neutral-400 text-center py-8">No hay datos de uso</div>'}
         </div>
       </div>
     </div>
@@ -1180,60 +1542,64 @@ admin.get('/costs', async (c) => {
 
 // Config page
 admin.get('/config', async (c) => {
-  const { results: settings } = await c.env.DB.prepare(
-    'SELECT * FROM config ORDER BY category, key'
-  ).all();
+  let settings: any[] = [];
+  try {
+    const result = await c.env.DB.prepare(
+      'SELECT * FROM config ORDER BY category, key'
+    ).all();
+    settings = result.results || [];
+  } catch (e) { settings = []; }
   
   return c.html(layout('Configuración', 'config', `
     <div class="fade-in">
       <div class="mb-8">
-        <h1 class="text-4xl font-bold mb-2">
-          <span class="gradient-text">Configuración</span>
+        <h1 class="text-4xl font-extrabold mb-2">
+          <span class="text-gradient-orange">Configuración</span>
         </h1>
-        <p class="text-gray-400">Ajustes generales del bot</p>
+        <p class="text-gim-neutral-500">Ajustes generales del bot</p>
       </div>
       
-      <div class="bg-dark-800 rounded-2xl p-8 border border-dark-600">
-        <h2 class="text-xl font-semibold mb-6">Configuración General</h2>
+      <div class="bg-white rounded-2xl p-8 border border-gim-neutral-200 shadow-sm">
+        <h2 class="text-xl font-bold text-gim-neutral-900 mb-6">Configuración General</h2>
         
         <form hx-post="/admin/config/save" hx-swap="none">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
-              <label class="block text-sm text-gray-400 mb-2">Nombre del Bot</label>
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Nombre del Bot</label>
               <input type="text" name="bot_name" value="${settings.find((s: any) => s.key === 'bot_name')?.value || 'WorkerIAGO'}"
-                     class="w-full bg-dark-700 border border-dark-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500">
+                     class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors">
             </div>
             <div>
-              <label class="block text-sm text-gray-400 mb-2">Idioma</label>
-              <select name="language" class="w-full bg-dark-700 border border-dark-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500">
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Idioma</label>
+              <select name="language" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors">
                 <option value="es" selected>Español</option>
                 <option value="en">English</option>
                 <option value="pt">Português</option>
               </select>
             </div>
             <div>
-              <label class="block text-sm text-gray-400 mb-2">Modelo por Defecto</label>
-              <select name="default_model" class="w-full bg-dark-700 border border-dark-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500">
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Modelo por Defecto</label>
+              <select name="default_model" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors">
                 <option value="@cf/meta/llama-3.1-8b-instruct-fp8" selected>Llama 3.1 8B</option>
                 <option value="@cf/meta/llama-3.2-3b-instruct">Llama 3.2 3B (Rápido)</option>
                 <option value="@cf/meta/llama-3.3-70b-instruct-fp8-fast">Llama 3.3 70B (Mejor)</option>
               </select>
             </div>
             <div>
-              <label class="block text-sm text-gray-400 mb-2">Temperatura</label>
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Temperatura</label>
               <input type="number" name="temperature" step="0.1" min="0" max="1"
                      value="${settings.find((s: any) => s.key === 'temperature')?.value || '0.7'}"
-                     class="w-full bg-dark-700 border border-dark-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500">
+                     class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors">
             </div>
           </div>
           
           <div class="mb-6">
-            <label class="block text-sm text-gray-400 mb-2">System Prompt por Defecto</label>
+            <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">System Prompt por Defecto</label>
             <textarea name="system_prompt" rows="4"
-                      class="w-full bg-dark-700 border border-dark-600 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-blue-500">${settings.find((s: any) => s.key === 'system_prompt')?.value || 'Eres un asistente útil y amigable.'}</textarea>
+                      class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-gim-orange-400 transition-colors">${settings.find((s: any) => s.key === 'system_prompt')?.value || 'Eres un asistente útil y amigable.'}</textarea>
           </div>
           
-          <button type="submit" class="gradient-bg rounded-xl px-6 py-3 font-medium hover:opacity-90 transition">
+          <button type="submit" class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
             💾 Guardar Configuración
           </button>
         </form>
@@ -1245,70 +1611,83 @@ admin.get('/config', async (c) => {
 // API Routes
 
 admin.get('/api/stats', async (c) => {
-  const [conversations, leads, messages, agents, tickets, usage] = await Promise.all([
-    c.env.DB.prepare('SELECT COUNT(*) as count FROM conversations WHERE created_at > datetime("now", "-24 hours")').first(),
-    c.env.DB.prepare('SELECT COUNT(*) as count FROM leads WHERE created_at > datetime("now", "-24 hours")').first(),
-    c.env.DB.prepare('SELECT COUNT(*) as count FROM messages WHERE created_at > datetime("now", "-24 hours")').first(),
-    c.env.DB.prepare('SELECT COUNT(*) as count FROM agents WHERE is_active = 1').first(),
-    c.env.DB.prepare('SELECT COUNT(*) as count FROM tickets WHERE status IN ("new", "in_progress")').first(),
-    c.env.DB.prepare('SELECT SUM(cost_usd) as cost FROM usage_logs WHERE created_at > datetime("now", "-24 hours")').first(),
-  ]);
+  try {
+    const [conversations, leads, messages, agents, tickets, usage] = await Promise.all([
+      c.env.DB.prepare('SELECT COUNT(*) as count FROM conversations WHERE created_at > datetime("now", "-24 hours")').first(),
+      c.env.DB.prepare('SELECT COUNT(*) as count FROM leads WHERE created_at > datetime("now", "-24 hours")').first(),
+      c.env.DB.prepare('SELECT COUNT(*) as count FROM messages WHERE created_at > datetime("now", "-24 hours")').first(),
+      c.env.DB.prepare('SELECT COUNT(*) as count FROM agents WHERE is_active = 1').first(),
+      c.env.DB.prepare('SELECT COUNT(*) as count FROM tickets WHERE status IN ("new", "in_progress")').first(),
+      c.env.DB.prepare('SELECT SUM(cost_usd) as cost FROM usage_logs WHERE created_at > datetime("now", "-24 hours")').first(),
+    ]);
 
-  return c.json({
-    conversations_24h: (conversations as any)?.count || 0,
-    leads_24h: (leads as any)?.count || 0,
-    messages_24h: (messages as any)?.count || 0,
-    active_agents: (agents as any)?.count || 0,
-    open_tickets: (tickets as any)?.count || 0,
-    cost_24h: (usage as any)?.cost || 0,
-  });
+    return c.json({
+      conversations_24h: (conversations as any)?.count || 0,
+      leads_24h: (leads as any)?.count || 0,
+      messages_24h: (messages as any)?.count || 0,
+      active_agents: (agents as any)?.count || 0,
+      open_tickets: (tickets as any)?.count || 0,
+      cost_24h: (usage as any)?.cost || 0,
+    });
+  } catch (e) {
+    return c.json({ conversations_24h: 0, leads_24h: 0, messages_24h: 0, active_agents: 0, open_tickets: 0, cost_24h: 0 });
+  }
 });
 
 admin.get('/api/conversations', async (c) => {
-  const limit = parseInt(c.req.query('limit') || '50');
-  const { results } = await c.env.DB.prepare(
-    `SELECT c.*, a.name as agent_name,
-     (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id) as message_count
-     FROM conversations c 
-     LEFT JOIN agents a ON c.agent_id = a.id 
-     ORDER BY c.updated_at DESC 
-     LIMIT ?`
-  ).bind(limit).all();
-  return c.json(results);
+  try {
+    const limit = parseInt(c.req.query('limit') || '50');
+    const { results } = await c.env.DB.prepare(
+      `SELECT c.*, a.name as agent_name,
+       (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id) as message_count
+       FROM conversations c 
+       LEFT JOIN agents a ON c.agent_id = a.id 
+       ORDER BY c.updated_at DESC 
+       LIMIT ?`
+    ).bind(limit).all();
+    return c.json(results || []);
+  } catch (e) { return c.json([]); }
 });
 
 admin.get('/api/tickets', async (c) => {
-  const status = c.req.query('status');
-  let query = 'SELECT * FROM tickets';
-  if (status && status !== 'all') {
-    query += ` WHERE status = '${status}'`;
-  }
-  query += ' ORDER BY priority DESC, created_at DESC';
-  
-  const { results } = await c.env.DB.prepare(query).all();
-  return c.json(results);
+  try {
+    const status = c.req.query('status');
+    let query = 'SELECT * FROM tickets';
+    if (status && status !== 'all') {
+      query += ` WHERE status = '${status}'`;
+    }
+    query += ' ORDER BY priority DESC, created_at DESC';
+    const { results } = await c.env.DB.prepare(query).all();
+    return c.json(results || []);
+  } catch (e) { return c.json([]); }
 });
 
 admin.get('/api/leads', async (c) => {
-  const limit = parseInt(c.req.query('limit') || '50');
-  const { results } = await c.env.DB.prepare(
-    'SELECT * FROM leads ORDER BY score DESC LIMIT ?'
-  ).bind(limit).all();
-  return c.json(results);
+  try {
+    const limit = parseInt(c.req.query('limit') || '50');
+    const { results } = await c.env.DB.prepare(
+      'SELECT * FROM leads ORDER BY score DESC LIMIT ?'
+    ).bind(limit).all();
+    return c.json(results || []);
+  } catch (e) { return c.json([]); }
 });
 
 admin.get('/api/kb', async (c) => {
-  const { results } = await c.env.DB.prepare(
-    'SELECT * FROM knowledge_base ORDER BY updated_at DESC'
-  ).all();
-  return c.json(results);
+  try {
+    const { results } = await c.env.DB.prepare(
+      'SELECT * FROM knowledge_base ORDER BY updated_at DESC'
+    ).all();
+    return c.json(results || []);
+  } catch (e) { return c.json([]); }
 });
 
 admin.get('/api/agents', async (c) => {
-  const { results } = await c.env.DB.prepare(
-    'SELECT * FROM agents ORDER BY created_at DESC'
-  ).all();
-  return c.json(results);
+  try {
+    const { results } = await c.env.DB.prepare(
+      'SELECT * FROM agents ORDER BY created_at DESC'
+    ).all();
+    return c.json(results || []);
+  } catch (e) { return c.json([]); }
 });
 
 admin.post('/admin/kb/save', async (c) => {
@@ -1361,7 +1740,7 @@ admin.post('/admin/conversations/:id/reply', async (c) => {
   const text = String(form.get('text') || '').trim();
   
   if (!text) {
-    return c.html('<span class="text-red-400">Escribe un mensaje</span>');
+    return c.html('<span class="text-red-500">Escribe un mensaje</span>');
   }
   
   const conversation = await c.env.DB.prepare(
@@ -1369,7 +1748,7 @@ admin.post('/admin/conversations/:id/reply', async (c) => {
   ).bind(id).first() as any;
   
   if (!conversation) {
-    return c.html('<span class="text-red-400">Conversación no encontrada</span>');
+    return c.html('<span class="text-red-500">Conversación no encontrada</span>');
   }
   
   await c.env.DB.prepare(
@@ -1380,7 +1759,7 @@ admin.post('/admin/conversations/:id/reply', async (c) => {
     'UPDATE conversations SET updated_at = datetime("now") WHERE id = ?'
   ).bind(id).run();
   
-  return c.html('<span class="text-green-400">✓ Mensaje enviado</span>');
+  return c.html('<span class="text-green-500 font-medium">✓ Mensaje enviado</span>');
 });
 
 admin.post('/admin/conversations/:id/pause', async (c) => {
@@ -1433,6 +1812,1218 @@ admin.post('/admin/config/save', async (c) => {
   }
   
   return c.redirect('/admin/config?saved=1');
+});
+
+// --- Agent CRUD + KB Linking ---
+
+admin.post('/admin/agents/save', async (c) => {
+  const form = await c.req.formData();
+  const id = form.get('id') as string;
+  const name = form.get('name') as string;
+  const type = form.get('type') as string;
+  const model = form.get('model') as string;
+  const temperature = parseFloat(form.get('temperature') as string) || 0.7;
+  const description = form.get('description') as string;
+  const systemPrompt = form.get('system_prompt') as string;
+
+  try {
+    if (id) {
+      await c.env.DB.prepare(
+        `UPDATE agents SET name=?, type=?, model=?, temperature=?, description=?, system_prompt=?, updated_at=datetime('now') WHERE id=?`
+      ).bind(name, type, model, temperature, description, systemPrompt, id).run();
+    } else {
+      const newId = crypto.randomUUID();
+      await c.env.DB.prepare(
+        `INSERT INTO agents (id, name, type, model, temperature, description, system_prompt, is_active)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1)`
+      ).bind(newId, name, type, model, temperature, description, systemPrompt).run();
+    }
+  } catch (e) {
+    console.error('Error saving agent:', e);
+  }
+
+  const agents = (await c.env.DB.prepare('SELECT * FROM agents ORDER BY created_at DESC').all<AgentRow>()).results || [];
+  let html = agents.map((a: AgentRow) => `
+    <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
+      <div class="flex justify-between items-start mb-4">
+        <div class="w-14 h-14 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
+          <span class="text-2xl">🤖</span>
+        </div>
+        <span class="px-3 py-1 rounded-full text-xs font-medium ${a.is_active ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}">
+          ${a.is_active ? 'Activo' : 'Inactivo'}
+        </span>
+      </div>
+      <div class="font-semibold text-lg text-gim-neutral-900 mb-2">${a.name}</div>
+      <div class="text-gim-neutral-500 text-sm mb-4">${a.description || 'Sin descripción'}</div>
+      <div class="space-y-3 mb-6">
+        <div class="flex justify-between text-sm">
+          <span class="text-gim-neutral-500">Tipo</span>
+          <span class="px-3 py-1 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600">${a.type}</span>
+        </div>
+        <div class="flex justify-between text-sm">
+          <span class="text-gim-neutral-500">Modelo</span>
+          <span class="text-xs font-mono text-gim-neutral-700">${a.model.split('/').pop()}</span>
+        </div>
+        <div class="flex justify-between text-sm">
+          <span class="text-gim-neutral-500">Temperatura</span>
+          <span class="text-gim-neutral-700">${a.temperature}</span>
+        </div>
+      </div>
+      <div class="mb-4">
+        <button onclick="showKBModal('${a.id}', '${a.name}')" class="w-full bg-gim-cyan-50 hover:bg-gim-cyan-100 border border-gim-cyan-200 rounded-xl py-2 text-sm font-semibold text-gim-cyan-600 transition">
+          📚 Base de Conocimiento
+        </button>
+      </div>
+      <div class="flex gap-3">
+        <button onclick="editAgent('${a.id}', '${a.name}', '${a.type}', '${a.model}', ${a.temperature}, '${(a.description || '').replace(/'/g, "\\'")}', \`${(a.system_prompt || '').replace(/`/g, '\\`')}\`)" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">✏️ Editar</button>
+        <button hx-delete="/admin/agents/${a.id}" hx-confirm="¿Eliminar este agente?" hx-target="#agent-list" hx-swap="innerHTML" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+  if (!html) html = '<div class="col-span-3 text-gim-neutral-400 text-center py-12">No hay agentes configurados</div>';
+
+  c.header('Content-Type', 'text/html');
+  return c.body(html);
+});
+
+admin.delete('/admin/agents/:id', async (c) => {
+  const id = c.req.param('id');
+  try {
+    await c.env.DB.prepare('DELETE FROM agents WHERE id=?').bind(id).run();
+  } catch (e) { /* ignore */ }
+  
+  const agents = (await c.env.DB.prepare('SELECT * FROM agents ORDER BY created_at DESC').all<AgentRow>()).results || [];
+  let html = agents.map((a: AgentRow) => `
+    <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
+      <div class="flex justify-between items-start mb-4">
+        <div class="w-14 h-14 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
+          <span class="text-2xl">🤖</span>
+        </div>
+        <span class="px-3 py-1 rounded-full text-xs font-medium ${a.is_active ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}">
+          ${a.is_active ? 'Activo' : 'Inactivo'}
+        </span>
+      </div>
+      <div class="font-semibold text-lg text-gim-neutral-900 mb-2">${a.name}</div>
+      <div class="text-gim-neutral-500 text-sm mb-4">${a.description || 'Sin descripción'}</div>
+      <div class="space-y-3 mb-6">
+        <div class="flex justify-between text-sm">
+          <span class="text-gim-neutral-500">Tipo</span>
+          <span class="px-3 py-1 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600">${a.type}</span>
+        </div>
+        <div class="flex justify-between text-sm">
+          <span class="text-gim-neutral-500">Modelo</span>
+          <span class="text-xs font-mono text-gim-neutral-700">${a.model.split('/').pop()}</span>
+        </div>
+        <div class="flex justify-between text-sm">
+          <span class="text-gim-neutral-500">Temperatura</span>
+          <span class="text-gim-neutral-700">${a.temperature}</span>
+        </div>
+      </div>
+      <div class="mb-4">
+        <button onclick="showKBModal('${a.id}', '${a.name}')" class="w-full bg-gim-cyan-50 hover:bg-gim-cyan-100 border border-gim-cyan-200 rounded-xl py-2 text-sm font-semibold text-gim-cyan-600 transition">
+          📚 Base de Conocimiento
+        </button>
+      </div>
+      <div class="flex gap-3">
+        <button onclick="editAgent('${a.id}', '${a.name}', '${a.type}', '${a.model}', ${a.temperature}, '${(a.description || '').replace(/'/g, "\\'")}', \`${(a.system_prompt || '').replace(/`/g, '\\`')}\`)" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">✏️ Editar</button>
+        <button hx-delete="/admin/agents/${a.id}" hx-confirm="¿Eliminar este agente?" hx-target="#agent-list" hx-swap="innerHTML" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+  if (!html) html = '<div class="col-span-3 text-gim-neutral-400 text-center py-12">No hay agentes configurados</div>';
+
+  c.header('Content-Type', 'text/html');
+  return c.body(html);
+});
+
+admin.get('/admin/api/agents/:id/kb', async (c) => {
+  const agentId = c.req.param('id');
+  try {
+    const result = await c.env.DB.prepare(`
+      SELECT kb.* FROM knowledge_base kb
+      JOIN agent_knowledge ak ON kb.id = ak.kb_id
+      WHERE ak.agent_id = ?
+    `).bind(agentId).all<KnowledgeRow>();
+    return c.json(result.results || []);
+  } catch (e) {
+    return c.json([]);
+  }
+});
+
+admin.post('/admin/agents/:id/kb/attach/:kbId', async (c) => {
+  const agentId = c.req.param('id');
+  const kbId = c.req.param('kbId');
+  try {
+    await c.env.DB.prepare(
+      `INSERT OR IGNORE INTO agent_knowledge (agent_id, kb_id) VALUES (?, ?)`
+    ).bind(agentId, kbId).run();
+  } catch (e) {
+    // Table may not exist yet — create it
+    try {
+      await c.env.DB.prepare(`CREATE TABLE IF NOT EXISTS agent_knowledge (
+        agent_id TEXT NOT NULL, kb_id TEXT NOT NULL,
+        PRIMARY KEY (agent_id, kb_id)
+      )`).run();
+      await c.env.DB.prepare(
+        `INSERT OR IGNORE INTO agent_knowledge (agent_id, kb_id) VALUES (?, ?)`
+      ).bind(agentId, kbId).run();
+    } catch (e2) { console.error('KB attach error:', e2); }
+  }
+
+  // Return updated linked list
+  try {
+    const result = await c.env.DB.prepare(`
+      SELECT kb.* FROM knowledge_base kb
+      JOIN agent_knowledge ak ON kb.id = ak.kb_id
+      WHERE ak.agent_id = ?
+    `).bind(agentId).all<KnowledgeRow>();
+    const linked = result.results || [];
+    const html = linked.length > 0 ? linked.map((d: KnowledgeRow) =>
+      `<div class="flex items-center justify-between p-3 bg-gim-cyan-50 rounded-xl border border-gim-cyan-200">
+        <div><div class="font-semibold text-sm text-gim-neutral-900">${d.title}</div><div class="text-xs text-gim-neutral-500">${d.category || 'Sin categoría'}</div></div>
+        <button hx-delete="/admin/agents/${agentId}/kb/${d.id}" hx-target="#kb-linked-list" hx-swap="innerHTML" hx-confirm="¿Desvincular?" class="text-red-500 hover:text-red-600 text-sm font-medium">✕</button>
+      </div>`
+    ).join('') : '<div class="text-sm text-gim-neutral-400 text-center py-4">No hay documentos vinculados</div>';
+    c.header('Content-Type', 'text/html');
+    return c.body(html);
+  } catch (e) {
+    c.header('Content-Type', 'text/html');
+    return c.body('<div class="text-sm text-gim-neutral-400 text-center py-4">No hay documentos vinculados</div>');
+  }
+});
+
+admin.delete('/admin/agents/:agentId/kb/:kbId', async (c) => {
+  const agentId = c.req.param('agentId');
+  const kbId = c.req.param('kbId');
+  try {
+    await c.env.DB.prepare('DELETE FROM agent_knowledge WHERE agent_id=? AND kb_id=?').bind(agentId, kbId).run();
+  } catch (e) { /* ignore */ }
+
+  try {
+    const result = await c.env.DB.prepare(`
+      SELECT kb.* FROM knowledge_base kb
+      JOIN agent_knowledge ak ON kb.id = ak.kb_id
+      WHERE ak.agent_id = ?
+    `).bind(agentId).all<KnowledgeRow>();
+    const linked = result.results || [];
+    const html = linked.length > 0 ? linked.map((d: KnowledgeRow) =>
+      `<div class="flex items-center justify-between p-3 bg-gim-cyan-50 rounded-xl border border-gim-cyan-200">
+        <div><div class="font-semibold text-sm text-gim-neutral-900">${d.title}</div><div class="text-xs text-gim-neutral-500">${d.category || 'Sin categoría'}</div></div>
+        <button hx-delete="/admin/agents/${agentId}/kb/${d.id}" hx-target="#kb-linked-list" hx-swap="innerHTML" hx-confirm="¿Desvincular?" class="text-red-500 hover:text-red-600 text-sm font-medium">✕</button>
+      </div>`
+    ).join('') : '<div class="text-sm text-gim-neutral-400 text-center py-4">No hay documentos vinculados</div>';
+    c.header('Content-Type', 'text/html');
+    return c.body(html);
+  } catch (e) {
+    c.header('Content-Type', 'text/html');
+    return c.body('<div class="text-sm text-gim-neutral-400 text-center py-4">No hay documentos vinculados</div>');
+  }
+});
+
+admin.post('/admin/agents/kb/link', async (c) => {
+  const form = await c.req.formData();
+  const agentId = form.get('agent_id') as string;
+  const title = form.get('title') as string;
+  const category = form.get('category') as string;
+  const content = form.get('content') as string;
+
+  try {
+    const kbId = crypto.randomUUID();
+    await c.env.DB.prepare(
+      `INSERT INTO knowledge_base (id, title, content, category) VALUES (?, ?, ?, ?)`
+    ).bind(kbId, title, content, category || null).run();
+
+    try {
+      await c.env.DB.prepare(
+        `INSERT OR IGNORE INTO agent_knowledge (agent_id, kb_id) VALUES (?, ?)`
+      ).bind(agentId, kbId).run();
+    } catch (e) {
+      await c.env.DB.prepare(`CREATE TABLE IF NOT EXISTS agent_knowledge (
+        agent_id TEXT NOT NULL, kb_id TEXT NOT NULL,
+        PRIMARY KEY (agent_id, kb_id)
+      )`).run();
+      await c.env.DB.prepare(
+        `INSERT OR IGNORE INTO agent_knowledge (agent_id, kb_id) VALUES (?, ?)`
+      ).bind(agentId, kbId).run();
+    }
+  } catch (e) {
+    console.error('KB link error:', e);
+  }
+
+  // Return updated linked list
+  try {
+    const result = await c.env.DB.prepare(`
+      SELECT kb.* FROM knowledge_base kb
+      JOIN agent_knowledge ak ON kb.id = ak.kb_id
+      WHERE ak.agent_id = ?
+    `).bind(agentId).all<KnowledgeRow>();
+    const linked = result.results || [];
+    const html = linked.length > 0 ? linked.map((d: KnowledgeRow) =>
+      `<div class="flex items-center justify-between p-3 bg-gim-cyan-50 rounded-xl border border-gim-cyan-200">
+        <div><div class="font-semibold text-sm text-gim-neutral-900">${d.title}</div><div class="text-xs text-gim-neutral-500">${d.category || 'Sin categoría'}</div></div>
+        <button hx-delete="/admin/agents/${agentId}/kb/${d.id}" hx-target="#kb-linked-list" hx-swap="innerHTML" hx-confirm="¿Desvincular?" class="text-red-500 hover:text-red-600 text-sm font-medium">✕</button>
+      </div>`
+    ).join('') : '<div class="text-sm text-gim-neutral-400 text-center py-4">No hay documentos vinculados</div>';
+    c.header('Content-Type', 'text/html');
+    return c.body(html);
+  } catch (e) {
+    c.header('Content-Type', 'text/html');
+    return c.body('<div class="text-sm text-gim-neutral-400 text-center py-4">Error al cargar</div>');
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// KNOWLEDGE BASE — RAG Management
+// ═══════════════════════════════════════════════════════════════════════════════
+
+admin.get('/knowledge', async (c) => {
+  let docs: any[] = [];
+  let agents: any[] = [];
+  try {
+    docs = (await c.env.DB.prepare('SELECT * FROM knowledge_base ORDER BY updated_at DESC').all()).results || [];
+  } catch (e) { docs = []; }
+  try {
+    agents = (await c.env.DB.prepare('SELECT id, name FROM agents ORDER BY name').all()).results || [];
+  } catch (e) { agents = []; }
+
+  return c.html(layout('Knowledge Base', 'knowledge', `
+    <div class="fade-in">
+      <div class="flex justify-between items-center mb-8">
+        <div>
+          <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-cyan">Knowledge Base</span></h1>
+          <p class="text-gim-neutral-500">${docs.length} documentos indexados para RAG</p>
+        </div>
+        <button onclick="showUploadModal()" class="bg-gradient-cyan rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-cyan-500/20">
+          + Subir Documento
+        </button>
+      </div>
+
+      <!-- Search -->
+      <div class="mb-8">
+        <div class="flex gap-4">
+          <input type="text" id="kb-search-input" placeholder="Buscar en la base de conocimiento..."
+                 class="flex-1 bg-white border-2 border-gim-neutral-200 rounded-xl px-5 py-3 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors"
+                 onkeyup="if(event.key==='Enter')searchKB()">
+          <button onclick="searchKB()" class="bg-gim-cyan-500 hover:bg-gim-cyan-600 text-white rounded-xl px-6 py-3 font-semibold transition">🔍 Buscar</button>
+        </div>
+        <div id="kb-search-results" class="hidden mt-4 bg-white rounded-2xl border border-gim-neutral-200 p-6 shadow-sm">
+          <h3 class="text-sm font-semibold text-gim-neutral-700 mb-3">Resultados de búsqueda semántica</h3>
+          <div id="kb-search-list"></div>
+        </div>
+      </div>
+
+      <!-- Documents Grid -->
+      <div id="kb-docs-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        ${docs.map((d: any) => `
+          <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
+            <div class="flex justify-between items-start mb-4">
+              <div class="w-12 h-12 bg-gradient-cyan rounded-xl flex items-center justify-center shadow-lg shadow-gim-cyan-500/15">
+                <span class="text-xl">📄</span>
+              </div>
+              <span class="px-3 py-1 rounded-full text-xs font-medium ${d.is_published ? 'bg-green-100 text-green-600' : 'bg-gim-neutral-100 text-gim-neutral-500'}">
+                ${d.is_published ? 'Publicado' : 'Borrador'}
+              </span>
+            </div>
+            <div class="font-semibold text-gim-neutral-900 mb-1">${d.title}</div>
+            <div class="text-gim-neutral-500 text-sm mb-3">${d.description || d.content_preview?.slice(0, 100) || 'Sin contenido'}</div>
+            <div class="flex items-center gap-2 mb-4">
+              <span class="px-2 py-0.5 rounded-full text-xs bg-gim-cyan-50 text-gim-cyan-600">${d.category || 'general'}</span>
+              <span class="text-xs text-gim-neutral-400">${d.chunk_count || 0} chunks</span>
+              ${d.source_type === 'file' ? '<span class="text-xs text-gim-neutral-400">📁 Archivo</span>' : ''}
+              ${d.source_type === 'url' ? '<span class="text-xs text-gim-neutral-400">🔗 URL</span>' : ''}
+            </div>
+            <div class="flex gap-2">
+              <button onclick="viewKBDoc('${d.id}')" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">👁️ Ver</button>
+              <button onclick="reindexKBDoc('${d.id}')" class="bg-gim-cyan-50 hover:bg-gim-cyan-100 rounded-xl py-2 px-3 text-sm transition text-gim-cyan-600" title="Re-indexar">🔄</button>
+              <button onclick="deleteKBDoc('${d.id}')" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-3 text-sm transition text-gim-neutral-500 hover:text-red-500" title="Eliminar">🗑️</button>
+            </div>
+          </div>
+        `).join('') || '<div class="col-span-3 text-gim-neutral-400 text-center py-12">No hay documentos. Sube tu primer documento para empezar con RAG.</div>'}
+      </div>
+
+      <!-- Upload Modal -->
+      <div id="upload-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="hideUploadModal()"></div>
+        <div class="relative bg-white rounded-2xl p-8 w-full max-w-xl mx-4 shadow-2xl border border-gim-neutral-200">
+          <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-bold text-gim-neutral-900">Subir Documento</h3>
+            <button onclick="hideUploadModal()" class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500">✕</button>
+          </div>
+
+          <div class="flex gap-2 mb-6">
+            <button onclick="showTab('upload-file')" id="tab-file" class="flex-1 py-2 text-sm font-semibold rounded-xl bg-gim-cyan-500 text-white transition">📁 Archivo</button>
+            <button onclick="showTab('upload-url')" id="tab-url" class="flex-1 py-2 text-sm font-semibold rounded-xl bg-gim-neutral-100 text-gim-neutral-600 transition">🔗 URL</button>
+            <button onclick="showTab('upload-text')" id="tab-text" class="flex-1 py-2 text-sm font-semibold rounded-xl bg-gim-neutral-100 text-gim-neutral-600 transition">📝 Texto</button>
+          </div>
+
+          <!-- File Upload -->
+          <div id="upload-file" class="upload-tab">
+            <form hx-post="/admin/knowledge/upload" hx-target="#kb-docs-grid" hx-swap="innerHTML" enctype="multipart/form-data">
+              <div class="mb-4">
+                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Título</label>
+                <input type="text" name="title" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors" placeholder="Nombre del documento">
+              </div>
+              <div class="mb-4">
+                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Categoría</label>
+                <input type="text" name="category" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors" placeholder="ej: productos, FAQ, políticas">
+              </div>
+              <div class="mb-4">
+                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Archivo</label>
+                <input type="file" name="file" accept=".txt,.md,.html,.csv,.json" required
+                       class="w-full bg-gim-neutral-50 border-2 border-dashed border-gim-neutral-300 rounded-xl px-4 py-6 text-sm text-center cursor-pointer hover:border-gim-cyan-400 transition-colors">
+                <p class="text-xs text-gim-neutral-400 mt-2">TXT, MD, HTML, CSV, JSON (max 5MB)</p>
+              </div>
+              <button type="submit" class="w-full bg-gradient-cyan rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">📤 Subir y Procesar</button>
+            </form>
+          </div>
+
+          <!-- URL Import -->
+          <div id="upload-url" class="upload-tab hidden">
+            <form hx-post="/admin/knowledge/import-url" hx-target="#kb-docs-grid" hx-swap="innerHTML">
+              <div class="mb-4">
+                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Título</label>
+                <input type="text" name="title" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors">
+              </div>
+              <div class="mb-4">
+                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">URL</label>
+                <input type="url" name="url" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors" placeholder="https://...">
+              </div>
+              <div class="mb-4">
+                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Categoría</label>
+                <input type="text" name="category" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors">
+              </div>
+              <button type="submit" class="w-full bg-gradient-cyan rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">🔗 Importar y Procesar</button>
+            </form>
+          </div>
+
+          <!-- Text Input -->
+          <div id="upload-text" class="upload-tab hidden">
+            <form hx-post="/admin/knowledge/save-text" hx-target="#kb-docs-grid" hx-swap="innerHTML">
+              <div class="mb-4">
+                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Título</label>
+                <input type="text" name="title" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors">
+              </div>
+              <div class="mb-4">
+                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Categoría</label>
+                <input type="text" name="category" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors">
+              </div>
+              <div class="mb-4">
+                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Contenido</label>
+                <textarea name="content" rows="8" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-gim-cyan-400 transition-colors" placeholder="Pega o escribe el contenido aquí..."></textarea>
+              </div>
+              <button type="submit" class="w-full bg-gradient-cyan rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">💾 Guardar y Procesar</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- View Doc Modal -->
+      <div id="view-doc-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="hideViewDocModal()"></div>
+        <div class="relative bg-white rounded-2xl p-8 w-full max-w-2xl mx-4 shadow-2xl border border-gim-neutral-200 max-h-[80vh] overflow-y-auto">
+          <div class="flex justify-between items-center mb-6">
+            <h3 id="view-doc-title" class="text-xl font-bold text-gim-neutral-900"></h3>
+            <button onclick="hideViewDocModal()" class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500">✕</button>
+          </div>
+          <div id="view-doc-content" class="text-sm text-gim-neutral-700 whitespace-pre-wrap font-mono bg-gim-neutral-50 rounded-xl p-6"></div>
+        </div>
+      </div>
+
+      <script>
+        function showUploadModal() { document.getElementById('upload-modal').classList.remove('hidden'); }
+        function hideUploadModal() { document.getElementById('upload-modal').classList.add('hidden'); }
+        function hideViewDocModal() { document.getElementById('view-doc-modal').classList.add('hidden'); }
+
+        function showTab(tab) {
+          document.querySelectorAll('.upload-tab').forEach(el => el.classList.add('hidden'));
+          document.getElementById(tab).classList.remove('hidden');
+          ['upload-file','upload-url','upload-text'].forEach(t => {
+            const btn = document.getElementById('tab-' + t.split('-')[1]);
+            if (t === tab) { btn.className = 'flex-1 py-2 text-sm font-semibold rounded-xl bg-gim-cyan-500 text-white transition'; }
+            else { btn.className = 'flex-1 py-2 text-sm font-semibold rounded-xl bg-gim-neutral-100 text-gim-neutral-600 transition'; }
+          });
+        }
+
+        async function searchKB() {
+          const q = document.getElementById('kb-search-input').value.trim();
+          if (!q) return;
+          const res = await fetch('/admin/api/knowledge/search?q=' + encodeURIComponent(q));
+          const results = await res.json();
+          document.getElementById('kb-search-results').classList.remove('hidden');
+          document.getElementById('kb-search-list').innerHTML = results.length > 0
+            ? results.map(r => '<div class="p-3 bg-gim-neutral-50 rounded-xl border border-gim-neutral-200 mb-2"><div class="flex justify-between mb-1"><span class="font-semibold text-sm text-gim-neutral-900">' + (r.title || 'Doc') + '</span><span class="text-xs text-gim-cyan-600">' + (r.score * 100).toFixed(0) + '% match</span></div><div class="text-xs text-gim-neutral-500">' + r.content.slice(0, 200) + '</div></div>').join('')
+            : '<div class="text-sm text-gim-neutral-400 text-center py-4">No se encontraron resultados</div>';
+        }
+
+        async function viewKBDoc(id) {
+          const res = await fetch('/admin/api/knowledge/' + id);
+          const doc = await res.json();
+          document.getElementById('view-doc-title').textContent = doc.title;
+          document.getElementById('view-doc-content').textContent = doc.content_preview || doc.content || 'Sin contenido';
+          document.getElementById('view-doc-modal').classList.remove('hidden');
+        }
+
+        async function reindexKBDoc(id) {
+          if (!confirm('Re-indexar este documento?')) return;
+          await fetch('/admin/api/knowledge/' + id + '/reindex', { method: 'POST' });
+          location.reload();
+        }
+
+        async function deleteKBDoc(id) {
+          if (!confirm('Eliminar este documento y todos sus chunks?')) return;
+          await fetch('/admin/api/knowledge/' + id, { method: 'DELETE' });
+          location.reload();
+        }
+      </script>
+    </div>
+  `));
+});
+
+// Knowledge API endpoints
+admin.get('/api/knowledge/search', async (c) => {
+  const q = c.req.query('q') || '';
+  try {
+    const { buildRagContext } = await import('../knowledge');
+    const results = [];
+    // Simple search: find matching docs by title/content
+    const docs = await c.env.DB.prepare(
+      `SELECT id, title, category, content_preview FROM knowledge_base 
+       WHERE title LIKE ? OR content_preview LIKE ? OR category LIKE ? LIMIT 10`
+    ).bind(`%${q}%`, `%${q}%`, `%${q}%`).all();
+    
+    for (const doc of (docs.results || [])) {
+      results.push({
+        title: doc.title,
+        content: doc.content_preview || '',
+        score: 0.8,
+        category: doc.category,
+        id: doc.id,
+      });
+    }
+    return c.json(results);
+  } catch (e) {
+    return c.json([]);
+  }
+});
+
+admin.get('/api/knowledge/:id', async (c) => {
+  const id = c.req.param('id');
+  try {
+    const doc = await c.env.DB.prepare('SELECT * FROM knowledge_base WHERE id = ?').bind(id).first();
+    if (doc?.r2_key && c.env.STORAGE) {
+      const obj = await c.env.STORAGE.get(doc.r2_key);
+      if (obj) {
+        return c.json({ ...doc, content: await obj.text() });
+      }
+    }
+    return c.json(doc || {});
+  } catch (e) {
+    return c.json({});
+  }
+});
+
+admin.post('/knowledge/upload', async (c) => {
+  const form = await c.req.formData();
+  const title = form.get('title') as string;
+  const category = form.get('category') as string || 'general';
+  const file = form.get('file') as File;
+
+  if (!file) return c.html('<div class="text-red-500">No file provided</div>');
+
+  const kbId = crypto.randomUUID();
+  const r2Key = `knowledge/${kbId}/${file.name}`;
+
+  try {
+    // Upload to R2
+    await c.env.STORAGE.put(r2Key, file, {
+      httpMetadata: { contentType: file.type },
+    });
+
+    // Create D1 record
+    await c.env.DB.prepare(
+      `INSERT INTO knowledge_base (id, title, category, source_type, r2_key, mime_type, file_size)
+       VALUES (?, ?, ?, 'file', ?, ?, ?)`
+    ).bind(kbId, title, category, r2Key, file.type, file.size).run();
+
+    // Process: extract text and generate embeddings
+    const text = await file.text();
+    const { processDocument } = await import('../knowledge');
+    await processDocument({ DB: c.env.DB, VECTORIZE: c.env.VECTORIZE, STORAGE: c.env.STORAGE, AI: c.env.AI }, kbId, text);
+  } catch (e: any) {
+    console.error('Upload error:', e);
+  }
+
+  return c.redirect('/admin/knowledge');
+});
+
+admin.post('/knowledge/import-url', async (c) => {
+  const form = await c.req.formData();
+  const title = form.get('title') as string;
+  const url = form.get('url') as string;
+  const category = form.get('category') as string || 'general';
+
+  const kbId = crypto.randomUUID();
+  try {
+    await c.env.DB.prepare(
+      `INSERT INTO knowledge_base (id, title, category, source_type, source_url) VALUES (?, ?, ?, 'url', ?)`
+    ).bind(kbId, title, category, url).run();
+
+    const { processUrl } = await import('../knowledge');
+    await processUrl({ DB: c.env.DB, VECTORIZE: c.env.VECTORIZE, STORAGE: c.env.STORAGE, AI: c.env.AI }, kbId, url);
+  } catch (e: any) {
+    console.error('URL import error:', e);
+  }
+
+  return c.redirect('/admin/knowledge');
+});
+
+admin.post('/knowledge/save-text', async (c) => {
+  const form = await c.req.formData();
+  const title = form.get('title') as string;
+  const category = form.get('category') as string || 'general';
+  const content = form.get('content') as string;
+
+  const kbId = crypto.randomUUID();
+  try {
+    await c.env.DB.prepare(
+      `INSERT INTO knowledge_base (id, title, category, source_type, content_preview) VALUES (?, ?, ?, 'manual', ?)`
+    ).bind(kbId, title, category, content.slice(0, 500)).run();
+
+    const { processDocument } = await import('../knowledge');
+    await processDocument({ DB: c.env.DB, VECTORIZE: c.env.VECTORIZE, STORAGE: c.env.STORAGE, AI: c.env.AI }, kbId, content);
+  } catch (e: any) {
+    console.error('Text save error:', e);
+  }
+
+  return c.redirect('/admin/knowledge');
+});
+
+admin.post('/api/knowledge/:id/reindex', async (c) => {
+  const id = c.req.param('id');
+  try {
+    const doc = await c.env.DB.prepare('SELECT * FROM knowledge_base WHERE id = ?').bind(id).first() as any;
+    if (!doc) return c.json({ error: 'Not found' }, 404);
+
+    // Get content from R2 or preview
+    let content = doc.content_preview || '';
+    if (doc.r2_key && c.env.STORAGE) {
+      const obj = await c.env.STORAGE.get(doc.r2_key);
+      if (obj) content = await obj.text();
+    }
+
+    // Delete old chunks
+    const oldChunks = await c.env.DB.prepare('SELECT id FROM knowledge_chunks WHERE kb_id = ?').bind(id).all();
+    const oldIds = (oldChunks.results || []).map((c: any) => c.id);
+    if (oldIds.length > 0) {
+      await c.env.VECTORIZE.deleteByIds(oldIds);
+    }
+    await c.env.DB.prepare('DELETE FROM knowledge_chunks WHERE kb_id = ?').bind(id).run();
+
+    // Re-process
+    const { processDocument } = await import('../knowledge');
+    const result = await processDocument({ DB: c.env.DB, VECTORIZE: c.env.VECTORIZE, STORAGE: c.env.STORAGE, AI: c.env.AI }, id, content);
+
+    return c.json({ ok: true, chunks: result.chunkCount, errors: result.errors });
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500);
+  }
+});
+
+admin.delete('/api/knowledge/:id', async (c) => {
+  const id = c.req.param('id');
+  try {
+    const { deleteDocument } = await import('../knowledge');
+    await deleteDocument({ DB: c.env.DB, VECTORIZE: c.env.VECTORIZE, STORAGE: c.env.STORAGE, AI: c.env.AI }, id);
+  } catch (e) { /* ignore */ }
+  return c.json({ ok: true });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MCP TOOLS — Tool Registry & Management
+// ═══════════════════════════════════════════════════════════════════════════════
+
+admin.get('/mcp-tools', async (c) => {
+  let tools: any[] = [];
+  try {
+    tools = (await c.env.DB.prepare('SELECT * FROM mcp_tools ORDER BY created_at DESC').all()).results || [];
+  } catch (e) { tools = []; }
+
+  const categories = [...new Set(tools.map(t => t.category))];
+
+  return c.html(layout('MCP Tools', 'mcp-tools', `
+    <div class="fade-in">
+      <div class="flex justify-between items-center mb-8">
+        <div>
+          <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-purple">MCP Tools</span></h1>
+          <p class="text-gim-neutral-500">${tools.length} herramientas registradas</p>
+        </div>
+        <button onclick="showCreateTool()" class="bg-gradient-purple rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-purple-500/20">
+          + Nuevo Tool
+        </button>
+      </div>
+
+      <!-- Tool Form -->
+      <div id="tool-form" class="hidden bg-white rounded-2xl p-8 border border-gim-neutral-200 mb-8 shadow-sm">
+        <h3 id="tool-form-title" class="text-xl font-bold text-gim-neutral-900 mb-6">Nuevo Tool MCP</h3>
+        <form hx-post="/admin/mcp-tools/save" hx-target="#tools-grid" hx-swap="innerHTML">
+          <input type="hidden" id="tool-id" name="id" value="">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div>
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Nombre</label>
+              <input type="text" name="name" id="tool-name" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-purple-400 transition-colors" placeholder="send_email">
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Categoría</label>
+              <select name="category" id="tool-category" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-purple-400 transition-colors">
+                <option value="custom">Custom</option>
+                <option value="email">Email</option>
+                <option value="calendar">Calendar</option>
+                <option value="crm">CRM</option>
+                <option value="payment">Payment</option>
+                <option value="social">Social</option>
+                <option value="external">External API</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Endpoint URL</label>
+              <input type="url" name="endpoint_url" id="tool-endpoint" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-purple-400 transition-colors" placeholder="https://api.example.com/tool">
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Método</label>
+              <select name="method" id="tool-method" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-purple-400 transition-colors">
+                <option value="POST">POST</option>
+                <option value="GET">GET</option>
+                <option value="PUT">PUT</option>
+                <option value="DELETE">DELETE</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Auth Type</label>
+              <select name="auth_type" id="tool-auth" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-purple-400 transition-colors">
+                <option value="none">Ninguna</option>
+                <option value="api_key">API Key</option>
+                <option value="bearer">Bearer Token</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Timeout (ms)</label>
+              <input type="number" name="timeout_ms" id="tool-timeout" value="10000" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-purple-400 transition-colors">
+            </div>
+          </div>
+          <div class="mb-6">
+            <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Descripción</label>
+            <input type="text" name="description" id="tool-description" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-purple-400 transition-colors" placeholder="Envía un email al destinatario especificado">
+          </div>
+          <div class="mb-6">
+            <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Parámetros (JSON Schema)</label>
+            <textarea name="parameters_schema" id="tool-params" rows="4" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-gim-purple-400 transition-colors" placeholder='{"type":"object","properties":{"to":{"type":"string"},"subject":{"type":"string"},"body":{"type":"string"}},"required":["to","subject","body"]}'></textarea>
+          </div>
+          <div class="flex gap-3">
+            <button type="submit" class="bg-gradient-purple rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-purple-500/20">💾 Guardar</button>
+            <button type="button" onclick="hideToolForm()" class="bg-gim-neutral-100 rounded-xl px-6 py-3 font-semibold hover:bg-gim-neutral-200 transition text-gim-neutral-700">Cancelar</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Tools Grid -->
+      <div id="tools-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        ${tools.map((t: any) => `
+          <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
+            <div class="flex justify-between items-start mb-4">
+              <div class="w-12 h-12 bg-gradient-purple rounded-xl flex items-center justify-center shadow-lg shadow-gim-purple-500/15">
+                <span class="text-xl">⚙️</span>
+              </div>
+              <span class="px-3 py-1 rounded-full text-xs font-medium ${t.is_active ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}">
+                ${t.is_active ? 'Activo' : 'Inactivo'}
+              </span>
+            </div>
+            <div class="font-semibold text-gim-neutral-900 mb-1">${t.name}</div>
+            <div class="text-gim-neutral-500 text-sm mb-3">${t.description}</div>
+            <div class="space-y-2 mb-4">
+              <div class="flex justify-between text-sm">
+                <span class="text-gim-neutral-500">Categoría</span>
+                <span class="px-2 py-0.5 rounded-full text-xs bg-gim-purple-50 text-gim-purple-600">${t.category}</span>
+              </div>
+              <div class="flex justify-between text-sm">
+                <span class="text-gim-neutral-500">Método</span>
+                <span class="text-xs font-mono text-gim-neutral-700">${t.method}</span>
+              </div>
+              <div class="flex justify-between text-sm">
+                <span class="text-gim-neutral-500">Usos</span>
+                <span class="text-gim-neutral-700">${t.usage_count}</span>
+              </div>
+              <div class="flex justify-between text-sm">
+                <span class="text-gim-neutral-500">Latencia</span>
+                <span class="text-gim-neutral-700">${t.avg_latency_ms || 0}ms</span>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="editTool('${t.id}', '${t.name}', '${t.description}', '${t.category}', '${t.endpoint_url || ''}', '${t.method}', '${t.auth_type}', ${t.timeout_ms}, '${btoa(JSON.stringify(t.parameters_schema || {}))}')" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">✏️ Editar</button>
+              <button onclick="testTool('${t.id}', '${t.name}')" class="bg-gim-purple-50 hover:bg-gim-purple-100 rounded-xl py-2 px-3 text-sm transition text-gim-purple-600" title="Test">🧪</button>
+              <button hx-delete="/admin/mcp-tools/${t.id}" hx-target="#tools-grid" hx-swap="innerHTML" hx-confirm="¿Eliminar tool?" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-3 text-sm transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
+            </div>
+          </div>
+        `).join('') || '<div class="col-span-3 text-gim-neutral-400 text-center py-12">No hay tools configurados. Crea tu primer tool MCP.</div>'}
+      </div>
+
+      <!-- Test Modal -->
+      <div id="test-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="hideTestModal()"></div>
+        <div class="relative bg-white rounded-2xl p-8 w-full max-w-lg mx-4 shadow-2xl border border-gim-neutral-200">
+          <div class="flex justify-between items-center mb-6">
+            <h3 id="test-modal-title" class="text-xl font-bold text-gim-neutral-900">Test Tool</h3>
+            <button onclick="hideTestModal()" class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500">✕</button>
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Parámetros (JSON)</label>
+            <textarea id="test-params" rows="6" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-gim-purple-400 transition-colors" placeholder='{"to":"test@example.com","subject":"Test","body":"Hello"}'></textarea>
+          </div>
+          <button onclick="runTest()" class="w-full bg-gradient-purple rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">🧪 Ejecutar Test</button>
+          <div id="test-result" class="mt-4 hidden bg-gim-neutral-50 rounded-xl p-4 text-sm font-mono text-gim-neutral-700 max-h-60 overflow-y-auto"></div>
+        </div>
+      </div>
+
+      <script>
+        function showCreateTool() { document.getElementById('tool-form').classList.remove('hidden'); document.getElementById('tool-form-title').textContent = 'Nuevo Tool MCP'; }
+        function hideToolForm() { document.getElementById('tool-form').classList.add('hidden'); }
+        function hideTestModal() { document.getElementById('test-modal').classList.add('hidden'); }
+
+        function editTool(id, name, desc, cat, endpoint, method, auth, timeout, paramsB64) {
+          document.getElementById('tool-form').classList.remove('hidden');
+          document.getElementById('tool-form-title').textContent = 'Editar Tool';
+          document.getElementById('tool-id').value = id;
+          document.getElementById('tool-name').value = name;
+          document.getElementById('tool-description').value = desc;
+          document.getElementById('tool-category').value = cat;
+          document.getElementById('tool-endpoint').value = endpoint;
+          document.getElementById('tool-method').value = method;
+          document.getElementById('tool-auth').value = auth;
+          document.getElementById('tool-timeout').value = timeout;
+          try { document.getElementById('tool-params').value = JSON.stringify(JSON.parse(atob(paramsB64)), null, 2); } catch(e) {}
+          document.getElementById('tool-form').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function testTool(id, name) {
+          document.getElementById('test-modal').classList.remove('hidden');
+          document.getElementById('test-modal-title').textContent = 'Test: ' + name;
+          document.getElementById('test-params').value = '{}';
+          document.getElementById('test-result').classList.add('hidden');
+          document.getElementById('test-result').dataset.toolId = id;
+        }
+
+        async function runTest() {
+          const id = document.getElementById('test-result').dataset.toolId;
+          const params = JSON.parse(document.getElementById('test-params').value || '{}');
+          const res = await fetch('/admin/api/mcp-tools/' + id + '/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(params),
+          });
+          const result = await res.json();
+          const el = document.getElementById('test-result');
+          el.classList.remove('hidden');
+          el.innerHTML = '<div class="mb-2 ' + (result.success ? 'text-green-600' : 'text-red-600') + '">' + (result.success ? '✅ Éxito' : '❌ Error: ' + result.error) + '</div><div class="text-xs text-gim-neutral-500 mb-2">Latencia: ' + result.latency_ms + 'ms</div><pre class="text-xs whitespace-pre-wrap">' + JSON.stringify(result.data, null, 2) + '</pre>';
+        }
+      </script>
+    </div>
+  `));
+});
+
+// MCP Tools API
+admin.post('/mcp-tools/save', async (c) => {
+  const form = await c.req.formData();
+  const id = form.get('id') as string;
+  const name = form.get('name') as string;
+  const description = form.get('description') as string;
+  const category = form.get('category') as string;
+  const endpointUrl = form.get('endpoint_url') as string;
+  const method = form.get('method') as string;
+  const authType = form.get('auth_type') as string;
+  const timeoutMs = parseInt(form.get('timeout_ms') as string) || 10000;
+  let parametersSchema: any = {};
+  try { parametersSchema = JSON.parse(form.get('parameters_schema') as string || '{}'); } catch (e) {}
+
+  try {
+    if (id) {
+      await c.env.DB.prepare(
+        `UPDATE mcp_tools SET name=?, description=?, category=?, endpoint_url=?, method=?, auth_type=?, parameters_schema=?, timeout_ms=?, updated_at=datetime('now') WHERE id=?`
+      ).bind(name, description, category, endpointUrl, method, authType, JSON.stringify(parametersSchema), timeoutMs, id).run();
+    } else {
+      const newId = crypto.randomUUID();
+      await c.env.DB.prepare(
+        `INSERT INTO mcp_tools (id, name, description, category, endpoint_url, method, auth_type, parameters_schema, timeout_ms)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(newId, name, description, category, endpointUrl, method, authType, JSON.stringify(parametersSchema), timeoutMs).run();
+    }
+  } catch (e) { console.error('Tool save error:', e); }
+
+  return c.redirect('/admin/mcp-tools');
+});
+
+admin.delete('/mcp-tools/:id', async (c) => {
+  const id = c.req.param('id');
+  try { await c.env.DB.prepare('DELETE FROM mcp_tools WHERE id=?').bind(id).run(); } catch (e) {}
+  return c.redirect('/admin/mcp-tools');
+});
+
+admin.post('/api/mcp-tools/:id/test', async (c) => {
+  const id = c.req.param('id');
+  const params = await c.req.json();
+  try {
+    const tool = await c.env.DB.prepare('SELECT * FROM mcp_tools WHERE id=?').bind(id).first() as any;
+    if (!tool) return c.json({ success: false, error: 'Tool not found' });
+
+    const { executeTool } = await import('../mcp');
+    const result = await executeTool(c.env.DB, tool, params);
+    return c.json(result);
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message, latency_ms: 0 });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AI GATEWAY — Analytics & Observability
+// ═══════════════════════════════════════════════════════════════════════════════
+
+admin.get('/ai-gateway', async (c) => {
+  let stats = {
+    totalRequests: 0, totalTokensIn: 0, totalTokensOut: 0, totalCostUsd: 0,
+    avgLatencyMs: 0, cacheHitRate: 0, errorRate: 0, byModel: {} as Record<string, any>,
+  };
+  let recentLogs: any[] = [];
+
+  try {
+    const { getAiStats } = await import('../gateway');
+    stats = await getAiStats(c.env.DB, 30);
+  } catch (e) {}
+
+  try {
+    recentLogs = (await c.env.DB.prepare(
+      `SELECT * FROM ai_logs ORDER BY created_at DESC LIMIT 50`
+    ).all()).results || [];
+  } catch (e) {}
+
+  return c.html(layout('AI Gateway', 'ai-gateway', `
+    <div class="fade-in">
+      <div class="mb-8">
+        <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-orange">AI Gateway</span></h1>
+        <p class="text-gim-neutral-500">Observabilidad, cache y rate limiting</p>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+          <div class="text-gim-neutral-500 text-sm mb-2">Requests (30d)</div>
+          <div class="text-3xl font-extrabold text-gim-orange-500">${stats.totalRequests.toLocaleString()}</div>
+        </div>
+        <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+          <div class="text-gim-neutral-500 text-sm mb-2">Costo Total (30d)</div>
+          <div class="text-3xl font-extrabold text-green-500">$${stats.totalCostUsd.toFixed(4)}</div>
+        </div>
+        <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+          <div class="text-gim-neutral-500 text-sm mb-2">Latencia Promedio</div>
+          <div class="text-3xl font-extrabold text-gim-cyan-500">${stats.avgLatencyMs}ms</div>
+        </div>
+        <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+          <div class="text-gim-neutral-500 text-sm mb-2">Cache Hit Rate</div>
+          <div class="text-3xl font-extrabold text-gim-purple-500">${stats.cacheHitRate}%</div>
+        </div>
+      </div>
+
+      <!-- Token Usage -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+          <h3 class="font-bold text-gim-neutral-900 mb-4">Tokens (30 días)</h3>
+          <div class="space-y-3">
+            <div class="flex justify-between"><span class="text-gim-neutral-500">Input</span><span class="font-semibold">${stats.totalTokensIn.toLocaleString()}</span></div>
+            <div class="flex justify-between"><span class="text-gim-neutral-500">Output</span><span class="font-semibold">${stats.totalTokensOut.toLocaleString()}</span></div>
+            <div class="flex justify-between"><span class="text-gim-neutral-500">Total</span><span class="font-semibold">${(stats.totalTokensIn + stats.totalTokensOut).toLocaleString()}</span></div>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+          <h3 class="font-bold text-gim-neutral-900 mb-4">Por Modelo</h3>
+          <div class="space-y-3">
+            ${Object.entries(stats.byModel).map(([model, data]: [string, any]) => `
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gim-neutral-700">${model}</span>
+                <div class="text-right">
+                  <span class="text-xs text-gim-neutral-500">${data.requests} reqs · $${data.cost.toFixed(4)}</span>
+                </div>
+              </div>
+            `).join('') || '<div class="text-sm text-gim-neutral-400">Sin datos aún</div>'}
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Logs -->
+      <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+        <h3 class="font-bold text-gim-neutral-900 ñmb-4">Logs Recientes</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gim-neutral-100">
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Fecha</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Modelo</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Tokens</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Latencia</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Costo</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${recentLogs.map((l: any) => `
+                <tr class="border-b border-gim-neutral-50 hover:bg-gim-neutral-50">
+                  <td class="py-3 text-gim-neutral-700">${l.created_at}</td>
+                  <td class="py-3 font-mono text-xs text-gim-neutral-600">${l.model?.split('/').pop()}</td>
+                  <td class="py-3 text-gim-neutral-700">${l.tokens_input || 0} → ${l.tokens_output || 0}</td>
+                  <td class="py-3 text-gim-neutral-700">${l.latency_ms || 0}ms</td>
+                  <td class="py-3 text-gim-neutral-700">$${(l.cost_usd || 0).toFixed(6)}</td>
+                  <td class="py-3">
+                    <span class="px-2 py-0.5 rounded-full text-xs ${l.status === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}">${l.status}</span>
+                  </td>
+                </tr>
+              `).join('') || '<tr><td colspan="6" class="py-8 text-center text-gim-neutral-400">Sin logs aún</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `));
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WORKFLOWS — Multi-agent flow engine
+// ═══════════════════════════════════════════════════════════════════════════════
+
+admin.get('/workflows', async (c) => {
+  let workflows: any[] = [];
+  try {
+    workflows = (await c.env.DB.prepare('SELECT * FROM workflows ORDER BY created_at DESC').all()).results || [];
+  } catch (e) { workflows = []; }
+
+  let runs: any[] = [];
+  try {
+    runs = (await c.env.DB.prepare('SELECT * FROM workflow_runs ORDER BY started_at DESC LIMIT 20').all()).results || [];
+  } catch (e) { runs = []; }
+
+  const templates = [
+    { name: 'Atención al Cliente', description: 'Clasificar → Buscar KB → Responder → Escalar', icon: '🎧' },
+    { name: 'Generador de Contenido', description: 'Investigar → Escribir → Revisar → Publicar', icon: '✍️' },
+    { name: 'Lead Qualification', description: 'Capture → Score → Route → Follow-up', icon: '🎯' },
+  ];
+
+  return c.html(layout('Workflows', 'workflows', `
+    <div class="fade-in">
+      <div class="flex justify-between items-center mb-8">
+        <div>
+          <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-orange">Workflows</span></h1>
+          <p class="text-gim-neutral-500">${workflows.length} flujos configurados</p>
+        </div>
+        <button onclick="showCreateWorkflow()" class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
+          + Nuevo Workflow
+        </button>
+      </div>
+
+      <!-- Templates -->
+      <div class="mb-8">
+        <h3 class="text-sm font-semibold text-gim-neutral-700 mb-3">Plantillas</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          ${templates.map(t => `
+            <button class="bg-white rounded-xl p-4 border border-gim-neutral-200 text-left hover:border-gim-orange-300 hover:shadow-md transition">
+              <div class="text-2xl mb-2">${t.icon}</div>
+              <div class="font-semibold text-sm text-gim-neutral-900">${t.name}</div>
+              <div class="text-xs text-gim-neutral-500">${t.description}</div>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Workflows List -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        ${workflows.map((w: any) => {
+          const steps = JSON.parse(w.steps || '[]');
+          const wfRuns = runs.filter((r: any) => r.workflow_id === w.id);
+          const lastRun = wfRuns[0];
+          return `
+            <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
+              <div class="flex justify-between items-start mb-4">
+                <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
+                  <span class="text-xl">⚡</span>
+                </div>
+                <span class="px-3 py-1 rounded-full text-xs font-medium ${w.is_active ? 'bg-green-100 text-green-600' : 'bg-gim-neutral-100 text-gim-neutral-500'}">
+                  ${w.is_active ? 'Activo' : 'Inactivo'}
+                </span>
+              </div>
+              <div class="font-semibold text-gim-neutral-900 mb-1">${w.name}</div>
+              <div class="text-gim-neutral-500 text-sm mb-3">${w.description || 'Sin descripción'}</div>
+              <div class="flex items-center gap-4 mb-4 text-xs text-gim-neutral-500">
+                <span>${steps.length} pasos</span>
+                <span>${wfRuns.length} ejecuciones</span>
+                ${lastRun ? `<span>Última: ${lastRun.status}</span>` : ''}
+              </div>
+              <div class="flex gap-2">
+                <button onclick="runWorkflow('${w.id}')" class="flex-1 bg-green-50 hover:bg-green-100 rounded-xl py-2 text-sm font-semibold text-green-600 transition">▶ Ejecutar</button>
+                <button class="bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-700">✏️</button>
+              </div>
+            </div>
+          `;
+        }).join('') || '<div class="col-span-2 text-gim-neutral-400 text-center py-12">No hay workflows. Crea uno desde una plantilla o desde cero.</div>'}
+      </div>
+
+      <!-- Recent Runs -->
+      <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+        <h3 class="font-bold text-gim-neutral-900 mb-4">Ejecuciones Recientes</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gim-neutral-100">
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">ID</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Workflow</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Status</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Inicio</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Fin</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${runs.map((r: any) => `
+                <tr class="border-b border-gim-neutral-50 hover:bg-gim-neutral-50">
+                  <td class="py-3 font-mono text-xs text-gim-neutral-600">${r.id?.slice(0, 8)}...</td>
+                  <td class="py-3 text-gim-neutral-700">${r.workflow_id?.slice(0, 8)}...</td>
+                  <td class="py-3">
+                    <span class="px-2 py-0.5 rounded-full text-xs ${r.status === 'completed' ? 'bg-green-100 text-green-600' : r.status === 'running' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}">${r.status}</span>
+                  </td>
+                  <td class="py-3 text-gim-neutral-700">${r.started_at}</td>
+                  <td class="py-3 text-gim-neutral-700">${r.completed_at || '—'}</td>
+                </tr>
+              `).join('') || '<tr><td colspan="5" class="py-8 text-center text-gim-neutral-400">Sin ejecuciones</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <script>
+        function showCreateWorkflow() { alert('Próximamente: editor visual de workflows'); }
+        async function runWorkflow(id) {
+          if (!confirm('¿Ejecutar este workflow?')) return;
+          const res = await fetch('/admin/api/workflows/' + id + '/run', { method: 'POST' });
+          const result = await res.json();
+          alert(result.id ? 'Workflow iniciado: ' + result.id : 'Error: ' + (result.error || 'Unknown'));
+          location.reload();
+        }
+      </script>
+    </div>
+  `));
+});
+
+admin.post('/api/workflows/:id/run', async (c) => {
+  const id = c.req.param('id');
+  try {
+    const { WorkflowEngine } = await import('../workflows');
+    const engine = new WorkflowEngine(c.env.DB, c.env.AI);
+    const run = await engine.run(id);
+    return c.json(run);
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500);
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONNECTORS — External service integrations
+// ═══════════════════════════════════════════════════════════════════════════════
+
+admin.get('/connectors', async (c) => {
+  let connectors: any[] = [];
+  try {
+    connectors = (await c.env.DB.prepare('SELECT * FROM connectors ORDER BY created_at DESC').all()).results || [];
+  } catch (e) { connectors = []; }
+
+  const available = [
+    { type: 'google_drive', name: 'Google Drive', icon: '📁', description: 'Documentos, PDFs, Sheets de Google Drive' },
+    { type: 'notion', name: 'Notion', icon: '📝', description: 'Páginas y bases de datos de Notion' },
+    { type: 'rss', name: 'RSS Feed', icon: '📰', description: 'Sigue feeds RSS y sincroniza artículos' },
+    { type: 'webhook', name: 'Webhook', icon: '🔗', description: 'Recibe datos de cualquier API externa' },
+  ];
+
+  const configuredTypes = connectors.map((conn: any) => conn.type);
+
+  return c.html(layout('Conectores', 'connectors', `
+    <div class="fade-in">
+      <div class="mb-8">
+        <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-cyan">Conectores</span></h1>
+        <p class="text-gim-neutral-500">Sincroniza conocimiento desde fuentes externas</p>
+      </div>
+
+      <!-- Available Connectors -->
+      <div class="mb-8">
+        <h3 class="text-sm font-semibold text-gim-neutral-700 mb-3">Disponibles</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          ${available.map(a => `
+            <div class="bg-white rounded-xl p-5 border border-gim-neutral-200 ${configuredTypes.includes(a.type) ? 'border-gim-cyan-300 bg-gim-cyan-50/30' : ''} card-hover shadow-sm">
+              <div class="text-3xl mb-3">${a.icon}</div>
+              <div class="font-semibold text-gim-neutral-900 mb-1">${a.name}</div>
+              <div class="text-xs text-gim-neutral-500 mb-4">${a.description}</div>
+              ${configuredTypes.includes(a.type)
+                ? `<span class="px-3 py-1 rounded-full text-xs bg-green-100 text-green-600 font-medium">✓ Configurado</span>`
+                : `<button onclick="configureConnector('${a.type}')" class="bg-gradient-cyan rounded-lg px-4 py-2 text-xs font-semibold text-white hover:opacity-90 transition">+ Configurar</button>`
+              }
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Configured Connectors -->
+      ${connectors.length > 0 ? `
+        <div>
+          <h3 class="text-sm font-semibold text-gim-neutral-700 mb-3">Configurados</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            ${connectors.map((conn: any) => {
+              const avail = available.find(a => a.type === conn.type);
+              return `
+                <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
+                  <div class="flex justify-between items-start mb-4">
+                    <div class="w-12 h-12 bg-gradient-cyan rounded-xl flex items-center justify-center shadow-lg shadow-gim-cyan-500/15">
+                      <span class="text-xl">${avail?.icon || '🔌'}</span>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-xs font-medium ${conn.is_active ? 'bg-green-100 text-green-600' : 'bg-gim-neutral-100 text-gim-neutral-500'}">
+                      ${conn.is_active ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </div>
+                  <div class="font-semibold text-gim-neutral-900 mb-1">${conn.name}</div>
+                  <div class="text-gim-neutral-500 text-sm mb-3">${avail?.description || conn.type}</div>
+                  <div class="space-y-2 mb-4">
+                    <div class="flex justify-between text-sm">
+                      <span class="text-gim-neutral-500">Última sync</span>
+                      <span class="text-gim-neutral-700">${conn.last_sync_at || 'Nunca'}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-gim-neutral-500">Items sincronizados</span>
+                      <span class="text-gim-neutral-700">${conn.items_synced || 0}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-gim-neutral-500">Status</span>
+                      <span class="px-2 py-0.5 rounded-full text-xs ${conn.sync_status === 'ok' ? 'bg-green-100 text-green-600' : conn.sync_status === 'error' ? 'bg-red-100 text-red-600' : 'bg-gim-neutral-100 text-gim-neutral-500'}">${conn.sync_status || 'idle'}</span>
+                    </div>
+                  </div>
+                  <div class="flex gap-2">
+                    <button onclick="syncConnector('${conn.id}')" class="flex-1 bg-gim-cyan-50 hover:bg-gim-cyan-100 rounded-xl py-2 text-sm font-semibold text-gim-cyan-600 transition">🔄 Sincronizar</button>
+                    <button class="bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-700">⚙️</button>
+                    <button hx-delete="/admin/connectors/${conn.id}" hx-confirm="¿Eliminar conector?" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-3 text-sm transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      <script>
+        function configureConnector(type) { alert('Próximamente: wizard de configuración para ' + type); }
+        async function syncConnector(id) {
+          alert('Próximamente: sincronización automática');
+        }
+      </script>
+    </div>
+  `));
 });
 
 export { admin as AdminPanel };

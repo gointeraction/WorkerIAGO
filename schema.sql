@@ -1,52 +1,52 @@
--- WorkerIAGO Database Schema v2.0
--- Enhanced with Tickets, Insights, Campaigns, and improved KB
+-- WorkerIAGO Database Schema v3.0
+-- RAG-ready with R2 + Vectorize integration
 
 -- Agentes configurados
 CREATE TABLE IF NOT EXISTS agents (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   description TEXT,
-  type TEXT NOT NULL DEFAULT 'general', -- ventas, soporte, reservas, general
+  type TEXT NOT NULL DEFAULT 'general',
   system_prompt TEXT NOT NULL,
   model TEXT NOT NULL DEFAULT '@cf/meta/llama-3.1-8b-instruct-fp8',
   temperature REAL DEFAULT 0.7,
   max_tokens INTEGER DEFAULT 512,
-  tools JSON, -- JSON array of tool names
-  channel_config JSON, -- which channels this agent handles
+  tools JSON,
+  channel_config JSON,
   is_active INTEGER DEFAULT 1,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
--- Conversaciones (enhanced)
+-- Conversaciones
 CREATE TABLE IF NOT EXISTS conversations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   agent_id TEXT NOT NULL,
-  channel TEXT NOT NULL, -- telegram, whatsapp, web
-  chat_id TEXT NOT NULL, -- channel-specific chat identifier
+  channel TEXT NOT NULL,
+  chat_id TEXT NOT NULL,
   user_name TEXT,
   user_phone TEXT,
   user_email TEXT,
-  status TEXT DEFAULT 'active', -- active, closed, escalated, paused
-  intent TEXT, -- classified intent
-  sentiment TEXT, -- positive, neutral, negative
-  priority INTEGER DEFAULT 0, -- 0=normal, 1=high, 2=urgent
-  paused_until TEXT, -- ISO timestamp when bot should resume
+  status TEXT DEFAULT 'active',
+  intent TEXT,
+  sentiment TEXT,
+  priority INTEGER DEFAULT 0,
+  paused_until TEXT,
   last_message_at TEXT,
   message_count INTEGER DEFAULT 0,
-  tags JSON, -- JSON array of tags
+  tags JSON,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (agent_id) REFERENCES agents(id)
 );
 
--- Mensajes (enhanced)
+-- Mensajes
 CREATE TABLE IF NOT EXISTS messages (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   conversation_id INTEGER NOT NULL,
-  role TEXT NOT NULL, -- user, assistant, system, owner, tool
+  role TEXT NOT NULL,
   content TEXT NOT NULL,
-  metadata JSON, -- tokens used, model, latency, etc.
+  metadata JSON,
   created_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (conversation_id) REFERENCES conversations(id)
 );
@@ -58,11 +58,11 @@ CREATE TABLE IF NOT EXISTS tickets (
   agent_id TEXT NOT NULL,
   title TEXT NOT NULL,
   description TEXT,
-  status TEXT DEFAULT 'new', -- new, in_progress, waiting, resolved, closed
-  priority INTEGER DEFAULT 0, -- 0=low, 1=medium, 2=high, 3=urgent
-  assigned_to TEXT, -- email or name of assignee
-  category TEXT, -- bug, question, feature_request, complaint
-  resolution TEXT, -- how it was resolved
+  status TEXT DEFAULT 'new',
+  priority INTEGER DEFAULT 0,
+  assigned_to TEXT,
+  category TEXT,
+  resolution TEXT,
   resolved_at TEXT,
   closed_at TEXT,
   created_at TEXT DEFAULT (datetime('now')),
@@ -71,27 +71,132 @@ CREATE TABLE IF NOT EXISTS tickets (
   FOREIGN KEY (agent_id) REFERENCES agents(id)
 );
 
--- Base de conocimiento (documentos para RAG) - enhanced
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- RAG: Knowledge Base — documentos maestros
+-- ═══════════════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS knowledge_base (
-  id TEXT PRIMARY KEY, -- UUID
-  agent_id TEXT NOT NULL,
+  id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
-  content TEXT NOT NULL,
-  category TEXT,
-  tags JSON, -- JSON array of tags
-  vector_id TEXT, -- reference to Vectorize
-  source TEXT, -- url, file, manual
-  version INTEGER DEFAULT 1,
+  description TEXT,
+  category TEXT DEFAULT 'general',
+  source_type TEXT DEFAULT 'manual', -- manual, url, file
+  source_url TEXT, -- URL de origen si aplica
+  r2_key TEXT, -- key del archivo en R2
+  mime_type TEXT, -- text/plain, text/html, application/pdf, etc.
+  file_size INTEGER, -- bytes
+  content_preview TEXT, -- primeros 500 chars del contenido
+  chunk_count INTEGER DEFAULT 0, -- número de chunks generados
   is_published INTEGER DEFAULT 1,
   view_count INTEGER DEFAULT 0,
   helpful_count INTEGER DEFAULT 0,
   not_helpful_count INTEGER DEFAULT 0,
+  last_indexed_at TEXT, -- último embedding generado
   created_at TEXT DEFAULT (datetime('now')),
-  updated_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- RAG: Chunks — fragmentos de documentos para retrieval
+-- ═══════════════════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS knowledge_chunks (
+  id TEXT PRIMARY KEY,
+  kb_id TEXT NOT NULL,
+  chunk_index INTEGER NOT NULL, -- orden dentro del documento
+  content TEXT NOT NULL, -- texto del chunk
+  token_count INTEGER, -- tokens estimados
+  vector_id TEXT, -- ID en VectorizeIndex
+  created_at TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (kb_id) REFERENCES knowledge_base(id) ON DELETE CASCADE
+);
+
+-- Junction: Agentes ↔ Knowledge Base
+CREATE TABLE IF NOT EXISTS agent_knowledge (
+  agent_id TEXT NOT NULL,
+  kb_id TEXT NOT NULL,
+  priority INTEGER DEFAULT 0, -- orden de relevancia
+  created_at TEXT DEFAULT (datetime('now')),
+  PRIMARY KEY (agent_id, kb_id),
+  FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE,
+  FOREIGN KEY (kb_id) REFERENCES knowledge_base(id) ON DELETE CASCADE
+);
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- MCP: Tools Registry — herramientas que los agentes pueden usar
+-- ═══════════════════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS mcp_tools (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  description TEXT NOT NULL,
+  category TEXT DEFAULT 'custom', -- custom, email, calendar, crm, payment, social, external
+  handler_type TEXT DEFAULT 'http', -- http, webhook, worker
+  endpoint_url TEXT, -- URL del endpoint del tool
+  method TEXT DEFAULT 'POST', -- GET, POST, PUT, DELETE
+  headers JSON, -- headers HTTP personalizados
+  parameters_schema JSON NOT NULL, -- JSON Schema de los parámetros
+  response_schema JSON, -- JSON Schema de la respuesta esperada
+  auth_type TEXT DEFAULT 'none', -- none, api_key, bearer, oauth2
+  auth_config JSON, -- configuración de autenticación (encrypted in prod)
+  timeout_ms INTEGER DEFAULT 10000,
+  retry_count INTEGER DEFAULT 1,
+  is_active INTEGER DEFAULT 1,
+  usage_count INTEGER DEFAULT 0,
+  avg_latency_ms INTEGER DEFAULT 0,
+  last_used_at TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Junction: Agentes ↔ MCP Tools
+CREATE TABLE IF NOT EXISTS agent_tools (
+  agent_id TEXT NOT NULL,
+  tool_id TEXT NOT NULL,
+  is_enabled INTEGER DEFAULT 1,
+  created_at TEXT DEFAULT (datetime('now')),
+  PRIMARY KEY (agent_id, tool_id),
+  FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE,
+  FOREIGN KEY (tool_id) REFERENCES mcp_tools(id) ON DELETE CASCADE
+);
+
+-- Logs de ejecución de tools
+CREATE TABLE IF NOT EXISTS tool_execution_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tool_id TEXT NOT NULL,
+  agent_id TEXT,
+  conversation_id INTEGER,
+  input_params JSON,
+  output_result JSON,
+  status TEXT DEFAULT 'success', -- success, error, timeout
+  error_message TEXT,
+  latency_ms INTEGER,
+  tokens_used INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (tool_id) REFERENCES mcp_tools(id),
   FOREIGN KEY (agent_id) REFERENCES agents(id)
 );
 
--- Leads capturados (enhanced)
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- AI Gateway: Observabilidad
+-- ═══════════════════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS ai_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  request_id TEXT, -- ID único del request
+  agent_id TEXT,
+  conversation_id INTEGER,
+  model TEXT NOT NULL,
+  provider TEXT DEFAULT 'cloudflare', -- cloudflare, openai, anthropic
+  tokens_input INTEGER DEFAULT 0,
+  tokens_output INTEGER DEFAULT 0,
+  cost_usd REAL DEFAULT 0,
+  latency_ms INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'success', -- success, error, timeout, fallback
+  error_message TEXT,
+  cache_hit INTEGER DEFAULT 0, -- 1 if response was cached
+  channel TEXT,
+  action TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Leads
 CREATE TABLE IF NOT EXISTS leads (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   conversation_id INTEGER,
@@ -100,10 +205,10 @@ CREATE TABLE IF NOT EXISTS leads (
   phone TEXT,
   email TEXT,
   company TEXT,
-  interest TEXT, -- what they're interested in
-  score INTEGER DEFAULT 0, -- lead score 0-100
-  status TEXT DEFAULT 'new', -- new, contacted, qualified, converted, lost
-  source TEXT, -- where the lead came from
+  interest TEXT,
+  score INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'new',
+  source TEXT,
   notes TEXT,
   last_contact_at TEXT,
   next_followup_at TEXT,
@@ -114,147 +219,31 @@ CREATE TABLE IF NOT EXISTS leads (
   FOREIGN KEY (agent_id) REFERENCES agents(id)
 );
 
--- Acciones disponibles
-CREATE TABLE IF NOT EXISTS actions (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  description TEXT,
-  handler TEXT NOT NULL, -- function name to execute
-  parameters JSON, -- JSON schema of parameters
-  is_active INTEGER DEFAULT 1,
-  usage_count INTEGER DEFAULT 0,
-  created_at TEXT DEFAULT (datetime('now'))
-);
-
--- Logs de usage (enhanced with cost tracking)
-CREATE TABLE IF NOT EXISTS usage_logs (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  agent_id TEXT,
-  conversation_id INTEGER,
-  model TEXT,
-  tokens_input INTEGER,
-  tokens_output INTEGER,
-  cost_usd REAL, -- calculated cost in USD
-  latency_ms INTEGER,
-  channel TEXT,
-  action TEXT, -- what triggered this usage
-  created_at TEXT DEFAULT (datetime('now'))
-);
-
--- Insights y analytics
-CREATE TABLE IF NOT EXISTS insights (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  conversation_id INTEGER,
-  agent_id TEXT,
-  insight_type TEXT NOT NULL, -- sentiment, topic, resolution, quality
-  insight_value TEXT NOT NULL, -- the actual insight
-  confidence REAL, -- 0-1 confidence score
-  metadata JSON,
-  created_at TEXT DEFAULT (datetime('now')),
-  FOREIGN KEY (conversation_id) REFERENCES conversations(id),
-  FOREIGN KEY (agent_id) REFERENCES agents(id)
-);
-
--- Campañas de mensajería
-CREATE TABLE IF NOT EXISTS campaigns (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  description TEXT,
-  channel TEXT NOT NULL, -- whatsapp, telegram
-  template_sid TEXT, -- WhatsApp template SID
-  content TEXT, -- freeform message content
-  status TEXT DEFAULT 'draft', -- draft, scheduled, sending, sent, failed
-  scheduled_at TEXT,
-  sent_at TEXT,
-  segment_id TEXT, -- which segment to target
-  stats_sent INTEGER DEFAULT 0,
-  stats_delivered INTEGER DEFAULT 0,
-  stats_read INTEGER DEFAULT 0,
-  stats_failed INTEGER DEFAULT 0,
-  created_at TEXT DEFAULT (datetime('now')),
-  updated_at TEXT DEFAULT (datetime('now'))
-);
-
--- Segmentos de leads para campañas
-CREATE TABLE IF NOT EXISTS segments (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  description TEXT,
-  filters JSON, -- filter criteria
-  lead_count INTEGER DEFAULT 0,
-  created_at TEXT DEFAULT (datetime('now'))
-);
-
--- Configuración general (enhanced)
+-- Configuración general
 CREATE TABLE IF NOT EXISTS config (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,
-  category TEXT DEFAULT 'general', -- general, llm, channels, notifications
+  category TEXT DEFAULT 'general',
   description TEXT,
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
--- Handoff logs (when bot escalates to human)
-CREATE TABLE IF NOT EXISTS handoff_logs (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  conversation_id INTEGER NOT NULL,
-  agent_id TEXT NOT NULL,
-  reason TEXT NOT NULL, -- why escalation happened
-  assigned_to TEXT, -- who it was assigned to
-  status TEXT DEFAULT 'pending', -- pending, accepted, completed
-  created_at TEXT DEFAULT (datetime('now')),
-  resolved_at TEXT,
-  FOREIGN KEY (conversation_id) REFERENCES conversations(id),
-  FOREIGN KEY (agent_id) REFERENCES agents(id)
-);
-
--- Scheduled follow-ups
-CREATE TABLE IF NOT EXISTS followups (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  lead_id INTEGER NOT NULL,
-  conversation_id INTEGER,
-  agent_id TEXT NOT NULL,
-  channel TEXT NOT NULL,
-  chat_id TEXT NOT NULL,
-  message TEXT NOT NULL,
-  status TEXT DEFAULT 'pending', -- pending, sent, failed, cancelled
-  scheduled_at TEXT NOT NULL,
-  sent_at TEXT,
-  created_at TEXT DEFAULT (datetime('now')),
-  FOREIGN KEY (lead_id) REFERENCES leads(id),
-  FOREIGN KEY (conversation_id) REFERENCES conversations(id),
-  FOREIGN KEY (agent_id) REFERENCES agents(id)
-);
-
--- Bot health logs (for watchdog)
-CREATE TABLE IF NOT EXISTS health_logs (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  status TEXT NOT NULL, -- ok, degraded, error
-  error_count INTEGER DEFAULT 0,
-  last_error TEXT,
-  metadata JSON,
-  created_at TEXT DEFAULT (datetime('now'))
-);
-
--- Índices mejorados
+-- Índices
 CREATE INDEX IF NOT EXISTS idx_conversations_chat ON conversations(channel, chat_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_agent ON conversations(agent_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_status ON conversations(status);
-CREATE INDEX IF NOT EXISTS idx_conversations_updated ON conversations(updated_at);
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
-CREATE INDEX IF NOT EXISTS idx_messages_role ON messages(role);
-CREATE INDEX IF NOT EXISTS idx_knowledge_agent ON knowledge_base(agent_id);
-CREATE INDEX IF NOT EXISTS idx_knowledge_published ON knowledge_base(is_published);
+CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_kb ON knowledge_chunks(kb_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_vector ON knowledge_chunks(vector_id);
+CREATE INDEX IF NOT EXISTS idx_agent_knowledge_agent ON agent_knowledge(agent_id);
+CREATE INDEX IF NOT EXISTS idx_agent_knowledge_kb ON agent_knowledge(kb_id);
+CREATE INDEX IF NOT EXISTS idx_mcp_tools_name ON mcp_tools(name);
+CREATE INDEX IF NOT EXISTS idx_mcp_tools_category ON mcp_tools(category);
+CREATE INDEX IF NOT EXISTS idx_agent_tools_agent ON agent_tools(agent_id);
+CREATE INDEX IF NOT EXISTS idx_tool_logs_tool ON tool_execution_logs(tool_id);
+CREATE INDEX IF NOT EXISTS idx_tool_logs_agent ON tool_execution_logs(agent_id);
+CREATE INDEX IF NOT EXISTS idx_ai_logs_agent ON ai_logs(agent_id);
+CREATE INDEX IF NOT EXISTS idx_ai_logs_date ON ai_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_ai_logs_model ON ai_logs(model);
 CREATE INDEX IF NOT EXISTS idx_leads_agent ON leads(agent_id);
 CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
-CREATE INDEX IF NOT EXISTS idx_leads_followup ON leads(next_followup_at);
-CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status);
-CREATE INDEX IF NOT EXISTS idx_tickets_priority ON tickets(priority);
-CREATE INDEX IF NOT EXISTS idx_tickets_agent ON tickets(agent_id);
-CREATE INDEX IF NOT EXISTS idx_usage_agent ON usage_logs(agent_id);
-CREATE INDEX IF NOT EXISTS idx_usage_date ON usage_logs(created_at);
-CREATE INDEX IF NOT EXISTS idx_insights_conversation ON insights(conversation_id);
-CREATE INDEX IF NOT EXISTS idx_campaigns_status ON campaigns(status);
-CREATE INDEX IF NOT EXISTS idx_followups_status ON followups(status);
-CREATE INDEX IF NOT EXISTS idx_followups_scheduled ON followups(scheduled_at);
-CREATE INDEX IF NOT EXISTS idx_health_logs_date ON health_logs(created_at);

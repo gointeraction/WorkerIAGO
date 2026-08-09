@@ -7,12 +7,16 @@ import {
   type AIConfig,
   MODELS
 } from '../ai';
+import { buildRagContext, type KnowledgeEnv } from '../knowledge';
+import { executeTool, getAgentToolDefinitions, type McpTool } from '../mcp';
+import { aiWithFallback, logAiRequest, type AiGatewayEnv } from '../gateway';
 
 interface Env {
   AI: any;
   DB: D1Database;
   VECTORIZE: VectorizeIndex;
   CACHE: KVNamespace;
+  STORAGE: R2Bucket;
   AGENT_STATE: DurableObjectNamespace;
 }
 
@@ -156,16 +160,14 @@ export class AgentOrchestrator {
 
   private async searchKnowledge(query: string, agentId: string): Promise<any[]> {
     try {
-      // Generar embedding usando Workers AI
-      const embedding = await generateEmbedding(this.aiConfig, query);
-
-      // Buscar en Vectorize
-      const results = await this.env.VECTORIZE.query(embedding, {
-        topK: 3,
-        namespace: agentId
-      });
-
-      return results.matches || [];
+      const knowledgeEnv: KnowledgeEnv = {
+        DB: this.env.DB,
+        VECTORIZE: this.env.VECTORIZE,
+        STORAGE: this.env.STORAGE,
+        AI: this.env.AI,
+      };
+      const context = await buildRagContext(knowledgeEnv, query, agentId, 5);
+      return context ? [{ metadata: { content: context } }] : [];
     } catch (error) {
       console.error('Knowledge search error:', error);
       return [];

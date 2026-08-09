@@ -35,9 +35,9 @@ id = "d6e50404a6ab4ddaabcecc323acaaa40"
 # R2 - Media (imágenes, audios, documentos)
 # Habilita R2 en Cloudflare Dashboard → R2, luego descomenta
 # =============================================================================
-# [[r2_buckets]]
-# binding = "STORAGE"
-# bucket_name = "workeriago-storage"
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "workeriago-storage"
 
 # =============================================================================
 # DURABLE OBJECTS - Estado de conversaciones y agentes stateful

@@ -24,6 +24,9 @@ type Bindings = {
   // KV - Cache de respuestas
   CACHE: KVNamespace;
   
+  // R2 - Storage de archivos (opcional, crea bucket: wrangler r2 bucket create workeriago-storage)
+  STORAGE?: R2Bucket;
+  
   // Durable Objects - Estado de conversaciones
   AGENT_STATE: DurableObjectNamespace;
   
@@ -260,6 +263,39 @@ app.get('/api/stats', async (c) => {
     messages_24h: messages?.count || 0,
     active_agents: agents?.count || 0
   });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MCP Server — Tool Discovery & Execution
+// ═══════════════════════════════════════════════════════════════════════════════
+
+app.get('/mcp', async (c) => {
+  const { getMcpManifest } = await import('./mcp/server');
+  const manifest = await getMcpManifest({ DB: c.env.DB, AI: c.env.AI, VECTORIZE: c.env.VECTORIZE });
+  return c.json(manifest);
+});
+
+app.get('/mcp/tools', async (c) => {
+  const { listMcpTools } = await import('./mcp/server');
+  const tools = await listMcpTools({ DB: c.env.DB, AI: c.env.AI, VECTORIZE: c.env.VECTORIZE });
+  return c.json({ tools });
+});
+
+app.post('/mcp/call', async (c) => {
+  const body = await c.req.json();
+  const { tool, parameters, agent_id } = body;
+
+  if (!tool) return c.json({ success: false, error: 'Missing "tool" field' }, 400);
+
+  const { executeMcpTool } = await import('./mcp/server');
+  const result = await executeMcpTool(
+    { DB: c.env.DB, AI: c.env.AI, VECTORIZE: c.env.VECTORIZE },
+    tool,
+    parameters || {},
+    agent_id
+  );
+
+  return c.json(result);
 });
 
 export { AgentState };
