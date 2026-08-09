@@ -3,7 +3,7 @@
 
 export type AIProvider = 'workers';
 
-interface AIConfig {
+export interface AIConfig {
   provider: AIProvider;
   ai: any; // Cloudflare AI binding
 }

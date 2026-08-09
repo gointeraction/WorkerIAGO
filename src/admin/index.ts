@@ -7,6 +7,95 @@ type Bindings = {
   ENVIRONMENT?: string;
 };
 
+// Database row types
+interface ConversationRow {
+  id: number;
+  agent_id: string;
+  channel: string;
+  chat_id: string;
+  user_name: string | null;
+  user_phone: string | null;
+  status: string;
+  intent: string | null;
+  sentiment: string | null;
+  priority: number;
+  message_count: number;
+  agent_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface TicketRow {
+  id: number;
+  conversation_id: number | null;
+  agent_id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: number;
+  category: string | null;
+  agent_name: string | null;
+  user_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface LeadRow {
+  id: number;
+  conversation_id: number | null;
+  agent_id: string;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  interest: string | null;
+  score: number;
+  status: string;
+  agent_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface KnowledgeRow {
+  id: string;
+  agent_id: string;
+  title: string;
+  content: string;
+  category: string | null;
+  tags: string | null;
+  view_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface AgentRow {
+  id: string;
+  name: string;
+  description: string | null;
+  type: string;
+  system_prompt: string;
+  model: string;
+  temperature: number;
+  max_tokens: number;
+  is_active: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface MessageRow {
+  id: number;
+  conversation_id: number;
+  role: string;
+  content: string;
+  created_at: string;
+}
+
+interface UsageRow {
+  date: string;
+  input_tokens: number;
+  output_tokens: number;
+  cost: number;
+}
+
 const admin = new Hono<{ Bindings: Bindings }>();
 
 // Simple auth middleware
@@ -479,11 +568,12 @@ admin.get('/conversations', async (c) => {
      LEFT JOIN agents a ON c.agent_id = a.id 
      ORDER BY c.updated_at DESC 
      LIMIT ? OFFSET ?`
-  ).bind(limit, offset).all();
+  ).bind(limit, offset).all<ConversationRow>();
   
-  const { count: total } = await c.env.DB.prepare(
+  const totalResult = await c.env.DB.prepare(
     'SELECT COUNT(*) as count FROM conversations'
-  ).first() as any;
+  ).first<{ count: number }>();
+  const total = totalResult?.count || 0;
   
   return c.html(layout('Conversaciones', 'conversations', `
     <div class="fade-in">
@@ -512,7 +602,7 @@ admin.get('/conversations', async (c) => {
       </div>
       
       <div id="conversations-list" class="space-y-4">
-        ${conversations.map(c => `
+        ${conversations.map((c: ConversationRow) => `
           <div class="bg-dark-800 rounded-2xl p-6 border border-dark-600 card-hover cursor-pointer"
                hx-get="/admin/conversations/${c.id}/thread"
                hx-target="#thread-panel"
@@ -534,7 +624,7 @@ admin.get('/conversations', async (c) => {
                   c.status === 'escalated' ? 'bg-yellow-900/50 text-yellow-300' :
                   'bg-gray-700 text-gray-300'
                 }">${c.status}</span>
-                ${c.priority > 0 ? `<span class="px-4 py-2 rounded-full text-sm bg-red-900/50 text-red-300">P${c.priority}</span>` : ''}
+                ${(c.priority || 0) > 0 ? `<span class="px-4 py-2 rounded-full text-sm bg-red-900/50 text-red-300">P${c.priority}</span>` : ''}
               </div>
             </div>
           </div>
@@ -544,8 +634,8 @@ admin.get('/conversations', async (c) => {
       <!-- Pagination -->
       <div class="flex justify-center gap-2 mt-8">
         ${page > 1 ? `<a href="/admin/conversations?page=${page - 1}" class="px-4 py-2 bg-dark-700 rounded-xl hover:bg-dark-600 transition">← Anterior</a>` : ''}
-        <span class="px-4 py-2 text-gray-400">Página ${page} de ${Math.ceil(total / limit)}</span>
-        ${page < Math.ceil(total / limit) ? `<a href="/admin/conversations?page=${page + 1}" class="px-4 py-2 bg-dark-700 rounded-xl hover:bg-dark-600 transition">Siguiente →</a>` : ''}
+        <span class="px-4 py-2 text-gray-400">Página ${page} de ${Math.ceil((total || 0) / limit)}</span>
+        ${page < Math.ceil((total || 0) / limit) ? `<a href="/admin/conversations?page=${page + 1}" class="px-4 py-2 bg-dark-700 rounded-xl hover:bg-dark-600 transition">Siguiente →</a>` : ''}
       </div>
       
       <!-- Thread Panel -->
@@ -569,7 +659,7 @@ admin.get('/conversations/:id/thread', async (c) => {
   
   const { results: messages } = await c.env.DB.prepare(
     'SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC'
-  ).bind(id).all();
+  ).bind(id).all<MessageRow>();
   
   return c.html(`
     <div class="p-6">
@@ -650,7 +740,7 @@ admin.get('/tickets', async (c) => {
   
   query += ' ORDER BY t.priority DESC, t.created_at DESC';
   
-  const { results: tickets } = await c.env.DB.prepare(query).all();
+  const { results: tickets } = await c.env.DB.prepare(query).all<TicketRow>();
   
   return c.html(layout('Tickets', 'tickets', `
     <div class="fade-in">
@@ -670,7 +760,7 @@ admin.get('/tickets', async (c) => {
       </div>
       
       <div class="space-y-4">
-        ${tickets.map(t => `
+        ${tickets.map((t: TicketRow) => `
           <div class="bg-dark-800 rounded-2xl p-6 border border-dark-600 card-hover">
             <div class="flex justify-between items-start">
               <div class="flex-1">
@@ -688,7 +778,7 @@ admin.get('/tickets', async (c) => {
                   t.priority === 2 ? 'bg-orange-900/50 text-orange-300' :
                   t.priority === 1 ? 'bg-yellow-900/50 text-yellow-300' :
                   'bg-dark-700 text-gray-300'
-                }">${['Baja', 'Media', 'Alta', 'Urgente'][t.priority]}</span>
+                }">${['Baja', 'Media', 'Alta', 'Urgente'][t.priority] || 'Baja'}</span>
                 <select class="bg-dark-700 border border-dark-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
                         hx-post="/admin/tickets/${t.id}/status"
                         hx-vals='js:{"status": event.target.value}'>
@@ -711,7 +801,7 @@ admin.get('/tickets', async (c) => {
 admin.get('/knowledge', async (c) => {
   const { results: documents } = await c.env.DB.prepare(
     'SELECT * FROM knowledge_base ORDER BY updated_at DESC'
-  ).all();
+  ).all<KnowledgeRow>();
   
   return c.html(layout('Base de Conocimiento', 'knowledge', `
     <div class="fade-in">
@@ -773,14 +863,14 @@ admin.get('/knowledge', async (c) => {
       
       <!-- Documents list -->
       <div id="kb-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        ${documents.map(d => `
+        ${documents.map((d: KnowledgeRow) => `
           <div class="bg-dark-800 rounded-2xl p-6 border border-dark-600 card-hover">
             <div class="flex justify-between items-start mb-4">
               <div class="w-10 h-10 gradient-bg rounded-lg flex items-center justify-center">
                 <span class="text-lg">📄</span>
               </div>
               <div class="flex gap-2">
-                <button onclick="editDocument('${d.id}', '${d.title}', '${d.category}', '${d.content.replace(/'/g, "\\'")}')"
+                <button onclick="editDocument('${d.id}', '${d.title}', '${d.category || ''}', '${d.content.replace(/'/g, "\\'")}')"
                         class="w-8 h-8 bg-dark-700 rounded-lg flex items-center justify-center hover:bg-dark-600 transition">✏️</button>
                 <button hx-delete="/admin/kb/${d.id}" 
                         hx-confirm="¿Eliminar este documento?"
@@ -812,12 +902,12 @@ admin.get('/knowledge', async (c) => {
           document.getElementById('kb-form').classList.add('hidden');
         }
         
-        function editDocument(id, title, category, content) {
+        function editDocument(id: string, title: string, category: string, content: string) {
           document.getElementById('kb-form').classList.remove('hidden');
-          document.getElementById('doc-id').value = id;
-          document.getElementById('doc-title').value = title;
-          document.getElementById('doc-category').value = category || '';
-          document.getElementById('doc-content').value = content;
+          (document.getElementById('doc-id') as HTMLInputElement).value = id;
+          (document.getElementById('doc-title') as HTMLInputElement).value = title;
+          (document.getElementById('doc-category') as HTMLInputElement).value = category;
+          (document.getElementById('doc-content') as HTMLTextAreaElement).value = content;
         }
       </script>
     </div>
@@ -838,7 +928,7 @@ admin.get('/leads', async (c) => {
   
   query += ' ORDER BY l.score DESC, l.created_at DESC';
   
-  const { results: leads } = await c.env.DB.prepare(query).all();
+  const { results: leads } = await c.env.DB.prepare(query).all<LeadRow>();
   
   return c.html(layout('Leads', 'leads', `
     <div class="fade-in">
@@ -861,7 +951,7 @@ admin.get('/leads', async (c) => {
       </div>
       
       <div class="space-y-4">
-        ${leads.map(l => `
+        ${leads.map((l: LeadRow) => `
           <div class="bg-dark-800 rounded-2xl p-6 border border-dark-600 card-hover">
             <div class="flex justify-between items-start">
               <div class="flex items-center gap-4">
@@ -905,7 +995,7 @@ admin.get('/leads', async (c) => {
 admin.get('/agents', async (c) => {
   const { results: agents } = await c.env.DB.prepare(
     'SELECT * FROM agents ORDER BY created_at DESC'
-  ).all();
+  ).all<AgentRow>();
   
   return c.html(layout('Agentes', 'agents', `
     <div class="fade-in">
@@ -922,7 +1012,7 @@ admin.get('/agents', async (c) => {
       </div>
       
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        ${agents.map(a => `
+        ${agents.map((a: AgentRow) => `
           <div class="bg-dark-800 rounded-2xl p-6 border border-dark-600 card-hover">
             <div class="flex justify-between items-start mb-4">
               <div class="w-14 h-14 gradient-bg rounded-xl flex items-center justify-center">
@@ -1040,10 +1130,10 @@ admin.get('/costs', async (c) => {
      WHERE created_at > datetime('now', '-30 days')
      GROUP BY date(created_at)
      ORDER BY date DESC`
-  ).all();
+  ).all<UsageRow>();
   
-  const totalCost = usage.reduce((sum: number, u: any) => sum + (u.cost || 0), 0);
-  const totalTokens = usage.reduce((sum: number, u: any) => sum + (u.input_tokens || 0) + (u.output_tokens || 0), 0);
+  const totalCost = usage.reduce((sum: number, u: UsageRow) => sum + (u.cost || 0), 0);
+  const totalTokens = usage.reduce((sum: number, u: UsageRow) => sum + (u.input_tokens || 0) + (u.output_tokens || 0), 0);
   
   return c.html(layout('Costos', 'costs', `
     <div class="fade-in">
@@ -1072,7 +1162,7 @@ admin.get('/costs', async (c) => {
       <div class="bg-dark-800 rounded-2xl p-6 border border-dark-600">
         <h2 class="text-xl font-semibold mb-6">📊 Uso Diario</h2>
         <div class="space-y-3">
-          ${usage.slice(0, 10).map(u => `
+          ${usage.slice(0, 10).map((u: UsageRow) => `
             <div class="flex justify-between items-center py-4 px-4 bg-dark-700 rounded-xl">
               <span class="font-medium">${u.date}</span>
               <div class="flex gap-6 text-sm">
