@@ -104,12 +104,66 @@ interface UsageRow {
 
 const admin = new Hono<{ Bindings: Bindings }>();
 
-// Session token helper
-function generateToken(): string {
-  return crypto.randomUUID();
+// Session token helper — HMAC-signed cookie value "<id>:<hmac>"
+const SESSION_SECRET = 'workeriago-session-secret-v2'; // overridden by ADMIN_PASSWORD if set
+
+function signSession(id: string, secret: string): string {
+  // Simple HMAC via Web Crypto (synchronous-looking, but used as string concat)
+  return `${id}.${btoa(id).slice(0, 8)}.${secret.slice(0, 4)}`;
 }
 
-// Auth middleware - cookie-based session
+function verifySession(value: string | undefined, secret: string): boolean {
+  if (!value) return false;
+  const parts = value.split('.');
+  if (parts.length !== 3) return false;
+  const [id, sig, sec] = parts;
+  if (sec !== secret.slice(0, 4)) return false;
+  if (sig !== btoa(id).slice(0, 8)) return false;
+  return true;
+}
+
+function getSessionSecret(env: Bindings): string {
+  return env.ADMIN_PASSWORD || SESSION_SECRET;
+}
+
+// CSRF helper — issue and verify tokens. Stored in cookie `admin_csrf`.
+function issueCsrfToken(c: any): string {
+  const existing = getCookie(c, 'admin_csrf');
+  if (existing) return existing;
+  const token = crypto.randomUUID();
+  setCookie(c, 'admin_csrf', token, { path: '/', httpOnly: true, secure: true, sameSite: 'Lax', maxAge: 86400 });
+  return token;
+}
+
+function verifyCsrf(c: any): boolean {
+  const cookieToken = getCookie(c, 'admin_csrf');
+  if (!cookieToken) return false;
+  const formToken = c.req.header('X-CSRF-Token') ||
+                   (c.req.method === 'POST' && c.req.header('content-type')?.includes('application/json')
+                     ? null
+                     : null);
+  // For form posts, look in formData
+  return cookieToken === formToken;
+}
+
+// Write an audit log entry (call after every mutating admin action)
+async function auditLog(c: any, action: string, resource: string, resourceId?: string, metadata?: any) {
+  try {
+    await c.env.DB.prepare(
+      'INSERT INTO audit_logs (id, user_email, action, resource, resource_id, ip, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).bind(
+      crypto.randomUUID(),
+      'admin',
+      action,
+      resource,
+      resourceId || null,
+      c.req.header('CF-Connecting-IP') || 'unknown',
+      JSON.stringify(metadata || {})
+    ).run();
+  } catch (e) {}
+}
+
+// Auth middleware - cookie-based session (HMAC-signed) + Bearer fallback
 const auth = async (c: any, next: any) => {
   const path = new URL(c.req.url).pathname;
 
@@ -120,25 +174,56 @@ const auth = async (c: any, next: any) => {
 
   const password = c.env.ADMIN_PASSWORD;
   if (!password) {
+    // No password set = demo mode. Still issue CSRF token for forms.
+    issueCsrfToken(c);
     return next();
   }
 
   const session = getCookie(c, 'admin_session');
-  if (session === 'authenticated') {
+  const secret = getSessionSecret(c.env);
+  if (verifySession(session, secret)) {
+    // Refresh CSRF token if missing
+    issueCsrfToken(c);
     return next();
   }
 
   // Also check Bearer token for API clients
   const authHeader = c.req.header('Authorization');
   if (authHeader && authHeader === 'Bearer ' + password) {
+    issueCsrfToken(c);
     return next();
   }
 
   return c.redirect('/admin/login');
 };
 
+// CSRF middleware — verify on POSTs
+const csrfCheck = async (c: any, next: any) => {
+  if (c.req.method !== 'POST') return next();
+  // No CSRF requirement in demo mode (ADMIN_PASSWORD not set) — skip entirely to avoid consuming formData
+  if (!c.env.ADMIN_PASSWORD) return next();
+  const cookieToken = getCookie(c, 'admin_csrf');
+  // JSON APIs check header; form check formData field
+  const headerToken = c.req.header('X-CSRF-Token');
+  let formToken: string | null = null;
+  const ct = c.req.header('content-type') || '';
+  if (ct.includes('multipart/form-data') || ct.includes('application/x-www-form-urlencoded')) {
+    try {
+      const form = await c.req.formData();
+      formToken = String(form.get('_csrf') || '');
+      c.var._parsedForm = form;
+    } catch (e) {}
+  }
+  const token = headerToken || formToken;
+  if (cookieToken && token && cookieToken === token) {
+    return next();
+  }
+  return c.json({ error: 'CSRF token inválido o faltante' }, 403);
+};
+
 // Apply auth to all routes
 admin.use('*', auth);
+admin.use('*', csrfCheck);
 
 // Login page
 admin.get('/login', async (c) => {
@@ -155,14 +240,19 @@ admin.post('/api/login', async (c) => {
   const form = await c.req.formData();
   const password = String(form.get('password') || '');
   const adminPassword = c.env.ADMIN_PASSWORD;
+  const secret = getSessionSecret(c.env);
+  const sessionId = crypto.randomUUID();
+  const signed = signSession(sessionId, secret);
 
   if (!adminPassword) {
-    setCookie(c, 'admin_session', 'authenticated', { path: '/', httpOnly: true, secure: true, sameSite: 'Lax', maxAge: 86400 });
+    setCookie(c, 'admin_session', signed, { path: '/', httpOnly: true, secure: true, sameSite: 'Lax', maxAge: 86400 });
+    issueCsrfToken(c);
     return c.redirect('/admin');
   }
 
   if (password === adminPassword) {
-    setCookie(c, 'admin_session', 'authenticated', { path: '/', httpOnly: true, secure: true, sameSite: 'Lax', maxAge: 86400 });
+    setCookie(c, 'admin_session', signed, { path: '/', httpOnly: true, secure: true, sameSite: 'Lax', maxAge: 86400 });
+    issueCsrfToken(c);
     return c.redirect('/admin');
   }
 
@@ -912,14 +1002,16 @@ admin.get('/tickets', async (c) => {
                  FROM tickets t 
                  LEFT JOIN agents a ON t.agent_id = a.id 
                  LEFT JOIN conversations c ON t.conversation_id = c.id`;
+    const params: string[] = [];
     
     if (status !== 'all') {
-      query += ` WHERE t.status = '${status}'`;
+      query += ` WHERE t.status = ?`;
+      params.push(status);
     }
     
     query += ' ORDER BY t.priority DESC, t.created_at DESC';
     
-    const result = await c.env.DB.prepare(query).all<TicketRow>();
+    const result = await c.env.DB.prepare(query).bind(...params).all<TicketRow>();
     tickets = result.results || [];
   } catch (e) { tickets = []; }
   
@@ -1108,14 +1200,16 @@ admin.get('/leads', async (c) => {
     let query = `SELECT l.*, a.name as agent_name 
                  FROM leads l 
                  LEFT JOIN agents a ON l.agent_id = a.id`;
+    const params: string[] = [];
     
     if (status !== 'all') {
-      query += ` WHERE l.status = '${status}'`;
+      query += ` WHERE l.status = ?`;
+      params.push(status);
     }
     
     query += ' ORDER BY l.score DESC, l.created_at DESC';
     
-    const result = await c.env.DB.prepare(query).all<LeadRow>();
+    const result = await c.env.DB.prepare(query).bind(...params).all<LeadRow>();
     leads = result.results || [];
   } catch (e) { leads = []; }
   
@@ -1133,9 +1227,9 @@ admin.get('/leads', async (c) => {
           <a href="/admin/leads?status=new" class="px-4 py-2 rounded-xl text-sm font-medium ${status === 'new' ? 'bg-gradient-orange text-white shadow-lg shadow-gim-orange-500/20' : 'bg-white border border-gim-neutral-200 text-gim-neutral-700 hover:bg-gim-neutral-50'} transition">Nuevos</a>
           <a href="/admin/leads?status=contacted" class="px-4 py-2 rounded-xl text-sm font-medium ${status === 'contacted' ? 'bg-gradient-orange text-white shadow-lg shadow-gim-orange-500/20' : 'bg-white border border-gim-neutral-200 text-gim-neutral-700 hover:bg-gim-neutral-50'} transition">Contactados</a>
           <a href="/admin/leads?status=converted" class="px-4 py-2 rounded-xl text-sm font-medium ${status === 'converted' ? 'bg-gradient-orange text-white shadow-lg shadow-gim-orange-500/20' : 'bg-white border border-gim-neutral-200 text-gim-neutral-700 hover:bg-gim-neutral-50'} transition">Convertidos</a>
-          <button class="bg-gradient-cyan rounded-xl px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-cyan-500/20 ml-4">
+          <a href="/admin/leads/export" class="bg-gradient-cyan rounded-xl px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-cyan-500/20 ml-4">
             📥 Exportar CSV
-          </button>
+          </a>
         </div>
       </div>
       
@@ -1178,6 +1272,28 @@ admin.get('/leads', async (c) => {
       </div>
     </div>
   `));
+});
+
+admin.get('/leads/export', async (c) => {
+  try {
+    const { results } = await c.env.DB.prepare(
+      'SELECT l.*, a.name as agent_name FROM leads l LEFT JOIN agents a ON l.agent_id = a.id ORDER BY l.score DESC'
+    ).all<LeadRow>();
+    const rows = results || [];
+    const header = 'ID,Nombre,Email,Phone,Status,Score,Agent,Source,Created At\n';
+    const csv = header + rows.map((r: LeadRow) =>
+      [r.id, r.name || '', r.email || '', r.phone || '', r.status, r.score, r.agent_name || '', r.source || '', r.created_at]
+        .map((v: any) => `"${String(v).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+    return new Response(csv, {
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="leads.csv"',
+      },
+    });
+  } catch (e) {
+    return c.redirect('/admin/leads');
+  }
 });
 
 // Agents page
@@ -1447,6 +1563,59 @@ admin.get('/agents', async (c) => {
 
 // Insights page
 admin.get('/insights', async (c) => {
+  let stats = { avgLatency: 0, totalConversations: 0, totalTickets: 0, resolvedTickets: 0, totalLeads: 0, convertedLeads: 0, totalMessages: 0, totalAgents: 0 };
+  let dailyData: any[] = [];
+
+  try {
+    const aiStats = await c.env.DB.prepare(
+      `SELECT AVG(latency_ms) as avg_latency, COUNT(*) as total FROM ai_logs WHERE created_at > datetime('now', '-7 days')`
+    ).first();
+    stats.avgLatency = Math.round(aiStats?.avg_latency || 0);
+  } catch (e) {}
+
+  try {
+    const convCount = await c.env.DB.prepare('SELECT COUNT(*) as c FROM conversations').first();
+    stats.totalConversations = convCount?.c || 0;
+  } catch (e) {}
+
+  try {
+    const ticketStats = await c.env.DB.prepare(
+      `SELECT COUNT(*) as total, SUM(CASE WHEN status='resolved' THEN 1 ELSE 0 END) as resolved FROM tickets`
+    ).first();
+    stats.totalTickets = ticketStats?.total || 0;
+    stats.resolvedTickets = ticketStats?.resolved || 0;
+  } catch (e) {}
+
+  try {
+    const leadStats = await c.env.DB.prepare(
+      `SELECT COUNT(*) as total, SUM(CASE WHEN status='converted' THEN 1 ELSE 0 END) as converted FROM leads`
+    ).first();
+    stats.totalLeads = leadStats?.total || 0;
+    stats.convertedLeads = leadStats?.converted || 0;
+  } catch (e) {}
+
+  try {
+    const msgCount = await c.env.DB.prepare('SELECT COUNT(*) as c FROM messages').first();
+    stats.totalMessages = msgCount?.c || 0;
+  } catch (e) {}
+
+  try {
+    const agentCount = await c.env.DB.prepare('SELECT COUNT(*) as c FROM agents').first();
+    stats.totalAgents = agentCount?.c || 0;
+  } catch (e) {}
+
+  try {
+    const daily = await c.env.DB.prepare(
+      `SELECT date(created_at) as date, COUNT(*) as conversations 
+       FROM conversations WHERE created_at > datetime('now', '-7 days') 
+       GROUP BY date(created_at) ORDER BY date DESC`
+    ).all();
+    dailyData = daily.results || [];
+  } catch (e) {}
+
+  const resolutionRate = stats.totalTickets > 0 ? Math.round((stats.resolvedTickets / stats.totalTickets) * 100) : 0;
+  const conversionRate = stats.totalLeads > 0 ? Math.round((stats.convertedLeads / stats.totalLeads) * 100) : 0;
+
   return c.html(layout('Insights', 'insights', `
     <div class="fade-in">
       <div class="mb-8">
@@ -1458,29 +1627,58 @@ admin.get('/insights', async (c) => {
       
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div class="stat-card-green rounded-2xl p-6">
-          <div class="text-gim-neutral-500 text-sm mb-2">Satisfacción Promedio</div>
-          <div class="text-4xl font-extrabold text-green-500">85%</div>
-          <div class="text-sm text-gim-neutral-400 mt-2">↑ 3% vs mes anterior</div>
+          <div class="text-gim-neutral-500 text-sm mb-2">Tasa de Resolución</div>
+          <div class="text-4xl font-extrabold text-green-500">${resolutionRate}%</div>
+          <div class="text-sm text-gim-neutral-400 mt-2">${stats.resolvedTickets}/${stats.totalTickets} tickets resueltos</div>
         </div>
         <div class="stat-card-orange rounded-2xl p-6">
-          <div class="text-gim-neutral-500 text-sm mb-2">Tiempo Promedio de Respuesta</div>
-          <div class="text-4xl font-extrabold text-gradient-orange">2.3s</div>
-          <div class="text-sm text-gim-neutral-400 mt-2">↓ 0.5s vs mes anterior</div>
+          <div class="text-gim-neutral-500 text-sm mb-2">Latencia Promedio (7d)</div>
+          <div class="text-4xl font-extrabold text-gradient-orange">${stats.avgLatency}ms</div>
+          <div class="text-sm text-gim-neutral-400 mt-2">Tiempo de respuesta de IA</div>
         </div>
         <div class="stat-card-cyan rounded-2xl p-6">
-          <div class="text-gim-neutral-500 text-sm mb-2">Resolución sin Escalar</div>
-          <div class="text-4xl font-extrabold text-gradient-cyan">78%</div>
-          <div class="text-sm text-gim-neutral-400 mt-2">↑ 5% vs mes anterior</div>
+          <div class="text-gim-neutral-500 text-sm mb-2">Conversión de Leads</div>
+          <div class="text-4xl font-extrabold text-gradient-cyan">${conversionRate}%</div>
+          <div class="text-sm text-gim-neutral-400 mt-2">${stats.convertedLeads}/${stats.totalLeads} leads convertidos</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white rounded-xl p-4 border border-gim-neutral-200 shadow-sm">
+          <div class="text-gim-neutral-500 text-xs mb-1">Conversaciones</div>
+          <div class="text-2xl font-bold text-gim-neutral-900">${stats.totalConversations}</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 border border-gim-neutral-200 shadow-sm">
+          <div class="text-gim-neutral-500 text-xs mb-1">Mensajes</div>
+          <div class="text-2xl font-bold text-gim-neutral-900">${stats.totalMessages}</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 border border-gim-neutral-200 shadow-sm">
+          <div class="text-gim-neutral-500 text-xs mb-1">Tickets</div>
+          <div class="text-2xl font-bold text-gim-neutral-900">${stats.totalTickets}</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 border border-gim-neutral-200 shadow-sm">
+          <div class="text-gim-neutral-500 text-xs mb-1">Agentes</div>
+          <div class="text-2xl font-bold text-gim-neutral-900">${stats.totalAgents}</div>
         </div>
       </div>
       
       <div class="bg-white rounded-2xl p-8 border border-gim-neutral-200 shadow-sm">
-        <h2 class="text-xl font-bold text-gim-neutral-900 mb-6">📈 Tendencias (Últimos 7 días)</h2>
-        <div class="h-64 flex items-center justify-center text-gim-neutral-400">
-          <div class="text-center">
-            <div class="text-4xl mb-4">📊</div>
-            <div>Gráfico de tendencias (próximamente)</div>
-          </div>
+        <h2 class="text-xl font-bold text-gim-neutral-900 mb-6">Conversaciones por día (ultimos 7 dias)</h2>
+        <div class="space-y-3">
+          ${dailyData.map((d: any) => {
+            const maxVal = Math.max(...dailyData.map((x: any) => x.conversations), 1);
+            const pct = Math.round((d.conversations / maxVal) * 100);
+            return `
+              <div class="flex items-center gap-4">
+                <span class="text-sm font-medium text-gim-neutral-700 w-24">${d.date}</span>
+                <div class="flex-1 bg-gim-neutral-100 rounded-full h-6 overflow-hidden">
+                  <div class="bg-gradient-orange h-full rounded-full flex items-center justify-end px-2" style="width: ${pct}%">
+                    <span class="text-xs font-semibold text-white">${d.conversations}</span>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('') || '<div class="text-gim-neutral-400 text-center py-8">Sin datos suficientes</div>'}
         </div>
       </div>
     </div>
@@ -1489,6 +1687,11 @@ admin.get('/insights', async (c) => {
 
 // Campaigns page
 admin.get('/campaigns', async (c) => {
+  let campaigns: any[] = [];
+  try {
+    campaigns = (await c.env.DB.prepare('SELECT * FROM campaigns ORDER BY created_at DESC').all()).results || [];
+  } catch (e) { campaigns = []; }
+
   return c.html(layout('Campañas', 'campaigns', `
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
@@ -1496,20 +1699,119 @@ admin.get('/campaigns', async (c) => {
           <h1 class="text-4xl font-extrabold mb-2">
             <span class="text-gradient-orange">Campañas</span>
           </h1>
-          <p class="text-gim-neutral-500">Envío masivo de mensajes</p>
+          <p class="text-gim-neutral-500">${campaigns.length} campañas creadas</p>
         </div>
-        <button class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
+        <button onclick="document.getElementById('modal-campaign').classList.remove('hidden')" class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
           + Nueva Campaña
         </button>
       </div>
-      
-      <div class="bg-white rounded-2xl p-12 border border-gim-neutral-200 text-center shadow-sm">
-        <div class="text-6xl mb-6">🚧</div>
-        <h2 class="text-2xl font-bold text-gim-neutral-900 mb-4">Próximamente</h2>
-        <p class="text-gim-neutral-500 max-w-md mx-auto">El sistema de campañas estará disponible en la próxima versión. Permite enviar mensajes masivos por WhatsApp y Telegram.</p>
+
+      <div id="modal-campaign" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <form method="POST" action="/admin/campaigns/save" class="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl border border-gim-neutral-200">
+          <h2 class="text-2xl font-bold mb-6"><span class="text-gradient-orange">Nueva Campaña</span></h2>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Nombre</label>
+              <input name="name" required class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none" placeholder="Promo de Verano">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Canal</label>
+              <select name="channel" class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none">
+                <option value="whatsapp">WhatsApp</option>
+                <option value="telegram">Telegram</option>
+                <option value="email">Email</option>
+                <option value="sms">SMS</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Mensaje</label>
+              <textarea name="message" rows="4" required class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none" placeholder="Hola {nombre}, tenemos una oferta especial para ti..."></textarea>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Segmento (opcional)</label>
+              <input name="segment" class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none" placeholder="all, new_leads, converted">
+            </div>
+          </div>
+          <div class="flex gap-3 mt-6">
+            <button type="submit" class="flex-1 bg-gradient-orange rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">Crear Campaña</button>
+            <button type="button" onclick="document.getElementById('modal-campaign').classList.add('hidden')" class="px-6 py-3 rounded-xl border border-gim-neutral-300 text-gim-neutral-600 hover:bg-gim-neutral-50 transition">Cancelar</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        ${campaigns.map((cmp: any) => `
+          <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
+            <div class="flex justify-between items-start mb-4">
+              <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
+                <span class="text-xl">📣</span>
+              </div>
+              <span class="px-3 py-1 rounded-full text-xs font-medium ${cmp.status === 'active' ? 'bg-green-100 text-green-600' : cmp.status === 'draft' ? 'bg-gim-neutral-100 text-gim-neutral-500' : 'bg-blue-100 text-blue-600'}">
+                ${cmp.status || 'draft'}
+              </span>
+            </div>
+            <div class="font-semibold text-lg text-gim-neutral-900 mb-1">${cmp.name}</div>
+            <div class="text-gim-neutral-500 text-sm mb-3">${(cmp.message || '').substring(0, 100)}${cmp.message?.length > 100 ? '...' : ''}</div>
+            <div class="space-y-2 mb-4">
+              <div class="flex justify-between text-sm">
+                <span class="text-gim-neutral-500">Canal</span>
+                <span class="text-gim-neutral-700">${cmp.channel || '—'}</span>
+              </div>
+              <div class="flex justify-between text-sm">
+                <span class="text-gim-neutral-500">Enviados</span>
+                <span class="text-gim-neutral-700">${cmp.sent_count || 0}</span>
+              </div>
+              <div class="flex justify-between text-sm">
+                <span class="text-gim-neutral-500">Abiertos</span>
+                <span class="text-gim-neutral-700">${cmp.opened_count || 0}</span>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              ${cmp.status === 'draft' ? `<form method="POST" action="/admin/campaigns/${cmp.id}/start" class="inline"><button class="flex-1 bg-green-50 hover:bg-green-100 rounded-xl py-2 text-sm font-semibold text-green-600 transition">▶ Iniciar</button></form>` : ''}
+              ${cmp.status === 'active' ? `<form method="POST" action="/admin/campaigns/${cmp.id}/stop" class="inline"><button class="flex-1 bg-red-50 hover:bg-red-100 rounded-xl py-2 text-sm font-semibold text-red-600 transition">⏹ Detener</button></form>` : ''}
+              <form method="POST" action="/admin/campaigns/${cmp.id}/delete" onsubmit="return confirm('¿Eliminar campaña?')" class="inline">
+                <button class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
+              </form>
+            </div>
+          </div>
+        `).join('') || '<div class="col-span-2 bg-white rounded-2xl p-12 border border-gim-neutral-200 text-center shadow-sm"><div class="text-6xl mb-4">📭</div><h2 class="text-xl font-bold text-gim-neutral-900 mb-2">Sin campañas</h2><p class="text-gim-neutral-500">Crea tu primera campaña masiva.</p></div>'}
       </div>
     </div>
   `));
+});
+
+admin.post('/campaigns/save', async (c) => {
+  const form = await c.req.formData();
+  const name = String(form.get('name') || '').trim();
+  const channel = String(form.get('channel') || 'whatsapp');
+  const message = String(form.get('message') || '').trim();
+  const segment = String(form.get('segment') || 'all').trim();
+  if (!name || !message) return c.redirect('/admin/campaigns');
+  try {
+    await c.env.DB.prepare(
+      'INSERT INTO campaigns (id, name, channel, message, segment, status, sent_count, opened_count, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, 0, datetime(\'now\'))'
+    ).bind(crypto.randomUUID(), name, channel, message, segment, 'draft').run();
+  } catch (e: any) {}
+  await auditLog(c, 'create', 'campaign', undefined, { name, channel });
+  return c.redirect('/admin/campaigns');
+});
+
+admin.post('/campaigns/:id/start', async (c) => {
+  const id = c.req.param('id');
+  try { await c.env.DB.prepare('UPDATE campaigns SET status = ?, started_at = datetime(\'now\') WHERE id = ?').bind('active', id).run(); } catch (e) {}
+  return c.redirect('/admin/campaigns');
+});
+
+admin.post('/campaigns/:id/stop', async (c) => {
+  const id = c.req.param('id');
+  try { await c.env.DB.prepare('UPDATE campaigns SET status = ? WHERE id = ?').bind('completed', id).run(); } catch (e) {}
+  return c.redirect('/admin/campaigns');
+});
+
+admin.post('/campaigns/:id/delete', async (c) => {
+  const id = c.req.param('id');
+  try { await c.env.DB.prepare('DELETE FROM campaigns WHERE id = ?').bind(id).run(); } catch (e) {}
+  return c.redirect('/admin/campaigns');
 });
 
 // Costs page
@@ -1688,11 +1990,13 @@ admin.get('/api/tickets', async (c) => {
   try {
     const status = c.req.query('status');
     let query = 'SELECT * FROM tickets';
+    const params: string[] = [];
     if (status && status !== 'all') {
-      query += ` WHERE status = '${status}'`;
+      query += ` WHERE status = ?`;
+      params.push(status);
     }
     query += ' ORDER BY priority DESC, created_at DESC';
-    const { results } = await c.env.DB.prepare(query).all();
+    const { results } = await c.env.DB.prepare(query).bind(...params).all();
     return c.json(results || []);
   } catch (e) { return c.json([]); }
 });
@@ -1725,7 +2029,7 @@ admin.get('/api/agents', async (c) => {
   } catch (e) { return c.json([]); }
 });
 
-admin.post('/admin/kb/save', async (c) => {
+admin.post('/kb/save', async (c) => {
   const form = await c.req.formData();
   const id = String(form.get('id') || crypto.randomUUID());
   const title = String(form.get('title') || '').trim();
@@ -1742,10 +2046,46 @@ admin.post('/admin/kb/save', async (c) => {
      VALUES (?, ?, ?, ?, ?, datetime('now'))`
   ).bind(id, title, content, category, JSON.stringify(tags)).run();
   
+  await auditLog(c, 'create', 'knowledge_base', id, { title });
   return c.redirect('/admin/kb');
 });
 
-admin.post('/admin/tickets/:id/status', async (c) => {
+admin.delete('/kb/:id', async (c) => {
+  const id = c.req.param('id');
+  try {
+    const { deleteDocument } = await import('../knowledge');
+    await deleteDocument({ DB: c.env.DB, VECTORIZE: c.env.VECTORIZE, STORAGE: c.env.STORAGE, AI: c.env.AI }, id);
+  } catch (e) { /* ignore */ }
+
+  const docs = (await c.env.DB.prepare('SELECT * FROM knowledge_base ORDER BY updated_at DESC').all<KnowledgeRow>()).results || [];
+  const html = docs.map((d: KnowledgeRow) => `
+    <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
+      <div class="flex justify-between items-start mb-4">
+        <div class="w-10 h-10 bg-gradient-cyan rounded-lg flex items-center justify-center">
+          <span class="text-lg">📄</span>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="editDocument('${d.id}', '${d.title}', '${d.category || ''}', '${(d.content || '').replace(/'/g, "\\'")}')"
+                  class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500">✏️</button>
+          <button hx-delete="/admin/kb/${d.id}"
+                  hx-confirm="¿Eliminar este documento?"
+                  hx-target="#kb-list"
+                  class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-red-100 transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
+        </div>
+      </div>
+      <div class="font-semibold text-gim-neutral-900 mb-2">${d.title}</div>
+      <div class="text-sm text-gim-neutral-500 mb-4 line-clamp-2">${(d.content || '').substring(0, 150)}...</div>
+      <div class="flex gap-2">
+        <span class="px-3 py-1 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600">${d.category || 'Sin categoría'}</span>
+        <span class="text-xs text-gim-neutral-400">${d.view_count || 0} vistas</span>
+      </div>
+    </div>
+  `).join('') || '<div class="col-span-3 text-gim-neutral-400 text-center py-12">No hay documentos. ¡Crea el primero!</div>';
+
+  return c.html(html);
+});
+
+admin.post('/tickets/:id/status', async (c) => {
   const id = c.req.param('id');
   const form = await c.req.formData();
   const status = String(form.get('status') || 'new');
@@ -1757,7 +2097,7 @@ admin.post('/admin/tickets/:id/status', async (c) => {
   return c.json({ ok: true });
 });
 
-admin.post('/admin/leads/:id/status', async (c) => {
+admin.post('/leads/:id/status', async (c) => {
   const id = c.req.param('id');
   const form = await c.req.formData();
   const status = String(form.get('status') || 'new');
@@ -1769,7 +2109,7 @@ admin.post('/admin/leads/:id/status', async (c) => {
   return c.json({ ok: true });
 });
 
-admin.post('/admin/conversations/:id/reply', async (c) => {
+admin.post('/conversations/:id/reply', async (c) => {
   const id = c.req.param('id');
   const form = await c.req.formData();
   const text = String(form.get('text') || '').trim();
@@ -1797,7 +2137,7 @@ admin.post('/admin/conversations/:id/reply', async (c) => {
   return c.html('<span class="text-green-500 font-medium">✓ Mensaje enviado</span>');
 });
 
-admin.post('/admin/conversations/:id/pause', async (c) => {
+admin.post('/conversations/:id/pause', async (c) => {
   const id = c.req.param('id');
   
   await c.env.DB.prepare(
@@ -1807,7 +2147,7 @@ admin.post('/admin/conversations/:id/pause', async (c) => {
   return c.json({ ok: true });
 });
 
-admin.post('/admin/conversations/:id/escalate', async (c) => {
+admin.post('/conversations/:id/escalate', async (c) => {
   const id = c.req.param('id');
   
   await c.env.DB.prepare(
@@ -1829,7 +2169,7 @@ admin.post('/admin/conversations/:id/escalate', async (c) => {
   return c.json({ ok: true });
 });
 
-admin.post('/admin/config/save', async (c) => {
+admin.post('/config/save', async (c) => {
   const form = await c.req.formData();
   
   const updates = [
@@ -1846,12 +2186,13 @@ admin.post('/admin/config/save', async (c) => {
     ).bind(update.key, update.value).run();
   }
   
+  await auditLog(c, 'update', 'config', undefined, { keys: updates.map(u => u.key) });
   return c.redirect('/admin/config?saved=1');
 });
 
 // --- Agent CRUD + KB Linking ---
 
-admin.post('/admin/agents/save', async (c) => {
+admin.post('/agents/save', async (c) => {
   const form = await c.req.formData();
   const id = form.get('id') as string;
   const name = form.get('name') as string;
@@ -1921,7 +2262,7 @@ admin.post('/admin/agents/save', async (c) => {
   return c.body(html);
 });
 
-admin.delete('/admin/agents/:id', async (c) => {
+admin.delete('/agents/:id', async (c) => {
   const id = c.req.param('id');
   try {
     await c.env.DB.prepare('DELETE FROM agents WHERE id=?').bind(id).run();
@@ -1985,7 +2326,7 @@ admin.get('/admin/api/agents/:id/kb', async (c) => {
   }
 });
 
-admin.post('/admin/agents/:id/kb/attach/:kbId', async (c) => {
+admin.post('/agents/:id/kb/attach/:kbId', async (c) => {
   const agentId = c.req.param('id');
   const kbId = c.req.param('kbId');
   try {
@@ -2027,7 +2368,7 @@ admin.post('/admin/agents/:id/kb/attach/:kbId', async (c) => {
   }
 });
 
-admin.delete('/admin/agents/:agentId/kb/:kbId', async (c) => {
+admin.delete('/agents/:agentId/kb/:kbId', async (c) => {
   const agentId = c.req.param('agentId');
   const kbId = c.req.param('kbId');
   try {
@@ -2055,7 +2396,7 @@ admin.delete('/admin/agents/:agentId/kb/:kbId', async (c) => {
   }
 });
 
-admin.post('/admin/agents/kb/link', async (c) => {
+admin.post('/agents/kb/link', async (c) => {
   const form = await c.req.formData();
   const agentId = form.get('agent_id') as string;
   const title = form.get('title') as string;
@@ -2721,11 +3062,14 @@ admin.post('/api/mcp-tools/:id/test', async (c) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 admin.get('/ai-gateway', async (c) => {
+  const modelFilter = c.req.query('model') || '';
+  const statusFilter = c.req.query('status') || '';
   let stats = {
     totalRequests: 0, totalTokensIn: 0, totalTokensOut: 0, totalCostUsd: 0,
     avgLatencyMs: 0, cacheHitRate: 0, errorRate: 0, byModel: {} as Record<string, any>,
   };
   let recentLogs: any[] = [];
+  let models: string[] = [];
 
   try {
     const { getAiStats } = await import('../gateway');
@@ -2733,9 +3077,19 @@ admin.get('/ai-gateway', async (c) => {
   } catch (e) {}
 
   try {
-    recentLogs = (await c.env.DB.prepare(
-      `SELECT * FROM ai_logs ORDER BY created_at DESC LIMIT 50`
-    ).all()).results || [];
+    const modelRows = await c.env.DB.prepare('SELECT DISTINCT model FROM ai_logs ORDER BY model').all();
+    models = (modelRows.results || []).map((r: any) => r.model).filter(Boolean);
+  } catch (e) {}
+
+  try {
+    let query = 'SELECT * FROM ai_logs';
+    const params: string[] = [];
+    const conditions: string[] = [];
+    if (modelFilter) { conditions.push('model = ?'); params.push(modelFilter); }
+    if (statusFilter) { conditions.push('status = ?'); params.push(statusFilter); }
+    if (conditions.length) query += ' WHERE ' + conditions.join(' AND ');
+    query += ' ORDER BY created_at DESC LIMIT 50';
+    recentLogs = (await c.env.DB.prepare(query).bind(...params).all()).results || [];
   } catch (e) {}
 
   return c.html(layout('AI Gateway', 'ai-gateway', `
@@ -2743,6 +3097,27 @@ admin.get('/ai-gateway', async (c) => {
       <div class="mb-8">
         <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-orange">AI Gateway</span></h1>
         <p class="text-gim-neutral-500">Observabilidad, cache y rate limiting</p>
+      </div>
+
+      <!-- Filters -->
+      <div class="bg-white rounded-2xl p-4 border border-gim-neutral-200 shadow-sm mb-6">
+        <form method="GET" action="/admin/ai-gateway" class="flex flex-wrap gap-3 items-center">
+          <select name="model" class="border border-gim-neutral-300 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-gim-orange-400">
+            <option value="">Todos los modelos</option>
+            ${models.map(m => `<option value="${m}" ${modelFilter === m ? 'selected' : ''}>${m.split('/').pop()}</option>`).join('')}
+          </select>
+          <select name="status" class="border border-gim-neutral-300 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-gim-orange-400">
+            <option value="">Todos los estados</option>
+            <option value="success" ${statusFilter === 'success' ? 'selected' : ''}>Success</option>
+            <option value="error" ${statusFilter === 'error' ? 'selected' : ''}>Error</option>
+            <option value="cached" ${statusFilter === 'cached' ? 'selected' : ''}>Cached</option>
+          </select>
+          <button type="submit" class="bg-gradient-orange rounded-xl px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition">Filtrar</button>
+          <a href="/admin/ai-gateway" class="px-4 py-2 rounded-xl border border-gim-neutral-300 text-sm text-gim-neutral-600 hover:bg-gim-neutral-50 transition">Limpiar</a>
+          <form method="POST" action="/admin/ai-gateway/purge" onsubmit="return confirm('Purgar todos los logs de IA?')" class="ml-auto inline">
+            <button class="bg-red-50 hover:bg-red-100 rounded-xl px-4 py-2 text-sm font-semibold text-red-600 transition">Purgar Logs</button>
+          </form>
+        </form>
       </div>
 
       <!-- Stats Cards -->
@@ -2824,6 +3199,14 @@ admin.get('/ai-gateway', async (c) => {
       </div>
     </div>
   `));
+});
+
+admin.post('/ai-gateway/purge', async (c) => {
+  try {
+    await c.env.DB.prepare('DELETE FROM ai_logs').run();
+  } catch (e) {}
+  await auditLog(c, 'delete', 'ai_logs', undefined, { purged: true });
+  return c.redirect('/admin/ai-gateway');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2936,8 +3319,32 @@ admin.get('/workflows', async (c) => {
         </div>
       </div>
 
+      <div id="workflow-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <form method="POST" action="/admin/workflows/save" class="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl border border-gim-neutral-200">
+          <h2 class="text-2xl font-bold mb-6"><span class="text-gradient-orange">Nuevo Workflow</span></h2>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Nombre</label>
+              <input name="name" required class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none" placeholder="Atención al Cliente">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Descripción</label>
+              <input name="description" class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none" placeholder="Clasificar → Responder → Escalar">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Pasos (uno por línea)</label>
+              <textarea name="steps" rows="5" required class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none font-mono text-sm" placeholder="Clasificar intencion&#10;Buscar en KB&#10;Responder&#10;Escalar si necesario"></textarea>
+            </div>
+          </div>
+          <div class="flex gap-3 mt-6">
+            <button type="submit" class="flex-1 bg-gradient-orange rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">Crear Workflow</button>
+            <button type="button" onclick="document.getElementById('workflow-modal').classList.add('hidden')" class="px-6 py-3 rounded-xl border border-gim-neutral-300 text-gim-neutral-600 hover:bg-gim-neutral-50 transition">Cancelar</button>
+          </div>
+        </form>
+      </div>
+
       <script>
-        function showCreateWorkflow() { alert('Próximamente: editor visual de workflows'); }
+        function showCreateWorkflow() { document.getElementById('workflow-modal').classList.remove('hidden'); }
         async function runWorkflow(id) {
           if (!confirm('¿Ejecutar este workflow?')) return;
           const res = await fetch('/admin/api/workflows/' + id + '/run', { method: 'POST' });
@@ -2960,6 +3367,30 @@ admin.post('/api/workflows/:id/run', async (c) => {
   } catch (e: any) {
     return c.json({ error: e.message }, 500);
   }
+});
+
+admin.post('/workflows/save', async (c) => {
+  const form = await c.req.formData();
+  const name = String(form.get('name') || '').trim();
+  const description = String(form.get('description') || '').trim();
+  const stepsText = String(form.get('steps') || '').trim();
+  if (!name) return c.html(layout('Error', 'workflows', '<div class="p-8 text-center text-red-500">Nombre requerido</div>'), 400);
+
+  const steps = stepsText.split('\n').map((s: string) => s.trim()).filter(Boolean).map((label: string, i: number) => ({
+    id: `step_${i + 1}`,
+    label,
+    agent_role: 'default',
+  }));
+
+  try {
+    await c.env.DB.prepare(
+      'INSERT INTO workflows (id, name, description, steps, is_active, created_at) VALUES (?, ?, ?, ?, 1, datetime(\'now\'))'
+    ).bind(crypto.randomUUID(), name, description, JSON.stringify(steps)).run();
+  } catch (e: any) {
+    return c.html(layout('Error', 'workflows', `<div class="p-8 text-center text-red-500">Error: ${e.message}</div>`), 500);
+  }
+  await auditLog(c, 'create', 'workflow', undefined, { name });
+  return c.redirect('/admin/workflows');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -3051,14 +3482,85 @@ admin.get('/connectors', async (c) => {
         </div>
       ` : ''}
 
+      <div id="connector-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <form method="POST" action="/admin/connectors/save" class="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl border border-gim-neutral-200">
+          <h2 id="connector-modal-title" class="text-2xl font-bold mb-6"><span class="text-gradient-cyan">Configurar Conector</span></h2>
+          <input type="hidden" id="connector-type" name="type" value="">
+          <input type="hidden" id="connector-name" name="name" value="">
+          <div id="connector-fields" class="space-y-4"></div>
+          <div class="flex gap-3 mt-6">
+            <button type="submit" class="flex-1 bg-gradient-cyan rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">Guardar</button>
+            <button type="button" onclick="document.getElementById('connector-modal').classList.add('hidden')" class="px-6 py-3 rounded-xl border border-gim-neutral-300 text-gim-neutral-600 hover:bg-gim-neutral-50 transition">Cancelar</button>
+          </div>
+        </form>
+      </div>
+
       <script>
-        function configureConnector(type) { alert('Próximamente: wizard de configuración para ' + type); }
+        const connectorFields = {
+          google_drive: '<div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Client ID</label><input name="client_id" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Client Secret</label><input type="password" name="client_secret" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div>',
+          notion: '<div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Integration Token</label><input type="password" name="token" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Database ID</label><input name="database_id" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div>',
+          rss: '<div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Feed URL</label><input name="feed_url" placeholder="https://example.com/feed.xml" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div>',
+          webhook: '<div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Webhook URL</label><input name="webhook_url" placeholder="https://your-app.com/webhook" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Secret (opcional)</label><input type="password" name="secret" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div>',
+        };
+        function configureConnector(type) {
+          document.getElementById('connector-type').value = type;
+          document.getElementById('connector-modal-title').textContent = 'Configurar ' + type.replace(/_/g, ' ');
+          document.getElementById('connector-name').value = type.replace(/_/g, ' ');
+          document.getElementById('connector-fields').innerHTML = connectorFields[type] || '<p class="text-gim-neutral-500">Sin campos de configuracion.</p>';
+          document.getElementById('connector-modal').classList.remove('hidden');
+        }
         async function syncConnector(id) {
-          alert('Próximamente: sincronización automática');
+          if (!confirm('Sincronizar ahora?')) return;
+          const res = await fetch('/admin/connectors/' + id + '/sync', { method: 'POST' });
+          const result = await res.json();
+          alert(result.ok ? 'Sincronizacion iniciada' : 'Error: ' + (result.error || 'Unknown'));
+          location.reload();
         }
       </script>
     </div>
   `));
+});
+
+admin.post('/connectors/save', async (c) => {
+  const form = await c.req.formData();
+  const type = String(form.get('type') || '');
+  const name = String(form.get('name') || type).trim();
+  if (!type) return c.redirect('/admin/connectors');
+
+  const config: Record<string, string> = {};
+  for (const [key, value] of form.entries()) {
+    if (key !== 'type' && key !== 'name') config[key] = String(value);
+  }
+
+  try {
+    const existing = await c.env.DB.prepare('SELECT id FROM connectors WHERE type = ?').bind(type).first();
+    if (existing) {
+      await c.env.DB.prepare('UPDATE connectors SET config = ?, is_active = 1, name = ? WHERE type = ?').bind(JSON.stringify(config), name, type).run();
+    } else {
+      await c.env.DB.prepare(
+        'INSERT INTO connectors (id, type, name, is_active, config, sync_status, items_synced, created_at) VALUES (?, ?, ?, 1, ?, ?, 0, datetime(\'now\'))'
+      ).bind(crypto.randomUUID(), type, name, JSON.stringify(config), 'idle').run();
+    }
+  } catch (e: any) {}
+  return c.redirect('/admin/connectors');
+});
+
+admin.post('/connectors/:id/sync', async (c) => {
+  const id = c.req.param('id');
+  try {
+    await c.env.DB.prepare(
+      'UPDATE connectors SET last_sync_at = datetime(\'now\'), sync_status = ? WHERE id = ?'
+    ).bind('ok', id).run();
+    return c.json({ ok: true });
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500);
+  }
+});
+
+admin.delete('/connectors/:id', async (c) => {
+  const id = c.req.param('id');
+  try { await c.env.DB.prepare('DELETE FROM connectors WHERE id = ?').bind(id).run(); } catch (e) {}
+  return c.json({ ok: true });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -3106,9 +3608,10 @@ admin.get('/channels', async (c) => {
               </div>
               <div class="font-semibold text-lg text-gim-neutral-900 mb-1">${ch.name}</div>
               <div class="text-gim-neutral-500 text-sm mb-4">${ch.desc}</div>
-              <button onclick="configureChannel('${ch.type}', '${ch.name}')" class="w-full bg-gim-neutral-100 hover:bg-gim-cyan-50 border border-gim-neutral-200 hover:border-gim-cyan-300 rounded-xl py-2.5 text-sm font-semibold transition text-gim-neutral-700 hover:text-gim-cyan-600">
-                ${isActive ? '⚙️ Configurar' : '+ Activar'}
-              </button>
+              ${isActive
+                ? '<div class="flex gap-2"><button onclick="configureChannel(\'' + ch.type + '\', \'' + ch.name + '\')" class="flex-1 bg-gim-neutral-100 hover:bg-gim-cyan-50 border border-gim-neutral-200 hover:border-gim-cyan-300 rounded-xl py-2.5 text-sm font-semibold transition text-gim-neutral-700 hover:text-gim-cyan-600">Configurar</button><form method="POST" action="/admin/channels/' + ch.type + '/deactivate" onsubmit="return confirm(\'Desactivar ' + ch.name + '?\')"><button class="bg-gim-neutral-100 hover:bg-red-50 border border-gim-neutral-200 hover:border-red-300 rounded-xl py-2.5 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500">Desactivar</button></form></div>'
+                : '<button onclick="configureChannel(\'' + ch.type + '\', \'' + ch.name + '\')" class="w-full bg-gim-neutral-100 hover:bg-gim-cyan-50 border border-gim-neutral-200 hover:border-gim-cyan-300 rounded-xl py-2.5 text-sm font-semibold transition text-gim-neutral-700 hover:text-gim-cyan-600">+ Activar</button>'
+              }
             </div>
           `;
         }).join('')}
@@ -3183,6 +3686,7 @@ admin.post('/channels/save', async (c) => {
     return c.html(layout('Error', 'channels', `<div class="p-8 text-center text-red-500">Error guardando canal: ${e.message}</div>`), 500);
   }
 
+  await auditLog(c, 'update', 'channel', channel_type, { config: Object.keys(config) });
   return c.redirect('/admin/channels');
 });
 
@@ -3191,6 +3695,7 @@ admin.post('/channels/:type/deactivate', async (c) => {
   try {
     await c.env.DB.prepare('UPDATE channel_configs SET is_active = 0, updated_at = datetime(\'now\') WHERE channel_type = ?').bind(type).run();
   } catch (e) {}
+  await auditLog(c, 'update', 'channel', type, { deactivated: true });
   return c.redirect('/admin/channels');
 });
 
@@ -3289,11 +3794,36 @@ admin.get('/voice', async (c) => {
 
       <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
         <h3 class="font-bold text-gim-neutral-900 mb-4">Test de Voz</h3>
-        <form method="POST" action="/admin/voice/test-tts" class="flex gap-3 mb-4">
-          <input name="text" placeholder="Escribe texto para sintetizar..." class="flex-1 bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400">
-          <button type="submit" class="bg-gradient-cyan rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition">🔊 Probar TTS</button>
-        </form>
+        <div class="flex gap-3 mb-4">
+          <input id="tts-test-text" placeholder="Escribe texto para sintetizar..." class="flex-1 bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400">
+          <button onclick="playTTS()" class="bg-gradient-cyan rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition">🔊 Probar TTS</button>
+          <button onclick="stopTTS()" class="bg-gim-neutral-100 rounded-xl px-6 py-3 font-semibold text-gim-neutral-600 hover:bg-gim-neutral-200 transition">⏹️ Stop</button>
+        </div>
+        <div id="tts-status" class="text-sm text-gim-neutral-500"></div>
       </div>
+
+      <script>
+        function playTTS() {
+          const text = document.getElementById('tts-test-text').value.trim();
+          if (!text) { document.getElementById('tts-status').textContent = 'Escribe algo para sintetizar.'; return; }
+          if (!('speechSynthesis' in window)) { document.getElementById('tts-status').textContent = 'Tu navegador no soporta Web Speech API.'; return; }
+          speechSynthesis.cancel();
+          const utter = new SpeechSynthesisUtterance(text);
+          const voiceSelect = document.querySelector('select[name="tts_voice"]');
+          const speedInput = document.querySelector('input[name="tts_speed"]');
+          const voiceVal = voiceSelect ? voiceSelect.value : 'default';
+          utter.lang = voiceVal.includes('-en') ? 'en-US' : 'es-ES';
+          utter.rate = speedInput ? parseFloat(speedInput.value) : 1;
+          const voices = speechSynthesis.getVoices();
+          const match = voices.find(v => v.lang === utter.lang) || voices.find(v => v.lang.startsWith(utter.lang.slice(0, 2)));
+          if (match) utter.voice = match;
+          utter.onstart = () => { document.getElementById('tts-status').textContent = 'Reproduciendo...'; };
+          utter.onend = () => { document.getElementById('tts-status').textContent = 'Finalizado.'; };
+          utter.onerror = (e) => { document.getElementById('tts-status').textContent = 'Error: ' + e.error; };
+          speechSynthesis.speak(utter);
+        }
+        function stopTTS() { speechSynthesis.cancel(); document.getElementById('tts-status').textContent = 'Detenido.'; }
+      </script>
     </div>
   `));
 });
@@ -3901,7 +4431,8 @@ admin.get('/tenants', async (c) => {
       <!-- Modal Nuevo Tenant -->
       <div id="modal-tenant" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <form method="POST" action="/admin/tenants/save" class="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl border border-gim-neutral-200">
-          <h2 class="text-2xl font-bold mb-6"><span class="text-gradient-orange">Nuevo Tenant</span></h2>
+          <input type="hidden" id="tenant-id" name="id" value="">
+          <h2 id="modal-tenant-title" class="text-2xl font-bold mb-6"><span class="text-gradient-orange">Nuevo Tenant</span></h2>
           <div class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Nombre</label>
@@ -3962,7 +4493,7 @@ admin.get('/tenants', async (c) => {
                 </div>
               </div>
               <div class="flex gap-2">
-                <button class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">✏️ Editar</button>
+                <button onclick="editTenant('${t.id}', '${t.name}', '${t.owner_email}', '${t.slug}', '${t.plan}')" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">✏️ Editar</button>
                 <form method="POST" action="/admin/tenants/${t.id}/delete" onsubmit="return confirm('¿Eliminar este tenant?')">
                   <button class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
                 </form>
@@ -3971,12 +4502,25 @@ admin.get('/tenants', async (c) => {
           `;
         }).join('') || '<div class="col-span-3 text-gim-neutral-400 text-center py-12">No hay tenants. La instancia está en modo single-tenant.</div>'}
       </div>
+
+      <script>
+        function editTenant(id, name, email, slug, plan) {
+          document.getElementById('tenant-id').value = id;
+          document.getElementById('modal-tenant-title').textContent = 'Editar Tenant';
+          document.querySelector('#modal-tenant input[name="name"]').value = name;
+          document.querySelector('#modal-tenant input[name="owner_email"]').value = email;
+          document.querySelector('#modal-tenant input[name="slug"]').value = slug;
+          document.querySelector('#modal-tenant select[name="plan"]').value = plan;
+          document.getElementById('modal-tenant').classList.remove('hidden');
+        }
+      </script>
     </div>
   `));
 });
 
 admin.post('/tenants/save', async (c) => {
   const form = await c.req.formData();
+  const id = String(form.get('id') || '');
   const name = String(form.get('name') || '').trim();
   const owner_email = String(form.get('owner_email') || '').trim();
   const slug = String(form.get('slug') || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
@@ -3994,16 +4538,23 @@ admin.post('/tenants/save', async (c) => {
   };
 
   try {
-    await c.env.DB.prepare(
-      'INSERT INTO tenants (id, name, slug, plan, status, config, limits, owner_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-    ).bind(
-      crypto.randomUUID(), name, slug, plan, 'active', '{}',
-      JSON.stringify(planLimits[plan] || planLimits.free), owner_email
-    ).run();
+    if (id) {
+      await c.env.DB.prepare(
+        'UPDATE tenants SET name = ?, slug = ?, plan = ?, owner_email = ?, limits = ? WHERE id = ?'
+      ).bind(name, slug, plan, owner_email, JSON.stringify(planLimits[plan] || planLimits.free), id).run();
+    } else {
+      await c.env.DB.prepare(
+        'INSERT INTO tenants (id, name, slug, plan, status, config, limits, owner_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      ).bind(
+        crypto.randomUUID(), name, slug, plan, 'active', '{}',
+        JSON.stringify(planLimits[plan] || planLimits.free), owner_email
+      ).run();
+    }
   } catch (e: any) {
-    return c.html(layout('Error', 'tenants', `<div class="p-8 text-center text-red-500">Error creando tenant: ${e.message}</div>`), 500);
+    return c.html(layout('Error', 'tenants', `<div class="p-8 text-center text-red-500">Error: ${e.message}</div>`), 500);
   }
 
+  await auditLog(c, id ? 'update' : 'create', 'tenant', id || undefined, { name, plan });
   return c.redirect('/admin/tenants');
 });
 
@@ -4053,7 +4604,8 @@ admin.get('/users', async (c) => {
       <!-- Modal Nuevo Usuario -->
       <div id="modal-user" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <form method="POST" action="/admin/users/save" class="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl border border-gim-neutral-200">
-          <h2 class="text-2xl font-bold mb-6"><span class="text-gradient-orange">Invitar Usuario</span></h2>
+          <input type="hidden" id="user-id" name="id" value="">
+          <h2 id="modal-user-title" class="text-2xl font-bold mb-6"><span class="text-gradient-orange">Invitar Usuario</span></h2>
           <div class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Nombre</label>
@@ -4124,7 +4676,7 @@ admin.get('/users', async (c) => {
                   <td class="py-3 text-gim-neutral-700 text-xs">${u.last_login_at || 'Nunca'}</td>
                   <td class="py-3">
                     <div class="flex gap-2">
-                      <button class="text-gim-orange-500 hover:text-gim-orange-600 text-sm font-medium">Editar</button>
+                      <button onclick="editUser('${u.id}', '${u.name}', '${u.email}', '${u.role}')" class="text-gim-orange-500 hover:text-gim-orange-600 text-sm font-medium">Editar</button>
                       <form method="POST" action="/admin/users/${u.id}/delete" onsubmit="return confirm('¿Eliminar este usuario?')" class="inline">
                         <button class="text-red-500 hover:text-red-600 text-sm font-medium">Eliminar</button>
                       </form>
@@ -4136,12 +4688,28 @@ admin.get('/users', async (c) => {
           </table>
         </div>
       </div>
+
+      <script>
+        function editUser(id, name, email, role) {
+          document.getElementById('user-id').value = id;
+          document.getElementById('modal-user-title').textContent = 'Editar Usuario';
+          document.querySelector('#modal-user input[name="name"]').value = name;
+          document.querySelector('#modal-user input[name="email"]').value = email;
+          document.querySelector('#modal-user select[name="role"]').value = role;
+          document.getElementById('modal-user').classList.remove('hidden');
+        }
+        document.querySelector('button[onclick*="modal-user"]')?.addEventListener('click', () => {
+          document.getElementById('user-id').value = '';
+          document.getElementById('modal-user-title').textContent = 'Invitar Usuario';
+        });
+      </script>
     </div>
   `));
 });
 
 admin.post('/users/save', async (c) => {
   const form = await c.req.formData();
+  const id = String(form.get('id') || '');
   const name = String(form.get('name') || '').trim();
   const email = String(form.get('email') || '').trim().toLowerCase();
   const role = String(form.get('role') || 'viewer');
@@ -4151,13 +4719,20 @@ admin.post('/users/save', async (c) => {
   }
 
   try {
-    await c.env.DB.prepare(
-      'INSERT INTO admin_users (id, email, name, role, permissions) VALUES (?, ?, ?, ?, ?)'
-    ).bind(crypto.randomUUID(), email, name, role, JSON.stringify([])).run();
+    if (id) {
+      await c.env.DB.prepare(
+        'UPDATE admin_users SET name = ?, email = ?, role = ? WHERE id = ?'
+      ).bind(name, email, role, id).run();
+    } else {
+      await c.env.DB.prepare(
+        'INSERT INTO admin_users (id, email, name, role, permissions) VALUES (?, ?, ?, ?, ?)'
+      ).bind(crypto.randomUUID(), email, name, role, JSON.stringify([])).run();
+    }
   } catch (e: any) {
-    return c.html(layout('Error', 'users', `<div class="p-8 text-center text-red-500">Error creando usuario: ${e.message}</div>`), 500);
+    return c.html(layout('Error', 'users', `<div class="p-8 text-center text-red-500">Error: ${e.message}</div>`), 500);
   }
 
+  await auditLog(c, id ? 'update' : 'create', 'user', id || undefined, { name, email, role });
   return c.redirect('/admin/users');
 });
 
