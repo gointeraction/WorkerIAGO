@@ -3514,9 +3514,43 @@ admin.get('/tenants', async (c) => {
           <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-orange">Tenants</span></h1>
           <p class="text-gim-neutral-500">${tenants.length} empresas configuradas</p>
         </div>
-        <button class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
+        <button onclick="document.getElementById('modal-tenant').classList.remove('hidden')" class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
           + Nuevo Tenant
         </button>
+      </div>
+
+      <!-- Modal Nuevo Tenant -->
+      <div id="modal-tenant" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <form method="POST" action="/admin/tenants/save" class="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl border border-gim-neutral-200">
+          <h2 class="text-2xl font-bold mb-6"><span class="text-gradient-orange">Nuevo Tenant</span></h2>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Nombre</label>
+              <input name="name" required class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none" placeholder="Mi Empresa">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Email del propietario</label>
+              <input name="owner_email" type="email" required class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none" placeholder="admin@empresa.com">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Slug (identificador único)</label>
+              <input name="slug" required pattern="[a-z0-9-]+" class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none font-mono" placeholder="mi-empresa">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Plan</label>
+              <select name="plan" class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none">
+                <option value="free">Free</option>
+                <option value="starter">Starter</option>
+                <option value="pro" selected>Pro</option>
+                <option value="enterprise">Enterprise</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex gap-3 mt-6">
+            <button type="submit" class="flex-1 bg-gradient-orange rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">Crear Tenant</button>
+            <button type="button" onclick="document.getElementById('modal-tenant').classList.add('hidden')" class="px-6 py-3 rounded-xl border border-gim-neutral-300 text-gim-neutral-600 hover:bg-gim-neutral-50 transition">Cancelar</button>
+          </div>
+        </form>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -3550,7 +3584,9 @@ admin.get('/tenants', async (c) => {
               </div>
               <div class="flex gap-2">
                 <button class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">✏️ Editar</button>
-                <button class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
+                <form method="POST" action="/admin/tenants/${t.id}/delete" onsubmit="return confirm('¿Eliminar este tenant?')">
+                  <button class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
+                </form>
               </div>
             </div>
           `;
@@ -3558,6 +3594,46 @@ admin.get('/tenants', async (c) => {
       </div>
     </div>
   `));
+});
+
+admin.post('/tenants/save', async (c) => {
+  const form = await c.req.formData();
+  const name = String(form.get('name') || '').trim();
+  const owner_email = String(form.get('owner_email') || '').trim();
+  const slug = String(form.get('slug') || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+  const plan = String(form.get('plan') || 'free');
+
+  if (!name || !owner_email || !slug) {
+    return c.html(layout('Error', 'tenants', `<div class="p-8 text-center text-red-500">Faltan campos obligatorios.</div>`), 400);
+  }
+
+  const planLimits: Record<string, any> = {
+    free: { max_agents: 2, max_messages_month: 1000, max_knowledge: 50 },
+    starter: { max_agents: 5, max_messages_month: 10000, max_knowledge: 500 },
+    pro: { max_agents: 20, max_messages_month: 100000, max_knowledge: 5000 },
+    enterprise: { max_agents: -1, max_messages_month: -1, max_knowledge: -1 },
+  };
+
+  try {
+    await c.env.DB.prepare(
+      'INSERT INTO tenants (id, name, slug, plan, status, config, limits, owner_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    ).bind(
+      crypto.randomUUID(), name, slug, plan, 'active', '{}',
+      JSON.stringify(planLimits[plan] || planLimits.free), owner_email
+    ).run();
+  } catch (e: any) {
+    return c.html(layout('Error', 'tenants', `<div class="p-8 text-center text-red-500">Error creando tenant: ${e.message}</div>`), 500);
+  }
+
+  return c.redirect('/admin/tenants');
+});
+
+admin.post('/tenants/:id/delete', async (c) => {
+  const id = c.req.param('id');
+  try {
+    await c.env.DB.prepare('DELETE FROM tenants WHERE id = ?').bind(id).run();
+  } catch (e) {}
+  return c.redirect('/admin/tenants');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -3590,9 +3666,39 @@ admin.get('/users', async (c) => {
           <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-orange">Usuarios</span></h1>
           <p class="text-gim-neutral-500">${users.length} usuarios con acceso al admin</p>
         </div>
-        <button class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
+        <button onclick="document.getElementById('modal-user').classList.remove('hidden')" class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
           + Invitar Usuario
         </button>
+      </div>
+
+      <!-- Modal Nuevo Usuario -->
+      <div id="modal-user" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <form method="POST" action="/admin/users/save" class="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl border border-gim-neutral-200">
+          <h2 class="text-2xl font-bold mb-6"><span class="text-gradient-orange">Invitar Usuario</span></h2>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Nombre</label>
+              <input name="name" required class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none" placeholder="Juan Pérez">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Email</label>
+              <input name="email" type="email" required class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none" placeholder="juan@empresa.com">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Rol</label>
+              <select name="role" class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none">
+                <option value="viewer">Viewer</option>
+                <option value="editor">Editor</option>
+                <option value="admin">Admin</option>
+                <option value="super_admin">Super Admin</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex gap-3 mt-6">
+            <button type="submit" class="flex-1 bg-gradient-orange rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">Invitar</button>
+            <button type="button" onclick="document.getElementById('modal-user').classList.add('hidden')" class="px-6 py-3 rounded-xl border border-gim-neutral-300 text-gim-neutral-600 hover:bg-gim-neutral-50 transition">Cancelar</button>
+          </div>
+        </form>
       </div>
 
       <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm mb-8">
@@ -3640,7 +3746,9 @@ admin.get('/users', async (c) => {
                   <td class="py-3">
                     <div class="flex gap-2">
                       <button class="text-gim-orange-500 hover:text-gim-orange-600 text-sm font-medium">Editar</button>
-                      <button class="text-red-500 hover:text-red-600 text-sm font-medium">Eliminar</button>
+                      <form method="POST" action="/admin/users/${u.id}/delete" onsubmit="return confirm('¿Eliminar este usuario?')" class="inline">
+                        <button class="text-red-500 hover:text-red-600 text-sm font-medium">Eliminar</button>
+                      </form>
                     </div>
                   </td>
                 </tr>
@@ -3651,6 +3759,35 @@ admin.get('/users', async (c) => {
       </div>
     </div>
   `));
+});
+
+admin.post('/users/save', async (c) => {
+  const form = await c.req.formData();
+  const name = String(form.get('name') || '').trim();
+  const email = String(form.get('email') || '').trim().toLowerCase();
+  const role = String(form.get('role') || 'viewer');
+
+  if (!name || !email) {
+    return c.html(layout('Error', 'users', `<div class="p-8 text-center text-red-500">Faltan campos obligatorios.</div>`), 400);
+  }
+
+  try {
+    await c.env.DB.prepare(
+      'INSERT INTO admin_users (id, email, name, role, permissions) VALUES (?, ?, ?, ?, ?)'
+    ).bind(crypto.randomUUID(), email, name, role, JSON.stringify([])).run();
+  } catch (e: any) {
+    return c.html(layout('Error', 'users', `<div class="p-8 text-center text-red-500">Error creando usuario: ${e.message}</div>`), 500);
+  }
+
+  return c.redirect('/admin/users');
+});
+
+admin.post('/users/:id/delete', async (c) => {
+  const id = c.req.param('id');
+  try {
+    await c.env.DB.prepare('DELETE FROM admin_users WHERE id = ?').bind(id).run();
+  } catch (e) {}
+  return c.redirect('/admin/users');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
