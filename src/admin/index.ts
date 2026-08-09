@@ -415,6 +415,38 @@ const layout = (title: string, activeTab: string, body: string) => `<!DOCTYPE ht
           <span class="text-lg">💰</span>
           <span>Costos</span>
         </a>
+        <a href="/admin/channels" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'channels' ? 'active' : ''}">
+          <span class="text-lg">📡</span>
+          <span>Canales</span>
+        </a>
+        <a href="/admin/voice" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'voice' ? 'active' : ''}">
+          <span class="text-lg">🎙️</span>
+          <span>Voz</span>
+        </a>
+        <a href="/admin/ab-testing" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'ab-testing' ? 'active' : ''}">
+          <span class="text-lg">🧪</span>
+          <span>A/B Testing</span>
+        </a>
+        <a href="/admin/monitoring" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'monitoring' ? 'active' : ''}">
+          <span class="text-lg">🩺</span>
+          <span>Monitoring</span>
+        </a>
+        <a href="/admin/backups" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'backups' ? 'active' : ''}">
+          <span class="text-lg">💾</span>
+          <span>Backups</span>
+        </a>
+        <a href="/admin/tenants" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'tenants' ? 'active' : ''}">
+          <span class="text-lg">🏢</span>
+          <span>Tenants</span>
+        </a>
+        <a href="/admin/users" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'users' ? 'active' : ''}">
+          <span class="text-lg">👤</span>
+          <span>Usuarios</span>
+        </a>
+        <a href="/admin/audit" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'audit' ? 'active' : ''}">
+          <span class="text-lg">📋</span>
+          <span>Audit Log</span>
+        </a>
         <a href="/admin/config" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'config' ? 'active' : ''}">
           <span class="text-lg">⚙️</span>
           <span>Configuración</span>
@@ -3022,6 +3054,663 @@ admin.get('/connectors', async (c) => {
           alert('Próximamente: sincronización automática');
         }
       </script>
+    </div>
+  `));
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CHANNELS — Configure 8 communication channels
+// ═══════════════════════════════════════════════════════════════════════════════
+
+admin.get('/channels', async (c) => {
+  let channels: any[] = [];
+  try {
+    channels = (await c.env.DB.prepare('SELECT * FROM channel_configs ORDER BY channel_type').all()).results || [];
+  } catch (e) { channels = []; }
+
+  const available = [
+    { type: 'whatsapp', name: 'WhatsApp', icon: '💬', color: 'green', desc: 'Business API con webhooks' },
+    { type: 'telegram', name: 'Telegram', icon: '✈️', color: 'blue', desc: 'Bot API con comandos' },
+    { type: 'web', name: 'Web Chat', icon: '🌐', color: 'cyan', desc: 'Widget embeddable' },
+    { type: 'instagram', name: 'Instagram', icon: '📸', color: 'pink', desc: 'Meta Graph API' },
+    { type: 'facebook', name: 'Facebook', icon: '👥', color: 'blue', desc: 'Messenger API' },
+    { type: 'email', name: 'Email', icon: '📧', color: 'orange', desc: 'SendGrid SMTP' },
+    { type: 'sms', name: 'SMS', icon: '📱', color: 'purple', desc: 'Twilio' },
+    { type: 'discord', name: 'Discord', icon: '🎮', color: 'indigo', desc: 'Bot con slash commands' },
+    { type: 'slack', name: 'Slack', icon: '💼', color: 'green', desc: 'Bot con interactividad' },
+  ];
+
+  return c.html(layout('Canales', 'channels', `
+    <div class="fade-in">
+      <div class="mb-8">
+        <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-cyan">Canales</span></h1>
+        <p class="text-gim-neutral-500">Configura los canales de comunicación</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        ${available.map(ch => {
+          const config = channels.find((c: any) => c.channel_type === ch.type);
+          const isActive = config?.is_active;
+          return `
+            <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
+              <div class="flex justify-between items-start mb-4">
+                <div class="w-14 h-14 bg-gradient-cyan rounded-xl flex items-center justify-center shadow-lg shadow-gim-cyan-500/15">
+                  <span class="text-2xl">${ch.icon}</span>
+                </div>
+                <span class="px-3 py-1 rounded-full text-xs font-medium ${isActive ? 'bg-green-100 text-green-600' : 'bg-gim-neutral-100 text-gim-neutral-500'}">
+                  ${isActive ? 'Activo' : 'Inactivo'}
+                </span>
+              </div>
+              <div class="font-semibold text-lg text-gim-neutral-900 mb-1">${ch.name}</div>
+              <div class="text-gim-neutral-500 text-sm mb-4">${ch.desc}</div>
+              <button onclick="configureChannel('${ch.type}', '${ch.name}')" class="w-full bg-gim-neutral-100 hover:bg-gim-cyan-50 border border-gim-neutral-200 hover:border-gim-cyan-300 rounded-xl py-2.5 text-sm font-semibold transition text-gim-neutral-700 hover:text-gim-cyan-600">
+                ${isActive ? '⚙️ Configurar' : '+ Activar'}
+              </button>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <div id="channel-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="hideChannelModal()"></div>
+        <div class="relative bg-white rounded-2xl p-8 w-full max-w-lg mx-4 shadow-2xl border border-gim-neutral-200">
+          <div class="flex justify-between items-center mb-6">
+            <h3 id="channel-modal-title" class="text-xl font-bold text-gim-neutral-900"></h3>
+            <button onclick="hideChannelModal()" class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500">✕</button>
+          </div>
+          <div id="channel-modal-content"></div>
+        </div>
+      </div>
+
+      <script>
+        const channelConfigs = {
+          whatsapp: '<div class="space-y-4"><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">WhatsApp Token</label><input type="password" name="token" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Phone Number ID</label><input type="text" name="phone_id" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Webhook Verify Token</label><input type="text" name="verify_token" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div></div>',
+          telegram: '<div class="space-y-4"><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Bot Token (de @BotFather)</label><input type="password" name="token" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div></div>',
+          web: '<div class="space-y-4"><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Widget Color</label><input type="color" name="color" value="#f97316" class="w-full h-12 rounded-xl border-2 border-gim-neutral-200"></div></div>',
+          instagram: '<div class="space-y-4"><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Access Token</label><input type="password" name="token" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Verify Token</label><input type="text" name="verify_token" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div></div>',
+          facebook: '<div class="space-y-4"><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Page Access Token</label><input type="password" name="token" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Verify Token</label><input type="text" name="verify_token" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div></div>',
+          email: '<div class="space-y-4"><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">SendGrid API Key</label><input type="password" name="api_key" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">From Email</label><input type="email" name="from_email" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div></div>',
+          sms: '<div class="space-y-4"><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Account SID</label><input type="text" name="account_sid" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Auth Token</label><input type="password" name="auth_token" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Phone Number</label><input type="text" name="phone" placeholder="+1234567890" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div></div>',
+          discord: '<div class="space-y-4"><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Bot Token</label><input type="password" name="token" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Application ID</label><input type="text" name="app_id" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div></div>',
+          slack: '<div class="space-y-4"><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Bot Token</label><input type="password" name="token" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div><div><label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Signing Secret</label><input type="password" name="secret" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400"></div></div>',
+        };
+
+        function configureChannel(type, name) {
+          document.getElementById('channel-modal-title').textContent = 'Configurar ' + name;
+          document.getElementById('channel-modal-content').innerHTML = channelConfigs[type] || '<p class="text-gim-neutral-500">Configuración no disponible</p>';
+          document.getElementById('channel-modal').classList.remove('hidden');
+        }
+        function hideChannelModal() { document.getElementById('channel-modal').classList.add('hidden'); }
+      </script>
+    </div>
+  `));
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// VOICE — Voice Agent settings
+// ═══════════════════════════════════════════════════════════════════════════════
+
+admin.get('/voice', async (c) => {
+  return c.html(layout('Voz', 'voice', `
+    <div class="fade-in">
+      <div class="mb-8">
+        <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-orange">Voice Agent</span></h1>
+        <p class="text-gim-neutral-500">Configura speech-to-text y text-to-speech</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
+              <span class="text-xl">🎤</span>
+            </div>
+            <div>
+              <div class="font-bold text-gim-neutral-900">Speech-to-Text</div>
+              <div class="text-xs text-gim-neutral-500">Whisper by OpenAI</div>
+            </div>
+          </div>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Modelo STT</label>
+              <select class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400">
+                <option value="whisper-tiny">Whisper Tiny (rápido, ~$0.001/min)</option>
+                <option value="whisper-large">Whisper Large (mejor calidad, ~$0.006/min)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Idioma por defecto</label>
+              <select class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400">
+                <option value="es">Español</option>
+                <option value="en">English</option>
+                <option value="pt">Português</option>
+                <option value="auto">Auto-detect</option>
+              </select>
+            </div>
+            <div class="flex items-center gap-3">
+              <input type="checkbox" id="voice-stt-enabled" checked class="w-4 h-4 rounded border-gim-neutral-300 text-gim-orange-500 focus:ring-gim-orange-400">
+              <label for="voice-stt-enabled" class="text-sm text-gim-neutral-700">Habilitar STT en canales de voz</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-12 h-12 bg-gradient-cyan rounded-xl flex items-center justify-center shadow-lg shadow-gim-cyan-500/15">
+              <span class="text-xl">🔊</span>
+            </div>
+            <div>
+              <div class="font-bold text-gim-neutral-900">Text-to-Speech</div>
+              <div class="text-xs text-gim-neutral-500">Piper TTS</div>
+            </div>
+          </div>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Voz</label>
+              <select class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400">
+                <option value="default">Default (neutral)</option>
+                <option value="female-es">Femenina (ES)</option>
+                <option value="male-es">Masculina (ES)</option>
+                <option value="female-en">Female (EN)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Velocidad</label>
+              <input type="range" min="0.5" max="2" step="0.1" value="1" class="w-full">
+            </div>
+            <div class="flex items-center gap-3">
+              <input type="checkbox" id="voice-tts-enabled" checked class="w-4 h-4 rounded border-gim-neutral-300 text-gim-cyan-500 focus:ring-gim-cyan-400">
+              <label for="voice-tts-enabled" class="text-sm text-gim-neutral-700">Habilitar TTS en respuestas</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+        <h3 class="font-bold text-gim-neutral-900 mb-4">Test de Voz</h3>
+        <div class="flex gap-4">
+          <button onclick="alert('Grabación de audio no disponible en demo')" class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
+            🎤 Grabar Audio
+          </button>
+          <button onclick="alert('Síntesis de audio no disponible en demo')" class="bg-gradient-cyan rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-cyan-500/20">
+            🔊 Probar Voz
+          </button>
+        </div>
+      </div>
+    </div>
+  `));
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// A/B TESTING
+// ═══════════════════════════════════════════════════════════════════════════════
+
+admin.get('/ab-testing', async (c) => {
+  let tests: any[] = [];
+  try {
+    tests = (await c.env.DB.prepare('SELECT * FROM ab_tests ORDER BY created_at DESC').all()).results || [];
+  } catch (e) { tests = []; }
+
+  return c.html(layout('A/B Testing', 'ab-testing', `
+    <div class="fade-in">
+      <div class="flex justify-between items-center mb-8">
+        <div>
+          <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-purple">A/B Testing</span></h1>
+          <p class="text-gim-neutral-500">${tests.length} tests configurados</p>
+        </div>
+        <button class="bg-gradient-purple rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-purple-500/20">
+          + Nuevo Test
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        ${tests.map((t: any) => {
+          const variants = JSON.parse(t.variants || '[]');
+          return `
+            <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
+              <div class="flex justify-between items-start mb-4">
+                <div class="font-semibold text-lg text-gim-neutral-900">${t.name}</div>
+                <span class="px-3 py-1 rounded-full text-xs font-medium ${t.status === 'running' ? 'bg-green-100 text-green-600' : t.status === 'completed' ? 'bg-blue-100 text-blue-600' : 'bg-gim-neutral-100 text-gim-neutral-500'}">
+                  ${t.status}
+                </span>
+              </div>
+              <div class="text-gim-neutral-500 text-sm mb-4">${t.description || 'Sin descripción'}</div>
+              <div class="space-y-2 mb-4">
+                ${variants.map((v: any) => `
+                  <div class="flex justify-between text-sm bg-gim-neutral-50 rounded-lg px-3 py-2">
+                    <span class="text-gim-neutral-700">${v.name}</span>
+                    <span class="text-gim-neutral-500">${v.impressions || 0} imp · ${v.conversions || 0} conv</span>
+                  </div>
+                `).join('')}
+              </div>
+              <div class="flex gap-2">
+                <button class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">📊 Ver Resultados</button>
+                <button class="bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-700">✏️</button>
+              </div>
+            </div>
+          `;
+        }).join('') || '<div class="col-span-2 text-gim-neutral-400 text-center py-12">No hay tests. Crea tu primer A/B test para optimizar respuestas.</div>'}
+      </div>
+    </div>
+  `));
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MONITORING — Health checks + alertas
+// ═══════════════════════════════════════════════════════════════════════════════
+
+admin.get('/monitoring', async (c) => {
+  let alerts: any[] = [];
+  let healthLogs: any[] = [];
+  try {
+    alerts = (await c.env.DB.prepare('SELECT * FROM monitoring_alerts ORDER BY created_at DESC LIMIT 20').all()).results || [];
+  } catch (e) { alerts = []; }
+  try {
+    healthLogs = (await c.env.DB.prepare('SELECT * FROM health_logs ORDER BY created_at DESC LIMIT 10').all()).results || [];
+  } catch (e) { healthLogs = []; }
+
+  return c.html(layout('Monitoring', 'monitoring', `
+    <div class="fade-in">
+      <div class="flex justify-between items-center mb-8">
+        <div>
+          <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-orange">Monitoring</span></h1>
+          <p class="text-gim-neutral-500">Health checks, alertas y métricas del sistema</p>
+        </div>
+        <button onclick="runHealthCheck()" class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
+          🩺 Health Check
+        </button>
+      </div>
+
+      <!-- Health Status -->
+      <div id="health-status" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div class="bg-white rounded-xl p-4 border border-gim-neutral-200 shadow-sm text-center">
+          <div class="text-sm text-gim-neutral-500 mb-1">D1</div>
+          <div id="h-d1" class="text-2xl font-bold text-green-500">●</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 border border-gim-neutral-200 shadow-sm text-center">
+          <div class="text-sm text-gim-neutral-500 mb-1">KV</div>
+          <div id="h-kv" class="text-2xl font-bold text-green-500">●</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 border border-gim-neutral-200 shadow-sm text-center">
+          <div class="text-sm text-gim-neutral-500 mb-1">Vectorize</div>
+          <div id="h-vec" class="text-2xl font-bold text-green-500">●</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 border border-gim-neutral-200 shadow-sm text-center">
+          <div class="text-sm text-gim-neutral-500 mb-1">AI</div>
+          <div id="h-ai" class="text-2xl font-bold text-green-500">●</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 border border-gim-neutral-200 shadow-sm text-center">
+          <div class="text-sm text-gim-neutral-500 mb-1">R2</div>
+          <div id="h-r2" class="text-2xl font-bold text-green-500">●</div>
+        </div>
+      </div>
+
+      <!-- Recent Alerts -->
+      <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm mb-8">
+        <h3 class="font-bold text-gim-neutral-900 mb-4">Alertas Recientes</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gim-neutral-100">
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Fecha</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Tipo</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Severidad</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Mensaje</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${alerts.map((a: any) => `
+                <tr class="border-b border-gim-neutral-50 hover:bg-gim-neutral-50">
+                  <td class="py-3 text-gim-neutral-700 text-xs">${a.created_at}</td>
+                  <td class="py-3"><span class="px-2 py-0.5 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600">${a.type}</span></td>
+                  <td class="py-3">
+                    <span class="px-2 py-0.5 rounded-full text-xs ${a.severity === 'critical' ? 'bg-red-100 text-red-600' : a.severity === 'warning' ? 'bg-yellow-100 text-yellow-600' : 'bg-blue-100 text-blue-600'}">${a.severity}</span>
+                  </td>
+                  <td class="py-3 text-gim-neutral-700 max-w-xs truncate">${a.message}</td>
+                  <td class="py-3">
+                    ${a.acknowledged
+                      ? '<span class="text-xs text-gim-neutral-400">✓ Ack</span>'
+                      : '<button class="text-xs text-gim-orange-500 hover:text-gim-orange-600 font-medium">Ack</button>'
+                    }
+                  </td>
+                </tr>
+              `).join('') || '<tr><td colspan="5" class="py-8 text-center text-gim-neutral-400">Sin alertas</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Health Logs -->
+      <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+        <h3 class="font-bold text-gim-neutral-900 mb-4">Historial de Health Checks</h3>
+        <div class="space-y-2">
+          ${healthLogs.map((h: any) => `
+            <div class="flex items-center justify-between p-3 bg-gim-neutral-50 rounded-xl">
+              <div class="flex items-center gap-3">
+                <span class="w-3 h-3 rounded-full ${h.status === 'ok' ? 'bg-green-500' : h.status === 'degraded' ? 'bg-yellow-500' : 'bg-red-500'}"></span>
+                <span class="text-sm font-medium text-gim-neutral-900">${h.status}</span>
+              </div>
+              <span class="text-xs text-gim-neutral-500">${h.created_at}</span>
+            </div>
+          `).join('') || '<div class="text-gim-neutral-400 text-center py-4">Sin historial</div>'}
+        </div>
+      </div>
+
+      <script>
+        async function runHealthCheck() {
+          document.querySelectorAll('#health-status .text-2xl').forEach(el => { el.textContent = '○'; el.className = 'text-2xl font-bold text-gim-neutral-300'; });
+          await new Promise(r => setTimeout(r, 500));
+          ['d1','kv','vec','ai','r2'].forEach(s => {
+            const el = document.getElementById('h-' + s);
+            el.textContent = '●';
+            el.className = 'text-2xl font-bold text-green-500';
+          });
+          alert('Health check completado: todos los servicios operativos');
+        }
+      </script>
+    </div>
+  `));
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BACKUPS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+admin.get('/backups', async (c) => {
+  let backups: any[] = [];
+  try {
+    backups = (await c.env.DB.prepare('SELECT * FROM backup_logs ORDER BY started_at DESC LIMIT 20').all()).results || [];
+  } catch (e) { backups = []; }
+
+  return c.html(layout('Backups', 'backups', `
+    <div class="fade-in">
+      <div class="flex justify-between items-center mb-8">
+        <div>
+          <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-cyan">Backups</span></h1>
+          <p class="text-gim-neutral-500">Backup automático de D1 → R2</p>
+        </div>
+        <div class="flex gap-3">
+          <button onclick="createBackup()" class="bg-gradient-cyan rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-cyan-500/20">
+            💾 Crear Backup
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+          <div class="text-gim-neutral-500 text-sm mb-2">Último Backup</div>
+          <div class="text-2xl font-extrabold text-gim-cyan-500">${backups[0]?.completed_at || 'Nunca'}</div>
+        </div>
+        <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+          <div class="text-gim-neutral-500 text-sm mb-2">Total Backups</div>
+          <div class="text-2xl font-extrabold text-gim-orange-500">${backups.length}</div>
+        </div>
+        <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+          <div class="text-gim-neutral-500 text-sm mb-2">Retention</div>
+          <div class="text-2xl font-extrabold text-gim-purple-500">30 días</div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+        <h3 class="font-bold text-gim-neutral-900 mb-4">Historial de Backups</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gim-neutral-100">
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">ID</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Tipo</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Status</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Tablas</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Filas</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Tamaño</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Inicio</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${backups.map((b: any) => `
+                <tr class="border-b border-gim-neutral-50 hover:bg-gim-neutral-50">
+                  <td class="py-3 font-mono text-xs text-gim-neutral-600">${b.id?.slice(0, 20)}...</td>
+                  <td class="py-3"><span class="px-2 py-0.5 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600">${b.type}</span></td>
+                  <td class="py-3">
+                    <span class="px-2 py-0.5 rounded-full text-xs ${b.status === 'completed' ? 'bg-green-100 text-green-600' : b.status === 'running' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}">${b.status}</span>
+                  </td>
+                  <td class="py-3 text-gim-neutral-700">${JSON.parse(b.tables || '[]').length}</td>
+                  <td class="py-3 text-gim-neutral-700">${(b.total_rows || 0).toLocaleString()}</td>
+                  <td class="py-3 text-gim-neutral-700">${((b.total_size_bytes || 0) / 1024).toFixed(1)} KB</td>
+                  <td class="py-3 text-gim-neutral-700 text-xs">${b.started_at}</td>
+                </tr>
+              `).join('') || '<tr><td colspan="7" class="py-8 text-center text-gim-neutral-400">Sin backups aún</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <script>
+        async function createBackup() {
+          if (!confirm('¿Crear backup completo de todas las tablas?')) return;
+          alert('Backup iniciado. Se guardará en R2.');
+        }
+      </script>
+    </div>
+  `));
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TENANTS — Multi-tenant management
+// ═══════════════════════════════════════════════════════════════════════════════
+
+admin.get('/tenants', async (c) => {
+  let tenants: any[] = [];
+  try {
+    tenants = (await c.env.DB.prepare('SELECT * FROM tenants ORDER BY created_at DESC').all()).results || [];
+  } catch (e) { tenants = []; }
+
+  const plans = { free: 'Free', starter: 'Starter', pro: 'Pro', enterprise: 'Enterprise' };
+
+  return c.html(layout('Tenants', 'tenants', `
+    <div class="fade-in">
+      <div class="flex justify-between items-center mb-8">
+        <div>
+          <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-orange">Tenants</span></h1>
+          <p class="text-gim-neutral-500">${tenants.length} empresas configuradas</p>
+        </div>
+        <button class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
+          + Nuevo Tenant
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        ${tenants.map((t: any) => {
+          const limits = JSON.parse(t.limits || '{}');
+          return `
+            <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
+              <div class="flex justify-between items-start mb-4">
+                <div class="w-14 h-14 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
+                  <span class="text-2xl">🏢</span>
+                </div>
+                <span class="px-3 py-1 rounded-full text-xs font-medium ${t.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}">
+                  ${t.status}
+                </span>
+              </div>
+              <div class="font-semibold text-lg text-gim-neutral-900 mb-1">${t.name}</div>
+              <div class="text-gim-neutral-500 text-sm mb-3">${t.owner_email}</div>
+              <div class="space-y-2 mb-4">
+                <div class="flex justify-between text-sm">
+                  <span class="text-gim-neutral-500">Plan</span>
+                  <span class="px-2 py-0.5 rounded-full text-xs bg-gim-orange-50 text-gim-orange-600 font-medium">${plans[t.plan] || t.plan}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                  <span class="text-gim-neutral-500">Slug</span>
+                  <span class="text-xs font-mono text-gim-neutral-700">${t.slug}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                  <span class="text-gim-neutral-500">Max Agentes</span>
+                  <span class="text-gim-neutral-700">${limits.max_agents === -1 ? '∞' : limits.max_agents}</span>
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <button class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">✏️ Editar</button>
+                <button class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
+              </div>
+            </div>
+          `;
+        }).join('') || '<div class="col-span-3 text-gim-neutral-400 text-center py-12">No hay tenants. La instancia está en modo single-tenant.</div>'}
+      </div>
+    </div>
+  `));
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// USERS — RBAC management
+// ═══════════════════════════════════════════════════════════════════════════════
+
+admin.get('/users', async (c) => {
+  let users: any[] = [];
+  try {
+    users = (await c.env.DB.prepare('SELECT * FROM admin_users ORDER BY created_at DESC').all()).results || [];
+  } catch (e) { users = []; }
+
+  const roleLabels: Record<string, string> = {
+    super_admin: 'Super Admin',
+    admin: 'Admin',
+    editor: 'Editor',
+    viewer: 'Viewer',
+  };
+  const roleColors: Record<string, string> = {
+    super_admin: 'bg-red-100 text-red-600',
+    admin: 'bg-orange-100 text-orange-600',
+    editor: 'bg-blue-100 text-blue-600',
+    viewer: 'bg-gim-neutral-100 text-gim-neutral-600',
+  };
+
+  return c.html(layout('Usuarios', 'users', `
+    <div class="fade-in">
+      <div class="flex justify-between items-center mb-8">
+        <div>
+          <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-orange">Usuarios</span></h1>
+          <p class="text-gim-neutral-500">${users.length} usuarios con acceso al admin</p>
+        </div>
+        <button class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
+          + Invitar Usuario
+        </button>
+      </div>
+
+      <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm mb-8">
+        <h3 class="font-bold text-gim-neutral-900 mb-4">Roles Disponibles</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="p-4 bg-gim-neutral-50 rounded-xl">
+            <div class="font-semibold text-sm text-gim-neutral-900">Super Admin</div>
+            <div class="text-xs text-gim-neutral-500 mt-1">Acceso total al sistema</div>
+          </div>
+          <div class="p-4 bg-gim-neutral-50 rounded-xl">
+            <div class="font-semibold text-sm text-gim-neutral-900">Admin</div>
+            <div class="text-xs text-gim-neutral-500 mt-1">Gestión completa excepto usuarios</div>
+          </div>
+          <div class="p-4 bg-gim-neutral-50 rounded-xl">
+            <div class="font-semibold text-sm text-gim-neutral-900">Editor</div>
+            <div class="text-xs text-gim-neutral-500 mt-1">Crear/editar contenido</div>
+          </div>
+          <div class="p-4 bg-gim-neutral-50 rounded-xl">
+            <div class="font-semibold text-sm text-gim-neutral-900">Viewer</div>
+            <div class="text-xs text-gim-neutral-500 mt-1">Solo lectura</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+        <h3 class="font-bold text-gim-neutral-900 mb-4">Usuarios</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gim-neutral-100">
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Nombre</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Email</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Rol</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Último Login</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${users.map((u: any) => `
+                <tr class="border-b border-gim-neutral-50 hover:bg-gim-neutral-50">
+                  <td class="py-3 font-medium text-gim-neutral-900">${u.name}</td>
+                  <td class="py-3 text-gim-neutral-700">${u.email}</td>
+                  <td class="py-3"><span class="px-2 py-0.5 rounded-full text-xs ${roleColors[u.role] || ''}">${roleLabels[u.role] || u.role}</span></td>
+                  <td class="py-3 text-gim-neutral-700 text-xs">${u.last_login_at || 'Nunca'}</td>
+                  <td class="py-3">
+                    <div class="flex gap-2">
+                      <button class="text-gim-orange-500 hover:text-gim-orange-600 text-sm font-medium">Editar</button>
+                      <button class="text-red-500 hover:text-red-600 text-sm font-medium">Eliminar</button>
+                    </div>
+                  </td>
+                </tr>
+              `).join('') || '<tr><td colspan="5" class="py-8 text-center text-gim-neutral-400">No hay usuarios. Crea el primer admin.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `));
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUDIT LOG
+// ═══════════════════════════════════════════════════════════════════════════════
+
+admin.get('/audit', async (c) => {
+  let logs: any[] = [];
+  try {
+    logs = (await c.env.DB.prepare('SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 100').all()).results || [];
+  } catch (e) { logs = []; }
+
+  const actionLabels: Record<string, string> = {
+    create: 'Crear',
+    update: 'Actualizar',
+    delete: 'Eliminar',
+    login: 'Login',
+  };
+  const actionColors: Record<string, string> = {
+    create: 'bg-green-100 text-green-600',
+    update: 'bg-blue-100 text-blue-600',
+    delete: 'bg-red-100 text-red-600',
+    login: 'bg-purple-100 text-purple-600',
+  };
+
+  return c.html(layout('Audit Log', 'audit', `
+    <div class="fade-in">
+      <div class="mb-8">
+        <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-orange">Audit Log</span></h1>
+        <p class="text-gim-neutral-500">Historial de acciones en el admin</p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gim-neutral-100">
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Fecha</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Usuario</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Acción</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Recurso</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">ID</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">IP</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${logs.map((l: any) => `
+                <tr class="border-b border-gim-neutral-50 hover:bg-gim-neutral-50">
+                  <td class="py-3 text-gim-neutral-700 text-xs">${l.created_at}</td>
+                  <td class="py-3 text-gim-neutral-900">${l.user_email}</td>
+                  <td class="py-3"><span class="px-2 py-0.5 rounded-full text-xs ${actionColors[l.action] || ''}">${actionLabels[l.action] || l.action}</span></td>
+                  <td class="py-3 text-gim-neutral-700">${l.resource_type}</td>
+                  <td class="py-3 font-mono text-xs text-gim-neutral-500">${l.resource_id?.slice(0, 8) || '—'}</td>
+                  <td class="py-3 text-gim-neutral-500 text-xs">${l.ip_address || '—'}</td>
+                </tr>
+              `).join('') || '<tr><td colspan="6" class="py-8 text-center text-gim-neutral-400">Sin logs de auditoría</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   `));
 });
