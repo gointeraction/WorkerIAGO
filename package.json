@@ -1,18 +1,13 @@
 {
-  "name": "agentforge",
-  "version": "0.1.0",
-  "description": "Plataforma de agentes de IA modulares para atención al cliente",
+  "name": "workeriago",
+  "version": "1.0.0",
+  "description": "AI agent platform for WhatsApp, Telegram, and Web",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "db:init": "wrangler d1 execute agentforge-db --local --file=./schema.sql",
-    "db:init:remote": "wrangler d1 execute agentforge-db --remote --file=./schema.sql",
-    "db:seed": "wrangler d1 execute agentforge-db --local --file=./seed.sql",
-    "db:seed:remote": "wrangler d1 execute agentforge-db --remote --file=./seed.sql",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "hono": "^4.4.0",
@@ -23,7 +18,6 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240806.0",
     "typescript": "^5.5.0",
-    "wrangler": "^3.70.0",
-    "vitest": "^1.6.0"
+    "wrangler": "^3.70.0"
   }
 }
