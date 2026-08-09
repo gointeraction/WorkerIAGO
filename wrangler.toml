@@ -49,7 +49,7 @@ bindings = [
 
 [[migrations]]
 tag = "v1"
-new_classes = ["AgentState"]
+new_sqlite_classes = ["AgentState"]
 
 # =============================================================================
 # ENVIRONMENT VARIABLES
