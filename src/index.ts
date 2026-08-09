@@ -6,12 +6,15 @@ import { WhatsAppChannel } from './channels/whatsapp';
 import { WebChannel } from './channels/web';
 import { AdminPanel } from './admin';
 import { AgentState } from './durable-object';
-import { generateEmbedding, type AIProvider } from './ai';
+import { generateEmbedding } from './ai';
 
 // =============================================================================
-// BINDINGS - D1, Vectorize, R2, KV, Durable Objects
+// BINDINGS - Cloudflare AI, D1, Vectorize, KV, Durable Objects
 // =============================================================================
 type Bindings = {
+  // Cloudflare AI - Workers AI
+  AI: any;
+  
   // D1 - Conversaciones, leads, configuración
   DB: D1Database;
   
@@ -21,16 +24,11 @@ type Bindings = {
   // KV - Cache de respuestas
   CACHE: KVNamespace;
   
-  // R2 - Media (imágenes, audios, documentos)
-  STORAGE: R2Bucket;
-  
   // Durable Objects - Estado de conversaciones
   AGENT_STATE: DurableObjectNamespace;
   
   // Variables de entorno
   ENVIRONMENT: string;
-  AI_PROVIDER: AIProvider;
-  AI_API_KEY?: string;
   TELEGRAM_BOT_TOKEN?: string;
   WHATSAPP_TOKEN?: string;
   WHATSAPP_PHONE_ID?: string;
@@ -157,11 +155,8 @@ app.post('/api/knowledge/:agentId', async (c) => {
   const agentId = c.req.param('agentId');
   const doc = await c.req.json();
   
-  // Generar embedding usando AI SDK
-  const aiConfig = {
-    provider: c.env.AI_PROVIDER || 'openai',
-    apiKey: c.env.AI_API_KEY
-  };
+  // Generar embedding usando Cloudflare Workers AI
+  const aiConfig = { provider: 'workers' as const, ai: c.env.AI };
   const embedding = await generateEmbedding(aiConfig, doc.content);
 
   const vectorId = `kb-${Date.now()}`;

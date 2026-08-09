@@ -4,17 +4,16 @@ import {
   detectActions, 
   generateAgentResponse, 
   generateEmbedding,
-  type AIProvider,
-  type AIConfig
+  type AIConfig,
+  MODELS
 } from '../ai';
 
 interface Env {
+  AI: any;
   DB: D1Database;
   VECTORIZE: VectorizeIndex;
   CACHE: KVNamespace;
   AGENT_STATE: DurableObjectNamespace;
-  AI_PROVIDER: AIProvider;
-  AI_API_KEY?: string;
 }
 
 interface Message {
@@ -40,7 +39,6 @@ interface OrchestratorResult {
   actions?: string[];
   sources?: string[];
   escalate?: boolean;
-  media?: { type: string; url: string }[];
 }
 
 export class AgentOrchestrator {
@@ -52,8 +50,8 @@ export class AgentOrchestrator {
     this.env = env;
     this.actionEngine = new ActionEngine(env);
     this.aiConfig = {
-      provider: env.AI_PROVIDER || 'openai',
-      apiKey: env.AI_API_KEY
+      provider: 'workers',
+      ai: env.AI
     };
   }
 
@@ -98,10 +96,7 @@ export class AgentOrchestrator {
       history
     );
 
-    // 7. Buscar media relevante si existe
-    const media = await this.searchMedia(message, agent.id);
-
-    // 8. Guardar conversación
+    // 7. Guardar conversación
     await this.saveConversation(message, response, agent, intent, chatId, channel);
 
     return {
@@ -110,8 +105,7 @@ export class AgentOrchestrator {
       intent,
       actions: actions.map(a => a.name),
       sources: context.map(c => c.metadata?.title || ''),
-      escalate: intent === 'escalate',
-      media
+      escalate: intent === 'escalate'
     };
   }
 
@@ -124,7 +118,7 @@ export class AgentOrchestrator {
 
   private async searchKnowledge(query: string, agentId: string): Promise<any[]> {
     try {
-      // Generar embedding usando AI SDK
+      // Generar embedding usando Workers AI
       const embedding = await generateEmbedding(this.aiConfig, query);
 
       // Buscar en Vectorize
@@ -136,25 +130,6 @@ export class AgentOrchestrator {
       return results.matches || [];
     } catch (error) {
       console.error('Knowledge search error:', error);
-      return [];
-    }
-  }
-
-  private async searchMedia(query: string, agentId: string): Promise<{ type: string; url: string }[]> {
-    try {
-      // Buscar imágenes/audios relacionados en R2
-      const objects = await this.env.STORAGE.list({ prefix: `media/${agentId}/` });
-      const media: { type: string; url: string }[] = [];
-      
-      for (const obj of objects.objects.slice(0, 3)) {
-        const type = obj.key.endsWith('.jpg') || obj.key.endsWith('.png') ? 'image' :
-                     obj.key.endsWith('.mp3') || obj.key.endsWith('.ogg') ? 'audio' : 'file';
-        media.push({ type, url: `/media/${obj.key}` });
-      }
-      
-      return media;
-    } catch (error) {
-      console.error('Media search error:', error);
       return [];
     }
   }
@@ -177,33 +152,6 @@ export class AgentOrchestrator {
     }
     
     return parts.join('\n');
-  }
-
-  private async generateResponse(
-    message: string,
-    agent: Agent,
-    context: any[],
-    actionResults: any[],
-    history: Message[]
-  ): Promise<string> {
-    const contextText = this.buildContext(context, actionResults);
-    
-    const systemPrompt = `${agent.system_prompt}${contextText ? `\n\n${contextText}` : ''}
-
-IMPORTANTE: Responde en el mismo idioma del usuario. Sé conciso y útil.`;
-
-    const messages: Message[] = [
-      { role: 'system', content: systemPrompt },
-      ...history.slice(-10),
-      { role: 'user', content: message }
-    ];
-
-    try {
-      return await generateAgentResponse(this.aiConfig, message, agent.system_prompt, contextText, history);
-    } catch (error) {
-      console.error('Response generation error:', error);
-      return 'Disculpa, tuve un problema al procesar tu mensaje. Por favor, intenta de nuevo.';
-    }
   }
 
   private async saveConversation(

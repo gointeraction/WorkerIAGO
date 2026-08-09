@@ -1,32 +1,11 @@
-import { createOpenAI } from '@ai-sdk/openai';
-import { createAnthropic } from '@ai-sdk/anthropic';
-import { generateText, streamText } from 'ai';
+// Cloudflare Workers AI Integration
+// Modelos: https://developers.cloudflare.com/workers-ai/models/
 
-export type AIProvider = 'openai' | 'anthropic';
+export type AIProvider = 'workers';
 
 interface AIConfig {
   provider: AIProvider;
-  apiKey?: string;
-  model?: string;
-}
-
-export function getAIProvider(config: AIConfig) {
-  switch (config.provider) {
-    case 'anthropic':
-      return createAnthropic({ apiKey: config.apiKey });
-    case 'openai':
-    default:
-      return createOpenAI({ apiKey: config.apiKey });
-  }
-}
-
-export function getModel(config: AIConfig) {
-  const provider = getAIProvider(config);
-  const models: Record<AIProvider, string> = {
-    openai: config.model || 'gpt-4o-mini',
-    anthropic: config.model || 'claude-3-haiku-20240307'
-  };
-  return provider(models[config.provider]);
+  ai: any; // Cloudflare AI binding
 }
 
 interface ChatMessage {
@@ -34,21 +13,32 @@ interface ChatMessage {
   content: string;
 }
 
+// Modelos disponibles en Workers AI
+export const MODELS = {
+  chat: '@cf/meta/llama-3.1-8b-instruct',
+  chatSmall: '@cf/meta/llama-3.1-8b-instruct',
+  chatLarge: '@cf/meta/llama-3.1-70b-instruct',
+  embedding: '@cf/baai/bge-base-en-v1.5',
+  embeddingLarge: '@cf/baai/bge-large-en-v1.5',
+  image: '@cf/stabilityai/stable-diffusion-xl-base-1.0',
+  audio: '@cf/openai/whisper-tiny-en',
+  classification: '@cf/huggingface/distilbert-sst-2-integer-quantized'
+};
+
 export async function chat(
   config: AIConfig,
   messages: ChatMessage[],
-  options?: { temperature?: number; maxTokens?: number }
+  options?: { temperature?: number; maxTokens?: number; model?: string }
 ): Promise<string> {
-  const model = getModel(config);
+  const model = options?.model || MODELS.chat;
   
-  const result = await generateText({
-    model,
+  const result = await config.ai.run(model, {
     messages,
     temperature: options?.temperature ?? 0.7,
-    maxTokens: options?.maxTokens ?? 512
+    max_tokens: options?.maxTokens ?? 512
   });
 
-  return result.text;
+  return result.response;
 }
 
 export async function classifyIntent(
@@ -124,11 +114,43 @@ export async function generateEmbedding(
   config: AIConfig,
   text: string
 ): Promise<number[]> {
-  const provider = getAIProvider(config);
-  const model = provider.embedding('text-embedding-3-small');
-  
-  const result = await model.doEmbed({ values: [text] });
-  return result.embeddings[0];
+  const result = await config.ai.run(MODELS.embedding, {
+    text: [text]
+  });
+
+  return result.data[0];
 }
 
-export { streamText };
+export async function generateImage(
+  config: AIConfig,
+  prompt: string
+): Promise<string> {
+  const result = await config.ai.run(MODELS.image, {
+    prompt
+  });
+
+  return result.images[0];
+}
+
+export async function transcribeAudio(
+  config: AIConfig,
+  audio: ArrayBuffer
+): Promise<string> {
+  const result = await config.ai.run(MODELS.audio, {
+    audio: [...new Uint8Array(audio)]
+  });
+
+  return result.text;
+}
+
+export async function classifyText(
+  config: AIConfig,
+  text: string,
+  classes: string[]
+): Promise<{ label: string; score: number }> {
+  const result = await config.ai.run(MODELS.classification, {
+    text
+  });
+
+  return result;
+}
