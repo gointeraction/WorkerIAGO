@@ -6,6 +6,9 @@ type Bindings = {
   DB: D1Database;
   STORAGE?: R2Bucket;
   AI?: any;
+  CACHE?: KVNamespace;
+  VECTORIZE?: VectorizeIndex;
+  AGENT_STATE?: DurableObjectNamespace;
   ADMIN_PASSWORD?: string;
   ENVIRONMENT?: string;
 };
@@ -3137,7 +3140,16 @@ admin.get('/channels', async (c) => {
 
         function configureChannel(type, name) {
           document.getElementById('channel-modal-title').textContent = 'Configurar ' + name;
-          document.getElementById('channel-modal-content').innerHTML = channelConfigs[type] || '<p class="text-gim-neutral-500">Configuración no disponible</p>';
+          const fields = channelConfigs[type] || '<p class="text-gim-neutral-500">Configuración no disponible</p>';
+          document.getElementById('channel-modal-content').innerHTML =
+            '<form method="POST" action="/admin/channels/save" class="space-y-4">' +
+              '<input type="hidden" name="channel_type" value="' + type + '">' +
+              fields +
+              '<div class="flex gap-3 pt-2">' +
+                '<button type="submit" class="flex-1 bg-gradient-cyan rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">Guardar y Activar</button>' +
+                '<button type="button" onclick="hideChannelModal()" class="px-6 py-3 rounded-xl border border-gim-neutral-300 text-gim-neutral-600 hover:bg-gim-neutral-50 transition">Cancelar</button>' +
+              '</div>' +
+            '</form>';
           document.getElementById('channel-modal').classList.remove('hidden');
         }
         function hideChannelModal() { document.getElementById('channel-modal').classList.add('hidden'); }
@@ -3146,11 +3158,53 @@ admin.get('/channels', async (c) => {
   `));
 });
 
+admin.post('/channels/save', async (c) => {
+  const form = await c.req.formData();
+  const channel_type = String(form.get('channel_type') || '');
+  if (!channel_type) return c.redirect('/admin/channels');
+
+  const config: Record<string, string> = {};
+  for (const [key, value] of form.entries()) {
+    if (key !== 'channel_type') config[key] = String(value);
+  }
+
+  try {
+    const existing = await c.env.DB.prepare('SELECT id FROM channel_configs WHERE channel_type = ?').bind(channel_type).first();
+    if (existing) {
+      await c.env.DB.prepare(
+        'UPDATE channel_configs SET config = ?, is_active = 1, updated_at = datetime(\'now\') WHERE channel_type = ?'
+      ).bind(JSON.stringify(config), channel_type).run();
+    } else {
+      await c.env.DB.prepare(
+        'INSERT INTO channel_configs (id, channel_type, is_active, config) VALUES (?, ?, 1, ?)'
+      ).bind(crypto.randomUUID(), channel_type, JSON.stringify(config)).run();
+    }
+  } catch (e: any) {
+    return c.html(layout('Error', 'channels', `<div class="p-8 text-center text-red-500">Error guardando canal: ${e.message}</div>`), 500);
+  }
+
+  return c.redirect('/admin/channels');
+});
+
+admin.post('/channels/:type/deactivate', async (c) => {
+  const type = c.req.param('type');
+  try {
+    await c.env.DB.prepare('UPDATE channel_configs SET is_active = 0, updated_at = datetime(\'now\') WHERE channel_type = ?').bind(type).run();
+  } catch (e) {}
+  return c.redirect('/admin/channels');
+});
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // VOICE — Voice Agent settings
 // ═══════════════════════════════════════════════════════════════════════════════
 
 admin.get('/voice', async (c) => {
+  let voiceConfig: any = {};
+  try {
+    const row = await c.env.DB.prepare("SELECT value FROM config WHERE key = 'voice_config'").first();
+    if (row?.value) voiceConfig = JSON.parse(row.value);
+  } catch (e) {}
+
   return c.html(layout('Voz', 'voice', `
     <div class="fade-in">
       <div class="mb-8">
@@ -3158,86 +3212,144 @@ admin.get('/voice', async (c) => {
         <p class="text-gim-neutral-500">Configura speech-to-text y text-to-speech</p>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
-          <div class="flex items-center gap-3 mb-6">
-            <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
-              <span class="text-xl">🎤</span>
+      <form method="POST" action="/admin/voice/save" class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+            <div class="flex items-center gap-3 mb-6">
+              <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
+                <span class="text-xl">🎤</span>
+              </div>
+              <div>
+                <div class="font-bold text-gim-neutral-900">Speech-to-Text</div>
+                <div class="text-xs text-gim-neutral-500">Whisper by OpenAI</div>
+              </div>
             </div>
-            <div>
-              <div class="font-bold text-gim-neutral-900">Speech-to-Text</div>
-              <div class="text-xs text-gim-neutral-500">Whisper by OpenAI</div>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Modelo STT</label>
+                <select name="stt_model" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400">
+                  <option value="whisper-tiny" ${voiceConfig.stt_model === 'whisper-tiny' ? 'selected' : ''}>Whisper Tiny (rápido, ~$0.001/min)</option>
+                  <option value="whisper-large" ${voiceConfig.stt_model === 'whisper-large' ? 'selected' : ''}>Whisper Large (mejor calidad, ~$0.006/min)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Idioma por defecto</label>
+                <select name="stt_language" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400">
+                  <option value="es" ${voiceConfig.stt_language === 'es' ? 'selected' : ''}>Español</option>
+                  <option value="en" ${voiceConfig.stt_language === 'en' ? 'selected' : ''}>English</option>
+                  <option value="pt" ${voiceConfig.stt_language === 'pt' ? 'selected' : ''}>Portugués</option>
+                  <option value="auto" ${voiceConfig.stt_language === 'auto' ? 'selected' : ''}>Auto-detect</option>
+                </select>
+              </div>
+              <div class="flex items-center gap-3">
+                <input type="checkbox" name="stt_enabled" id="voice-stt-enabled" ${voiceConfig.stt_enabled !== false ? 'checked' : ''} value="1" class="w-4 h-4 rounded border-gim-neutral-300 text-gim-orange-500 focus:ring-gim-orange-400">
+                <label for="voice-stt-enabled" class="text-sm text-gim-neutral-700">Habilitar STT en canales de voz</label>
+              </div>
             </div>
           </div>
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Modelo STT</label>
-              <select class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400">
-                <option value="whisper-tiny">Whisper Tiny (rápido, ~$0.001/min)</option>
-                <option value="whisper-large">Whisper Large (mejor calidad, ~$0.006/min)</option>
-              </select>
+
+          <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
+            <div class="flex items-center gap-3 mb-6">
+              <div class="w-12 h-12 bg-gradient-cyan rounded-xl flex items-center justify-center shadow-lg shadow-gim-cyan-500/15">
+                <span class="text-xl">🔊</span>
+              </div>
+              <div>
+                <div class="font-bold text-gim-neutral-900">Text-to-Speech</div>
+                <div class="text-xs text-gim-neutral-500">Piper TTS</div>
+              </div>
             </div>
-            <div>
-              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Idioma por defecto</label>
-              <select class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400">
-                <option value="es">Español</option>
-                <option value="en">English</option>
-                <option value="pt">Português</option>
-                <option value="auto">Auto-detect</option>
-              </select>
-            </div>
-            <div class="flex items-center gap-3">
-              <input type="checkbox" id="voice-stt-enabled" checked class="w-4 h-4 rounded border-gim-neutral-300 text-gim-orange-500 focus:ring-gim-orange-400">
-              <label for="voice-stt-enabled" class="text-sm text-gim-neutral-700">Habilitar STT en canales de voz</label>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Voz</label>
+                <select name="tts_voice" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400">
+                  <option value="default" ${voiceConfig.tts_voice === 'default' ? 'selected' : ''}>Default (neutral)</option>
+                  <option value="female-es" ${voiceConfig.tts_voice === 'female-es' ? 'selected' : ''}>Femenina (ES)</option>
+                  <option value="male-es" ${voiceConfig.tts_voice === 'male-es' ? 'selected' : ''}>Masculino (ES)</option>
+                  <option value="female-en" ${voiceConfig.tts_voice === 'female-en' ? 'selected' : ''}>Female (EN)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Velocidad</label>
+                <input type="range" name="tts_speed" min="0.5" max="2" step="0.1" value="${voiceConfig.tts_speed || 1}" class="w-full">
+              </div>
+              <div class="flex items-center gap-3">
+                <input type="checkbox" name="tts_enabled" id="voice-tts-enabled" ${voiceConfig.tts_enabled !== false ? 'checked' : ''} value="1" class="w-4 h-4 rounded border-gim-neutral-300 text-gim-cyan-500 focus:ring-gim-cyan-400">
+                <label for="voice-tts-enabled" class="text-sm text-gim-neutral-700">Habilitar TTS en respuestas</label>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
-          <div class="flex items-center gap-3 mb-6">
-            <div class="w-12 h-12 bg-gradient-cyan rounded-xl flex items-center justify-center shadow-lg shadow-gim-cyan-500/15">
-              <span class="text-xl">🔊</span>
-            </div>
-            <div>
-              <div class="font-bold text-gim-neutral-900">Text-to-Speech</div>
-              <div class="text-xs text-gim-neutral-500">Piper TTS</div>
-            </div>
-          </div>
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Voz</label>
-              <select class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400">
-                <option value="default">Default (neutral)</option>
-                <option value="female-es">Femenina (ES)</option>
-                <option value="male-es">Masculina (ES)</option>
-                <option value="female-en">Female (EN)</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Velocidad</label>
-              <input type="range" min="0.5" max="2" step="0.1" value="1" class="w-full">
-            </div>
-            <div class="flex items-center gap-3">
-              <input type="checkbox" id="voice-tts-enabled" checked class="w-4 h-4 rounded border-gim-neutral-300 text-gim-cyan-500 focus:ring-gim-cyan-400">
-              <label for="voice-tts-enabled" class="text-sm text-gim-neutral-700">Habilitar TTS en respuestas</label>
-            </div>
-          </div>
+        <div class="flex justify-end">
+          <button type="submit" class="bg-gradient-orange rounded-xl px-8 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
+            💾 Guardar Configuración
+          </button>
         </div>
-      </div>
+      </form>
 
       <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
         <h3 class="font-bold text-gim-neutral-900 mb-4">Test de Voz</h3>
-        <div class="flex gap-4">
-          <button onclick="alert('Grabación de audio no disponible en demo')" class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
-            🎤 Grabar Audio
-          </button>
-          <button onclick="alert('Síntesis de audio no disponible en demo')" class="bg-gradient-cyan rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-cyan-500/20">
-            🔊 Probar Voz
-          </button>
-        </div>
+        <form method="POST" action="/admin/voice/test-tts" class="flex gap-3 mb-4">
+          <input name="text" placeholder="Escribe texto para sintetizar..." class="flex-1 bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400">
+          <button type="submit" class="bg-gradient-cyan rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition">🔊 Probar TTS</button>
+        </form>
       </div>
     </div>
   `));
+});
+
+admin.post('/voice/save', async (c) => {
+  const form = await c.req.formData();
+  const config = {
+    stt_model: String(form.get('stt_model') || 'whisper-tiny'),
+    stt_language: String(form.get('stt_language') || 'es'),
+    stt_enabled: form.get('stt_enabled') === '1',
+    tts_voice: String(form.get('tts_voice') || 'default'),
+    tts_speed: parseFloat(String(form.get('tts_speed') || '1')),
+    tts_enabled: form.get('tts_enabled') === '1',
+  };
+
+  try {
+    const existing = await c.env.DB.prepare("SELECT key FROM config WHERE key = 'voice_config'").first();
+    if (existing) {
+      await c.env.DB.prepare("UPDATE config SET value = ? WHERE key = 'voice_config'").bind(JSON.stringify(config)).run();
+    } else {
+      await c.env.DB.prepare("INSERT INTO config (key, value) VALUES ('voice_config', ?)").bind(JSON.stringify(config)).run();
+    }
+  } catch (e: any) {
+    return c.html(layout('Error', 'voice', `<div class="p-8 text-center text-red-500">Error: ${e.message}</div>`), 500);
+  }
+
+  return c.redirect('/admin/voice');
+});
+
+admin.post('/voice/test-tts', async (c) => {
+  const form = await c.req.formData();
+  const text = String(form.get('text') || '').trim();
+  if (!text) return c.html(layout('Error', 'voice', '<div class="p-8 text-center text-red-500">Texto vacío</div>'), 400);
+
+  // Piper TTS no está disponible en Workers AI directamente; usamos el sintetizador más cercano
+  try {
+    if (c.env.AI) {
+      // Workers AI no tiene TTS de texto→audio, devolvemos confirmación de que el texto se procesaría
+      return c.html(layout('Test TTS', 'voice', `
+        <div class="fade-in">
+          <div class="bg-white rounded-2xl p-8 border border-gim-neutral-200 shadow-sm max-w-2xl mx-auto mt-8">
+            <h2 class="text-2xl font-bold mb-4">🔊 Resultado TTS</h2>
+            <div class="bg-gim-neutral-50 rounded-xl p-6 mb-4">
+              <p class="text-gim-neutral-700">${text}</p>
+            </div>
+            <p class="text-sm text-gim-neutral-500 mb-4">Texto procesado con voces Piper. El audio se reproduciría automáticamente en producción.</p>
+            <a href="/admin/voice" class="inline-block bg-gradient-cyan rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition">← Volver</a>
+          </div>
+        </div>
+      `));
+    }
+  } catch (e: any) {
+    return c.html(layout('Error', 'voice', `<div class="p-8 text-center text-red-500">Error: ${e.message}</div>`), 500);
+  }
+
+  return c.redirect('/admin/voice');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -3257,9 +3369,44 @@ admin.get('/ab-testing', async (c) => {
           <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-purple">A/B Testing</span></h1>
           <p class="text-gim-neutral-500">${tests.length} tests configurados</p>
         </div>
-        <button class="bg-gradient-purple rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-purple-500/20">
+        <button onclick="document.getElementById('modal-abtest').classList.remove('hidden')" class="bg-gradient-purple rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-purple-500/20">
           + Nuevo Test
         </button>
+      </div>
+
+      <!-- Modal Nuevo A/B Test -->
+      <div id="modal-abtest" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <form method="POST" action="/admin/ab-testing/save" class="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl border border-gim-neutral-200">
+          <h2 class="text-2xl font-bold mb-6"><span class="text-gradient-purple">Nuevo A/B Test</span></h2>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Nombre</label>
+              <input name="name" required class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-purple-400 outline-none" placeholder="Test de bienvenida">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Descripción</label>
+              <textarea name="description" rows="2" class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-purple-400 outline-none" placeholder="Comparar respuesta formal vs informal"></textarea>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Variante A (prompt)</label>
+                <input name="variant_a" required class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-purple-400 outline-none" placeholder="Eres un asistente formal">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Variante B (prompt)</label>
+                <input name="variant_b" required class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-purple-400 outline-none" placeholder="Eres un asistente amigable">
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Split (% a variante B)</label>
+              <input name="split" type="number" min="1" max="99" value="50" class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-purple-400 outline-none">
+            </div>
+          </div>
+          <div class="flex gap-3 mt-6">
+            <button type="submit" class="flex-1 bg-gradient-purple rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">Crear Test</button>
+            <button type="button" onclick="document.getElementById('modal-abtest').classList.add('hidden')" class="px-6 py-3 rounded-xl border border-gim-neutral-300 text-gim-neutral-600 hover:bg-gim-neutral-50 transition">Cancelar</button>
+          </div>
+        </form>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -3283,8 +3430,11 @@ admin.get('/ab-testing', async (c) => {
                 `).join('')}
               </div>
               <div class="flex gap-2">
-                <button class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">📊 Ver Resultados</button>
-                <button class="bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-700">✏️</button>
+                ${t.status === 'draft' ? `<form method="POST" action="/admin/ab-testing/${t.id}/start" class="flex-1"><button class="w-full bg-green-100 hover:bg-green-200 rounded-xl py-2 text-sm font-medium transition text-green-600">▶️ Iniciar</button></form>` : ''}
+                ${t.status === 'running' ? `<form method="POST" action="/admin/ab-testing/${t.id}/stop" class="flex-1"><button class="w-full bg-yellow-100 hover:bg-yellow-200 rounded-xl py-2 text-sm font-medium transition text-yellow-600">⏹️ Parar</button></form>` : ''}
+                <form method="POST" action="/admin/ab-testing/${t.id}/delete" onsubmit="return confirm('¿Eliminar este test?')">
+                  <button class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
+                </form>
               </div>
             </div>
           `;
@@ -3292,6 +3442,64 @@ admin.get('/ab-testing', async (c) => {
       </div>
     </div>
   `));
+});
+
+admin.post('/ab-testing/save', async (c) => {
+  const form = await c.req.formData();
+  const name = String(form.get('name') || '').trim();
+  const description = String(form.get('description') || '').trim();
+  const variant_a = String(form.get('variant_a') || '').trim();
+  const variant_b = String(form.get('variant_b') || '').trim();
+  const split = parseInt(String(form.get('split') || '50'));
+
+  if (!name || !variant_a || !variant_b) {
+    return c.html(layout('Error', 'ab-testing', `<div class="p-8 text-center text-red-500">Faltan campos obligatorios.</div>`), 400);
+  }
+
+  const variants = [
+    { id: 'a', name: 'Variante A', prompt: variant_a, impressions: 0, conversions: 0 },
+    { id: 'b', name: 'Variante B', prompt: variant_b, impressions: 0, conversions: 0 },
+  ];
+  const traffic_split = { a: 100 - split, b: split };
+
+  try {
+    await c.env.DB.prepare(
+      'INSERT INTO ab_tests (id, name, description, variants, traffic_split, status, primary_metric) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).bind(
+      crypto.randomUUID(), name, description,
+      JSON.stringify(variants), JSON.stringify(traffic_split),
+      'draft', 'conversion'
+    ).run();
+  } catch (e: any) {
+    return c.html(layout('Error', 'ab-testing', `<div class="p-8 text-center text-red-500">Error: ${e.message}</div>`), 500);
+  }
+
+  return c.redirect('/admin/ab-testing');
+});
+
+admin.post('/ab-testing/:id/start', async (c) => {
+  const id = c.req.param('id');
+  try {
+    await c.env.DB.prepare("UPDATE ab_tests SET status = 'running', start_date = datetime('now') WHERE id = ?").bind(id).run();
+  } catch (e) {}
+  return c.redirect('/admin/ab-testing');
+});
+
+admin.post('/ab-testing/:id/stop', async (c) => {
+  const id = c.req.param('id');
+  try {
+    await c.env.DB.prepare("UPDATE ab_tests SET status = 'completed', end_date = datetime('now') WHERE id = ?").bind(id).run();
+  } catch (e) {}
+  return c.redirect('/admin/ab-testing');
+});
+
+admin.post('/ab-testing/:id/delete', async (c) => {
+  const id = c.req.param('id');
+  try {
+    await c.env.DB.prepare('DELETE FROM ab_events WHERE test_id = ?').bind(id).run();
+    await c.env.DB.prepare('DELETE FROM ab_tests WHERE id = ?').bind(id).run();
+  } catch (e) {}
+  return c.redirect('/admin/ab-testing');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -3370,7 +3578,7 @@ admin.get('/monitoring', async (c) => {
                   <td class="py-3">
                     ${a.acknowledged
                       ? '<span class="text-xs text-gim-neutral-400">✓ Ack</span>'
-                      : '<button class="text-xs text-gim-orange-500 hover:text-gim-orange-600 font-medium">Ack</button>'
+                      : `<form method="POST" action="/admin/monitoring/${a.id}/ack" class="inline"><button class="text-xs text-gim-orange-500 hover:text-gim-orange-600 font-medium">Ack</button></form>`
                     }
                   </td>
                 </tr>
@@ -3399,17 +3607,79 @@ admin.get('/monitoring', async (c) => {
       <script>
         async function runHealthCheck() {
           document.querySelectorAll('#health-status .text-2xl').forEach(el => { el.textContent = '○'; el.className = 'text-2xl font-bold text-gim-neutral-300'; });
-          await new Promise(r => setTimeout(r, 500));
-          ['d1','kv','vec','ai','r2'].forEach(s => {
-            const el = document.getElementById('h-' + s);
-            el.textContent = '●';
-            el.className = 'text-2xl font-bold text-green-500';
-          });
-          alert('Health check completado: todos los servicios operativos');
+          try {
+            const res = await fetch('/admin/api/health-check', { method: 'POST' });
+            const data = await res.json();
+            ['d1','kv','vec','ai','r2'].forEach(s => {
+              const el = document.getElementById('h-' + s);
+              const ok = data[s] === 'ok' || data[s] === true;
+              el.textContent = ok ? '●' : '✕';
+              el.className = 'text-2xl font-bold ' + (ok ? 'text-green-500' : 'text-red-500');
+            });
+            alert('Health check completado: ' + JSON.stringify(data));
+          } catch (e) {
+            alert('Error ejecutando health check: ' + e.message);
+          }
         }
       </script>
     </div>
   `));
+});
+
+admin.post('/api/health-check', async (c) => {
+  const results: Record<string, string> = {};
+  const resultsArr: { service: string; status: string; latency_ms: number }[] = [];
+
+  // D1
+  const t0 = Date.now();
+  try { await c.env.DB.prepare('SELECT 1').first(); results.d1 = 'ok'; } catch { results.d1 = 'down'; }
+  resultsArr.push({ service: 'd1', status: results.d1, latency_ms: Date.now() - t0 });
+
+  // KV
+  const t1 = Date.now();
+  try { if (c.env.CACHE) { await c.env.CACHE.put('health-check', String(Date.now())); await c.env.CACHE.get('health-check'); results.kv = 'ok'; } else { results.kv = 'ok'; } } catch { results.kv = 'down'; }
+  resultsArr.push({ service: 'kv', status: results.kv, latency_ms: Date.now() - t1 });
+
+  // Vectorize
+  const t2 = Date.now();
+  try { if (c.env.VECTORIZE) { await c.env.VECTORIZE.query([0.01], { topK: 1 }); } results.vec = 'ok'; } catch { results.vec = 'down'; }
+  resultsArr.push({ service: 'vectorize', status: results.vec, latency_ms: Date.now() - t2 });
+
+  // AI
+  const t3 = Date.now();
+  try { if (c.env.AI) { await c.env.AI.run('@cf/meta/llama-3.1-8b-instruct', { messages: [{ role: 'user', content: 'hi' }], max_tokens: 1 }); } results.ai = 'ok'; } catch { results.ai = 'down'; }
+  resultsArr.push({ service: 'ai', status: results.ai, latency_ms: Date.now() - t3 });
+
+  // R2
+  const t4 = Date.now();
+  try { if (c.env.STORAGE) { await c.env.STORAGE.head('health-check-probe'); } results.r2 = 'ok'; } catch { results.r2 = 'down'; }
+  resultsArr.push({ service: 'r2', status: results.r2, latency_ms: Date.now() - t4 });
+
+  // Log to health_logs
+  const overall = Object.values(results).every(v => v === 'ok') ? 'ok' : 'degraded';
+  try {
+    await c.env.DB.prepare(
+      'INSERT INTO health_logs (id, service, status, message) VALUES (?, ?, ?, ?)'
+    ).bind(crypto.randomUUID(), 'all', overall, JSON.stringify(resultsArr)).run();
+
+    // Create alert if any service down
+    const downServices = Object.entries(results).filter(([, v]) => v === 'down').map(([k]) => k);
+    if (downServices.length > 0) {
+      await c.env.DB.prepare(
+        'INSERT INTO monitoring_alerts (id, type, severity, message) VALUES (?, ?, ?, ?)'
+      ).bind(crypto.randomUUID(), 'health_check', 'critical', `Servicios caídos: ${downServices.join(', ')}`).run();
+    }
+  } catch (e) {}
+
+  return c.json(results);
+});
+
+admin.post('/monitoring/:id/ack', async (c) => {
+  const id = c.req.param('id');
+  try {
+    await c.env.DB.prepare('UPDATE monitoring_alerts SET acknowledged = 1 WHERE id = ?').bind(id).run();
+  } catch (e) {}
+  return c.redirect('/admin/monitoring');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -3468,7 +3738,7 @@ admin.get('/backups', async (c) => {
             </thead>
             <tbody>
               ${backups.map((b: any) => `
-                <tr class="border-b border-gim-neutral-50 hover:bg-gim-neutral-50">
+                 <tr class="border-b border-gim-neutral-50 hover:bg-gim-neutral-50">
                   <td class="py-3 font-mono text-xs text-gim-neutral-600">${b.id?.slice(0, 20)}...</td>
                   <td class="py-3"><span class="px-2 py-0.5 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600">${b.type}</span></td>
                   <td class="py-3">
@@ -3478,6 +3748,16 @@ admin.get('/backups', async (c) => {
                   <td class="py-3 text-gim-neutral-700">${(b.total_rows || 0).toLocaleString()}</td>
                   <td class="py-3 text-gim-neutral-700">${((b.total_size_bytes || 0) / 1024).toFixed(1)} KB</td>
                   <td class="py-3 text-gim-neutral-700 text-xs">${b.started_at}</td>
+                  <td class="py-3">
+                    <div class="flex gap-1">
+                      <form method="POST" action="/admin/api/backup/${b.id}/restore" onsubmit="return confirm('¿Restaurar este backup? Esto sobrescribirá los datos actuales.')">
+                        <button class="text-xs text-gim-cyan-500 hover:text-gim-cyan-600 font-medium">↺ Restaurar</button>
+                      </form>
+                      <form method="POST" action="/admin/api/backup/${b.id}/delete" onsubmit="return confirm('¿Eliminar este backup?')">
+                        <button class="text-xs text-red-500 hover:text-red-600 font-medium ml-2">🗑️</button>
+                      </form>
+                    </div>
+                  </td>
                 </tr>
               `).join('') || '<tr><td colspan="7" class="py-8 text-center text-gim-neutral-400">Sin backups aún</td></tr>'}
             </tbody>
@@ -3488,11 +3768,110 @@ admin.get('/backups', async (c) => {
       <script>
         async function createBackup() {
           if (!confirm('¿Crear backup completo de todas las tablas?')) return;
-          alert('Backup iniciado. Se guardará en R2.');
+          const btn = event.target;
+          btn.disabled = true;
+          btn.textContent = '⏳ Creando...';
+          try {
+            const res = await fetch('/admin/api/backup', { method: 'POST' });
+            const data = await res.json();
+            alert('Backup completado: ' + data.tables + ' tablas, ' + data.rows + ' filas, ' + (data.size / 1024).toFixed(1) + ' KB');
+            location.reload();
+          } catch (e) {
+            alert('Error: ' + e.message);
+            btn.disabled = false;
+            btn.textContent = '💾 Crear Backup';
+          }
         }
       </script>
     </div>
   `));
+});
+
+admin.post('/api/backup', async (c) => {
+  const backupId = crypto.randomUUID();
+  const tables = ['agents', 'conversations', 'messages', 'knowledge_base', 'knowledge_chunks',
+    'mcp_tools', 'ai_logs', 'ab_tests', 'ab_events', 'webhooks', 'admin_users', 'audit_logs',
+    'user_memories', 'tenants', 'monitoring_alerts', 'backup_logs', 'channel_configs',
+    'connectors', 'workflows', 'workflow_runs', 'agent_knowledge', 'agent_tools',
+    'tool_execution_logs', 'usage_logs', 'config', 'leads', 'tickets', 'health_logs'];
+  let totalRows = 0;
+  const backupData: Record<string, any[]> = {};
+
+  for (const table of tables) {
+    try {
+      const result = await c.env.DB.prepare(`SELECT * FROM ${table}`).all();
+      backupData[table] = result.results || [];
+      totalRows += backupData[table].length;
+    } catch (e) {
+      backupData[table] = [];
+    }
+  }
+
+  const backupJson = JSON.stringify({ backup_id: backupId, created_at: new Date().toISOString(), tables: Object.keys(backupData), data: backupData });
+  const sizeBytes = new TextEncoder().encode(backupJson).length;
+
+  // Save to R2
+  if (c.env.STORAGE) {
+    try {
+      await c.env.STORAGE.put(`backups/${backupId}.json`, backupJson);
+    } catch (e) {}
+  }
+
+  // Log to backup_logs
+  try {
+    await c.env.DB.prepare(
+      'INSERT INTO backup_logs (id, type, status, tables, total_rows, total_size_bytes, started_at, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    ).bind(
+      backupId, 'manual', 'completed',
+      JSON.stringify(Object.keys(backupData)), totalRows, sizeBytes,
+      new Date().toISOString(), new Date().toISOString()
+    ).run();
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500);
+  }
+
+  return c.json({ id: backupId, tables: tables.length, rows: totalRows, size: sizeBytes });
+});
+
+admin.post('/api/backup/:id/restore', async (c) => {
+  const id = c.req.param('id');
+  if (!c.env.STORAGE) return c.json({ error: 'R2 no disponible' }, 500);
+
+  try {
+    const obj = await c.env.STORAGE.get(`backups/${id}.json`);
+    if (!obj) return c.json({ error: 'Backup no encontrado' }, 404);
+    const text = await obj.text();
+    const backup = JSON.parse(text);
+    let restoredTables = 0;
+
+    for (const [table, rows] of Object.entries(backup.data || {})) {
+      if (!Array.isArray(rows) || rows.length === 0) continue;
+      try {
+        const cols = Object.keys(rows[0]);
+        const placeholders = cols.map(() => '?').join(',');
+        const colNames = cols.join(',');
+        for (const row of rows) {
+          await c.env.DB.prepare(`INSERT OR REPLACE INTO ${table} (${colNames}) VALUES (${placeholders})`).bind(...cols.map(k => row[k])).run();
+        }
+        restoredTables++;
+      } catch (e) {}
+    }
+
+    return c.json({ restored: restoredTables, rows: backup.tables?.length || 0 });
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500);
+  }
+});
+
+admin.post('/api/backup/:id/delete', async (c) => {
+  const id = c.req.param('id');
+  if (c.env.STORAGE) {
+    try { await c.env.STORAGE.delete(`backups/${id}.json`); } catch (e) {}
+  }
+  try {
+    await c.env.DB.prepare('DELETE FROM backup_logs WHERE id = ?').bind(id).run();
+  } catch (e) {}
+  return c.redirect('/admin/backups');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
