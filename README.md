@@ -2,7 +2,7 @@
 
 ### Plataforma de agentes de IA multicanal — open source, self-hosted en Cloudflare.
 
-**Atiende clientes 24/7 en WhatsApp, Telegram, Web, Instagram, Facebook, Email, SMS, Discord y Slack. RAG con tus documentos, MCP tools, workflows multi-agente, voice, multi-modal, A/B testing, multi-tenant, y más.**
+**Atiende clientes 24/7 en WhatsApp, Telegram, Web, Instagram, Facebook, Email, SMS, Discord y Slack. RAG con tus documentos, MCP tools, workflows multi-agente, voice, multi-modal, A/B testing, multi-tenant, audit logs, y más.**
 
 *Self-hosted, open-source AI agent platform. Lives in **your** Cloudflare, uses **your** Workers AI key. Deploy in minutes.*
 
@@ -25,28 +25,29 @@
                               ┌───────────────┴──────────────────────────┐
                               │         Cloudflare Edge (Workers)         │
                               │                                           │
-   Admin Panel ◀──HTTP──┐    │   ┌─────────────────────────────────────┐  │
-   (Tailwind+HTMX)      │    │   │     Hono Router (src/index.ts)      │  │
-                        │    │   ├─────────────────────────────────────┤  │
-                        └────┼──▶│   AdminPanel (src/admin/index.ts)   │  │
-                             │   │   20 GET + 30 POST routes           │  │
-                             │   ├─────────────────────────────────────┤  │
-                             │   │   Channel Handlers (8 channels)     │  │
-                             │   │   telegram/whatsapp/web/instagram/  │  │
-                             │   │   facebook/email/sms/discord/slack   │  │
-                             │   ├─────────────────────────────────────┤  │
-                             │   │   AgentOrchestrator                  │  │
-                             │   │   1. getAgentById(id)               │  │
-                             │   │   2. classifyIntent()               │  │
-                             │   │   3. searchKnowledge() ───▶ RAG     │  │
-                             │   │   4. loadAgentMCPTools() ──▶ MCP    │  │
-                             │   │   5. generateAgentResponse()        │  │
-                             │   │   6. tool_call execute ───▶ AI      │  │
-                             │   │   7. saveConversation() ───▶ D1     │  │
-                             │   ├─────────────────────────────────────┤  │
-                             │   │   MCP Server (/mcp)                 │  │
-                             │   │   AI Gateway (cache+log+fallback)   │  │
-                             │   └─────────────────────────────────────┘  │
+    Admin Panel ◀──HTTP──┐    │   ┌─────────────────────────────────────┐  │
+    (Tailwind+HTMX)      │    │   │     Hono Router (src/index.ts)      │  │
+                         │    │   ├─────────────────────────────────────┤  │
+                         └────┼──▶│   AdminPanel (src/admin/index.ts)   │  │
+                              │   │   22 GET + 48 POST/DELETE routes    │  │
+                              │   │   CSRF + HMAC sessions + auditLog   │  │
+                              │   ├─────────────────────────────────────┤  │
+                              │   │   Channel Handlers (9 channels)     │  │
+                              │   │   telegram/whatsapp/web/instagram/  │  │
+                              │   │   facebook/email/sms/discord/slack   │  │
+                              │   ├─────────────────────────────────────┤  │
+                              │   │   AgentOrchestrator                  │  │
+                              │   │   1. getAgentById(id)               │  │
+                              │   │   2. classifyIntent()               │  │
+                              │   │   3. searchKnowledge() ───▶ RAG     │  │
+                              │   │   4. loadAgentMCPTools() ──▶ MCP    │  │
+                              │   │   5. generateAgentResponse()        │  │
+                              │   │   6. tool_call execute ───▶ AI      │  │
+                              │   │   7. saveConversation() ───▶ D1     │  │
+                              │   ├─────────────────────────────────────┤  │
+                              │   │   MCP Server (/mcp)                 │  │
+                              │   │   AI Gateway (cache+log+fallback)   │  │
+                              │   └─────────────────────────────────────┘  │
                               └───────────────┬─────────────────────────┘
                                               │ bindings
               ┌───────────────────────────────┼────────────────────────┐
@@ -207,17 +208,17 @@ Abre Claude Code o Cursor y dile: `ármame un chatbot con WorkerIAGO`
 - **Cache**: respuestas cacheadas en KV por hash del prompt ( ahorra invocaciones a LLM)
 - **Rate limiting**: por agente, con límites configurables
 - **Fallback chain**: si un modelo falla, intenta con el siguiente ( e.g. Llama 3.3 70B → Llama 3.1 8B → Llama 3.2 3B)
-- **Dashboard** en `/admin/ai-gateway` con métricas de 30 días
+- **Dashboard** en `/admin/ai-gateway` con métricas de 30 días, filtros por modelo y status, y purge de logs
 
 ### Voice Agent
 
 **Módulo `src/voice/index.ts` — configuración desde `/admin/voice`:**
 
 - **STT (Speech-to-Text)**: Whisper Tiny / Whisper Large
-- **TTS (Text-to-Speech)**: Piper TTS con voces ( default, female-ES, male-ES, female-EN)
+- **TTS (Text-to-Speech)**: Browser SpeechSynthesis API para playback real de audio en el admin
 - **Configuración persistente** guardada en tabla `config` key `voice_config`
 - **POST `/admin/voice/save`** — guarda config de STT y TTS
-- **POST `/admin/voice/test-tts`** — prueba síntesis de texto
+- **Test de voz en navegador**: Web Speech API con selector de voz/idioma y control de velocidad
 - Pipeline: audio → Whisper → transcripción → AI response → Piper → audio playback
 
 ### Multi-Modal
@@ -247,6 +248,28 @@ Abre Claude Code o Cursor y dile: `ármame un chatbot con WorkerIAGO`
 - **Pagos** (`payments.ts`): Stripe y MercadoPago — crear links de pago, verificar estado, generar facturas
 - **Multi-Idioma** (`multilang.ts`): detección automática + traducción de respuestas, responder en el mismo idioma
 
+### Campañas Masivas
+
+**Admin `/admin/campaigns` — CRUD completo:**
+
+- Envío masivo de mensajes por WhatsApp, Telegram, Email, SMS
+- Segmentación de audiencia ( `all`, `new_leads`, `converted`, custom)
+- Estados: `draft` → `active` → `completed`
+- Tracking de enviados y abiertos
+- **POST routes**: `/save`, `/:id/start`, `/:id/stop`, `/:id/delete`
+- Tabla `campaigns` con `name`, `channel`, `message`, `segment`, `sent_count`, `opened_count`
+
+### Insights & Analytics
+
+**Admin `/admin/insights` — queries reales D1:**
+
+- **Tasa de Resolución**: tickets resueltos / total
+- **Latencia promedio** ( 7 días): desde `ai_logs`
+- **Conversión de Leads**: leads convertidos / total
+- **Métricas agregadas**: conversaciones, mensajes, tickets, agentes
+- **Gráfico de barras**: conversaciones por día ( últimos 7 días)
+- Sin datos hardcoded — todo desde D1
+
 ### A/B Testing
 
 **Módulo `src/ab-testing/index.ts` + admin `/admin/ab-testing`:**
@@ -269,9 +292,12 @@ Abre Claude Code o Cursor y dile: `ármame un chatbot con WorkerIAGO`
 - Flujos de múltiples pasos con state persistente
 - Tipos de step: `agent` ( invoca agente), `tool` ( ejecuta MCP ), `condition` ( branching ), `parallel` ( ramas simultáneas ), `transform` ( mutating context)
 - Templates predefinidos
+- **Crear workflows desde el admin** con modal de creación (nombre, descripción, pasos)
 - Ejecución con retry y estado persistente en tabla `workflow_runs`
-- **POST `/admin/api/workflows/:id/run`** — ejecutar workflow manualmente
-- Dashboard en `/admin/workflows`
+- **POST routes**:
+  - `/admin/workflows/save` — crear workflow
+  - `/admin/api/workflows/:id/run` — ejecutar workflow manualmente
+- Dashboard en `/admin/workflows` con lista de flujos y ejecuciones recientes
 
 ### Conectores
 
@@ -280,7 +306,12 @@ Abre Claude Code o Cursor y dile: `ármame un chatbot con WorkerIAGO`
 - **Google Drive**: sincronizar documentos desde Drive → Knowledge Base
 - **Notion**: importar páginas como documentos
 - **RSS**: feed → documentos recurrentes
+- **Webhook**: recibir datos de cualquier API externa
 - Tabla `connectors` con `sync_status`, `last_sync_at`, `items_synced`
+- **POST routes**:
+  - `/admin/connectors/save` — configurar conector (campos dinámicos por tipo)
+  - `/admin/connectors/:id/sync` — sincronizar on-demand
+  - `DELETE /admin/connectors/:id` — eliminar conector
 
 ### Webhooks + API Pública
 
@@ -300,7 +331,7 @@ Abre Claude Code o Cursor y dile: `ármame un chatbot con WorkerIAGO`
 - Límites por plan ( `max_agents`, `max_messages_month`, `max_knowledge`) en JSON `limits`
 - Resolución por custom domain o header `X-Tenant-Slug`
 - **POST routes**:
-  - `/admin/tenants/save` — crear tenant
+  - `/admin/tenants/save` — crear o editar tenant (soporta UPDATE con `id`)
   - `/admin/tenants/:id/delete` — eliminar tenant
 - Tabla `tenants` con `id`, `name`, `slug`, `plan`, `status`, `config`, `limits`, `owner_email`
 
@@ -311,10 +342,12 @@ Abre Claude Code o Cursor y dile: `ármame un chatbot con WorkerIAGO`
 - **Roles**: Super Admin, Admin, Editor, Viewer
 - Permisos granulares por recurso ( agents, kb, tools, tenants, users, audit)
 - Gestión de usuarios desde admin con `email`, `name`, `role`, `permissions`
+- **Editar usuarios** con modal pre-poblado ( nombre, email, rol)
 - **POST routes**:
-  - `/admin/users/save` — invitar usuario
+  - `/admin/users/save` — invitar o editar usuario ( soporta UPDATE con `id`)
   - `/admin/users/:id/delete` — eliminar usuario
-- Auth del admin: cookie-based (`admin_session`) con fallback a Bearer token para API
+- Auth del admin: cookie-based (`admin_session`) con HMAC signing, fallback a Bearer token para API
+- CSRF protection activa cuando `ADMIN_PASSWORD` está configurada
 
 ### Audit Logs
 
@@ -322,7 +355,19 @@ Abre Claude Code o Cursor y dile: `ármame un chatbot con WorkerIAGO`
 
 - Track de todas las acciones admin ( quien, que, cuando, IP)
 - Tabla `audit_logs` con `user_email`, `action`, `resource`, `resource_id`, `ip`, `metadata`
+- **`auditLog()` helper** llamado desde 10+ POST routes: tenants, users, channels, campaigns, workflows, config, KB, AI gateway purge, etc.
 - Filtros por usuario, recurso, fecha
+- Acciones registradas: `create`, `update`, `delete`
+
+### Seguridad
+
+**Implementada en `src/admin/index.ts`:**
+
+- **Cookie HMAC-signed**: `admin_session` contiene `sessionId:signature` con HMAC-SHA256 usando `getSessionSecret()` ( derivado de `ADMIN_PASSWORD` o fallback a `workeriago-secret-default`)
+- **CSRF protection**: middleware `csrfCheck` verifica token en cookie `admin_csrf` vs header `X-CSRF-Token` o form field `_csrf`. Solo activo cuando `ADMIN_PASSWORD` está configurada ( modo demo sin password = CSRF desactivado para no romper forms)
+- **SQL injection prevention**: todas las queries con `status` filter usan parameterized queries ( `.bind(status)`) — fix aplicado a tickets, leads, y conversations
+- **Audit logging**: `auditLog()` helper registra acciones mutativas en tabla `audit_logs` con IP, user, resource, metadata
+- **Bearer token fallback**: `Authorization: Bearer <password>` para API clients
 
 ### GDPR (Cumplimiento)
 
@@ -377,32 +422,32 @@ Tareas automáticas diarias:
 
 ### Admin Dashboard (GIM Design Extendido)
 
-**20 páginas operativas** en `/admin/<page>`:
+**22 páginas operativas** en `/admin/<page>` — todas con frontend + backend integrados:
 
-| # | Página | URL | POST routes |
+| # | Página | URL | POST/DELETE routes |
 |---|--------|-----|-------------|
 | 1 | 📊 Resumen | `/admin` | — |
-| 2 | 💬 Conversaciones | `/admin/conversations` | `/admin/conversations/:id/reply`, `/pause`, `/escalate` |
-| 3 | 🎫 Tickets | `/admin/tickets` | `/admin/tickets/:id/status` |
-| 4 | 👥 Leads | `/admin/leads` | `/admin/leads/:id/status` |
-| 5 | 📚 Knowledge Base | `/admin/knowledge` | `/admin/knowledge/upload`, `/import-url`, `/save-text` |
-| 6 | 🤖 Agentes | `/admin/agents` | `/admin/agents/save`, `/admin/agents/:id/kb/attach/:kbId`, `/admin/agents/kb/link` |
-| 7 | 🔧 MCP Tools | `/admin/mcp-tools` | `/admin/mcp-tools/save`, `/admin/api/mcp-tools/:id/test` |
-| 8 | 📊 AI Gateway | `/admin/ai-gateway` | — |
-| 9 | ⚡ Workflows | `/admin/workflows` | `/admin/api/workflows/:id/run` |
-| 10 | 🔌 Conectores | `/admin/connectors` | — |
-| 11 | 💡 Insights | `/admin/insights` | — |
-| 12 | 📢 Campañas | `/admin/campaigns` | — |
+| 2 | 💬 Conversaciones | `/admin/conversations` | `/:id/reply`, `/:id/pause`, `/:id/escalate` |
+| 3 | 🎫 Tickets | `/admin/tickets` | `/:id/status` |
+| 4 | 👥 Leads | `/admin/leads` | `/:id/status`, `/leads/export` (CSV) |
+| 5 | 📚 Knowledge Base | `/admin/knowledge` | `/upload`, `/import-url`, `/save-text`, `/:id/reindex` |
+| 6 | 🤖 Agentes | `/admin/agents` | `/save`, `/:id/kb/attach/:kbId`, `/kb/link`, `DELETE /:id` |
+| 7 | 🔧 MCP Tools | `/admin/mcp-tools` | `/save`, `/api/mcp-tools/:id/test`, `DELETE /:id` |
+| 8 | 📊 AI Gateway | `/admin/ai-gateway` | `/purge` + filtros model/status |
+| 9 | ⚡ Workflows | `/admin/workflows` | `/save`, `/api/workflows/:id/run` |
+| 10 | 🔌 Conectores | `/admin/connectors` | `/save`, `/:id/sync`, `DELETE /:id` |
+| 11 | 💡 Insights | `/admin/insights` | — (queries reales D1: resolución, latencia, conversión) |
+| 12 | 📢 Campañas | `/admin/campaigns` | `/save`, `/:id/start`, `/:id/stop`, `/:id/delete` |
 | 13 | 💰 Costos | `/admin/costs` | — |
-| 14 | 📡 Canales | `/admin/channels` | `/admin/channels/save`, `/admin/channels/:type/deactivate` |
-| 15 | 🎙️ Voz | `/admin/voice` | `/admin/voice/save`, `/admin/voice/test-tts` |
-| 16 | 🧪 A/B Testing | `/admin/ab-testing` | `/admin/ab-testing/save`, `/:id/start`, `/:id/stop`, `/:id/delete` |
-| 17 | 🩺 Monitoring | `/admin/monitoring` | `/admin/api/health-check`, `/admin/monitoring/:id/ack` |
-| 18 | 💾 Backups | `/admin/backups` | `/admin/api/backup`, `/api/backup/:id/restore`, `/api/backup/:id/delete` |
-| 19 | 🏢 Tenants | `/admin/tenants` | `/admin/tenants/save`, `/admin/tenants/:id/delete` |
-| 20 | 👤 Usuarios | `/admin/users` | `/admin/users/save`, `/admin/users/:id/delete` |
-| 21 | 📋 Audit Log | `/admin/audit` | — |
-| 22 | ⚙️ Configuración | `/admin/config` | `/admin/config/save` |
+| 14 | 📡 Canales | `/admin/channels` | `/save`, `/:type/deactivate` |
+| 15 | 🎙️ Voz | `/admin/voice` | `/save` + Web Speech API TTS playback |
+| 16 | 🧪 A/B Testing | `/admin/ab-testing` | `/save`, `/:id/start`, `/:id/stop`, `/:id/delete` |
+| 17 | 🩺 Monitoring | `/admin/monitoring` | `/api/health-check`, `/:id/ack` |
+| 18 | 💾 Backups | `/admin/backups` | `/api/backup`, `/api/backup/:id/restore`, `/api/backup/:id/delete` |
+| 19 | 🏢 Tenants | `/admin/tenants` | `/save` (create+edit), `/:id/delete` |
+| 20 | 👤 Usuarios | `/admin/users` | `/save` (create+edit), `/:id/delete` |
+| 21 | 📋 Audit Log | `/admin/audit` | — (auditLog() escribe desde otros routes) |
+| 22 | ⚙️ Configuración | `/admin/config` | `/config/save` |
 
 **Stack visual**: Tailwind CSS via CDN, HTMX para reactividad, paleta GIM ( orange `#f97316`, cyan `#06b6d4`, purple `#a855f7`), gradientes y cards con sombras suaves.
 
@@ -436,14 +481,14 @@ Tareas automáticas diarias:
 | `@cf/stabilityai/stable-diffusion-xl-base-1.0` | Generación de imágenes | — | ~$0.03 imagen |
 | `@cf/huggingface/distilbert-sst-2-integer-quantized` | Clasificación | — | Gratis |
 
-### Estructura del Código (35 módulos)
+### Estructura del Código (37 módulos)
 
 ```
 src/
 ├── index.ts              # Hono router principal, endpoints API
 ├── ai.ts                 # Wrappers de Workers AI
 ├── durable-object.ts     # AgentState (sesiones stateful)
-├── admin/index.ts        # Admin panel (20+ páginas, 30+ POST routes)
+├── admin/index.ts        # Admin panel (22 páginas, 48 POST/DELETE routes, CSRF, HMAC, auditLog)
 ├── orchestrator/         # Lógica central: classify → RAG → MCP → response
 ├── channels/             # 9 handlers de canal
 ├── knowledge/            # RAG pipeline: chunk → embed → Vectorize → search
@@ -509,9 +554,10 @@ src/
 Ver tabla "Admin Dashboard" ( más arriba) para todos los endpoints de admin.
 
 Auth middleware ( `src/admin/index.ts`):
-- Cookie `admin_session=authenticated` — si `ADMIN_PASSWORD` configurada
+- Cookie `admin_session` HMAC-signed — si `ADMIN_PASSWORD` configurada
+- CSRF token verificado en POSTs ( cookie `admin_csrf` vs header o form field)
 - Header `Authorization: Bearer <password>` — para API clients
-- Sin auth si `ADMIN_PASSWORD` no configurada ( modo demo)
+- Sin auth si `ADMIN_PASSWORD` no configurada ( modo demo — CSRF también desactivado)
 
 ---
 
@@ -649,18 +695,22 @@ wrangler r2 bucket list
 | Chat IA end-to-end | ✅ Operativo | Llama 3.1 8B + RAG + MCP |
 | RAG con Vectorize | ✅ Operativo | bge-base-en-v1.5, 768d, cosine |
 | MCP Tools en chat | ✅ Operativo | TOOL_CALL detection + execute |
-| Admin Panel | ✅ Operativo | 22 páginas, todos POST routes |
+| Admin Panel | ✅ 22 páginas | Todas con frontend+backend integrados |
+| Seguridad | ✅ Hardened | HMAC sessions, CSRF, SQLi fixed, auditLog |
 | Health checks | ✅ Operativo | D1/KV/Vectorize/AI/R2 reales |
 | Backup D1 → R2 | ✅ Operativo | 28 tablas, JSON en R2 |
+| Insights | ✅ Real D1 | Resolución, latencia, conversión, trends |
+| Campañas | ✅ CRUD completo | Create/start/stop/delete |
+| Conectores | ✅ CRUD completo | Configure/sync/delete |
 | Worker live | ✅ Deploy | `https://workeriago.ibohorquez.workers.dev` |
 
 ### Commits recientes
 
+- `945e827` — Fix security + routing + complete all 22 admin pages
+- `a495a52` — Update README: full architecture + 28 DB tables + 22 admin pages
 - `fa290dc` — Integrate MCP tools in orchestrator
 - `2a20d37` — Fix RAG: agentId routing + 768-dim embedding match
 - `003a3a8` — Add POST routes for all 5 new pages
-- `f5ed172` — Add tenant/user create+delete routes
-- `3c71f3b` — Add 8 admin pages
 
 ---
 
