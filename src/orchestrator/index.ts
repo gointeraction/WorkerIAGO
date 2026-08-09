@@ -89,45 +89,71 @@ export class AgentOrchestrator {
         console.error('Knowledge search failed:', e);
       }
 
-      // 4. Detectar acciones a ejecutar
-      let actions: any[] = [];
+      // 4. Cargar MCP tools del agente
+      let mcpTools: any[] = [];
+      let toolDefs: any[] = [];
       try {
-        actions = await detectActions(this.aiConfig, message, agent.tools || []);
+        const linked = await this.env.DB.prepare(
+          'SELECT t.* FROM mcp_tools t INNER JOIN agent_tools at ON t.id = at.tool_id WHERE at.agent_id = ? AND t.is_active = 1'
+        ).bind(agent.id).all();
+        mcpTools = linked.results || [];
+        toolDefs = mcpTools.map(t => ({
+          id: t.id, name: t.name, description: t.description,
+          parameters_schema: JSON.parse(t.parameters_schema || '{}')
+        }));
       } catch (e) {
-        console.error('Action detection failed:', e);
+        console.error('MCP tools load failed:', e);
       }
 
-      // 5. Ejecutar acciones
-      let actionResults: any[] = [];
-      if (actions.length > 0) {
-        try {
-          actionResults = await this.actionEngine.executeActions(actions, {
-            chatId,
-            channel,
-            message,
-            agentId: agent.id
-          });
-        } catch (e) {
-          console.error('Action execution failed:', e);
-        }
-      }
-
-      // 6. Generar respuesta
+      // 5. Generar respuesta (con tools como contexto)
       let response: string;
       try {
+        const toolsPrompt = toolDefs.length > 0
+          ? `\n\nHERRAMIENTAS DISPONIBLES:\n${toolDefs.map(t => `- ${t.name}: ${t.description}. Parámetros: ${JSON.stringify(t.parameters_schema)}`).join('\n')}\n\nSi necesitas usar una herramienta, responde SOLO con: TOOL_CALL: <tool_id> <json_params>\nEjemplo: TOOL_CALL: echo {"message":"hola"}`
+          : '';
         response = await generateAgentResponse(
           this.aiConfig,
           message,
-          agent.system_prompt,
-          this.buildContext(context, actionResults),
+          agent.system_prompt + toolsPrompt,
+          this.buildContext(context, []),
           history
         );
+
+        // Si el LLM decide llamar un tool, ejecutar y generar respuesta final
+        if (response.startsWith('TOOL_CALL:')) {
+          const match = response.match(/^TOOL_CALL:\s*(\S+)\s*(.*)$/);
+          console.log('TOOL_CALL detected:', response, 'match:', match ? [match[1], match[2]] : null, 'mcpTools:', mcpTools.map(t => ({ id: t.id, name: t.name })));
+          if (match) {
+            const toolIdent = match[1].toLowerCase();
+            const tool = mcpTools.find(t =>
+              t.id?.toLowerCase() === toolIdent ||
+              t.name?.toLowerCase() === toolIdent ||
+              t.id?.toLowerCase().includes(toolIdent) ||
+              toolIdent.includes(t.id?.toLowerCase() || '###')
+            );
+            if (tool) {
+              let params: any = {};
+              try { params = JSON.parse(match[2] || '{}'); } catch (e) {}
+              const { executeTool } = await import('../mcp');
+              const toolResult = await executeTool(this.env.DB, tool as any, params, agent.id, parseInt(chatId) || undefined);
+              // Re-generar respuesta con el resultado del tool
+              const toolContext = `\nRESULTADO DE HERRAMIENTA ${tool.name}:\n${JSON.stringify(toolResult.data || toolResult.error)}`;
+              response = await generateAgentResponse(
+                this.aiConfig,
+                message,
+                agent.system_prompt,
+                this.buildContext(context, []) + toolContext,
+                history
+              );
+            }
+          }
+        }
       } catch (e) {
         console.error('Response generation failed:', e);
         response = 'Disculpa, no pude procesar tu mensaje. Por favor, intenta de nuevo.';
       }
 
-      // 7. Guardar conversación
+      // 6. Guardar conversación
       try {
         await this.saveConversation(message, response, agent, intent, chatId, channel);
       } catch (e) {
@@ -138,7 +164,7 @@ export class AgentOrchestrator {
         response,
         agent: agent.id,
         intent,
-        actions: actions.map(a => a.name),
+        actions: [],
         sources: context.map(c => c.metadata?.title || ''),
         escalate: intent === 'escalate'
       };
