@@ -61,52 +61,90 @@ export class AgentOrchestrator {
     channel: string,
     history: Message[] = []
   ): Promise<OrchestratorResult> {
-    // 1. Obtener agente activo
-    const agent = await this.getDefaultAgent();
-    if (!agent) {
-      return { response: 'No hay agentes configurados.', agent: 'none', intent: 'error' };
+    try {
+      // 1. Obtener agente activo
+      const agent = await this.getDefaultAgent();
+      if (!agent) {
+        return { response: 'No hay agentes configurados.', agent: 'none', intent: 'error' };
+      }
+
+      // 2. Clasificar intención
+      let intent = 'general';
+      try {
+        intent = await classifyIntent(this.aiConfig, message);
+      } catch (e) {
+        console.error('Intent classification failed:', e);
+      }
+
+      // 3. Buscar contexto en Vectorize (RAG)
+      let context: any[] = [];
+      try {
+        context = await this.searchKnowledge(message, agent.id);
+      } catch (e) {
+        console.error('Knowledge search failed:', e);
+      }
+
+      // 4. Detectar acciones a ejecutar
+      let actions: any[] = [];
+      try {
+        actions = await detectActions(this.aiConfig, message, agent.tools || []);
+      } catch (e) {
+        console.error('Action detection failed:', e);
+      }
+
+      // 5. Ejecutar acciones
+      let actionResults: any[] = [];
+      if (actions.length > 0) {
+        try {
+          actionResults = await this.actionEngine.executeActions(actions, {
+            chatId,
+            channel,
+            message,
+            agentId: agent.id
+          });
+        } catch (e) {
+          console.error('Action execution failed:', e);
+        }
+      }
+
+      // 6. Generar respuesta
+      let response: string;
+      try {
+        response = await generateAgentResponse(
+          this.aiConfig,
+          message,
+          agent.system_prompt,
+          this.buildContext(context, actionResults),
+          history
+        );
+      } catch (e) {
+        console.error('Response generation failed:', e);
+        response = 'Disculpa, no pude procesar tu mensaje. Por favor, intenta de nuevo.';
+      }
+
+      // 7. Guardar conversación
+      try {
+        await this.saveConversation(message, response, agent, intent, chatId, channel);
+      } catch (e) {
+        console.error('Save conversation failed:', e);
+      }
+
+      return {
+        response,
+        agent: agent.id,
+        intent,
+        actions: actions.map(a => a.name),
+        sources: context.map(c => c.metadata?.title || ''),
+        escalate: intent === 'escalate'
+      };
+    } catch (error: any) {
+      console.error('Orchestrator fatal error:', error);
+      return { 
+        response: 'Disculpa, estoy teniendo problemas técnicos. Intenta de nuevo.',
+        agent: 'none',
+        intent: 'error'
+      };
     }
-
-    // 2. Clasificar intención
-    const intent = await classifyIntent(this.aiConfig, message);
-
-    // 3. Buscar contexto en Vectorize (RAG)
-    const context = await this.searchKnowledge(message, agent.id);
-
-    // 4. Detectar acciones a ejecutar
-    const actions = await detectActions(this.aiConfig, message, agent.tools || []);
-
-    // 5. Ejecutar acciones
-    let actionResults: any[] = [];
-    if (actions.length > 0) {
-      actionResults = await this.actionEngine.executeActions(actions, {
-        chatId,
-        channel,
-        message,
-        agentId: agent.id
-      });
-    }
-
-    // 6. Generar respuesta
-    const response = await generateAgentResponse(
-      this.aiConfig,
-      message,
-      agent.system_prompt,
-      this.buildContext(context, actionResults),
-      history
-    );
-
-    // 7. Guardar conversación
-    await this.saveConversation(message, response, agent, intent, chatId, channel);
-
-    return {
-      response,
-      agent: agent.id,
-      intent,
-      actions: actions.map(a => a.name),
-      sources: context.map(c => c.metadata?.title || ''),
-      escalate: intent === 'escalate'
-    };
   }
 
   private async getDefaultAgent(): Promise<Agent | null> {

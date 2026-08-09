@@ -57,14 +57,37 @@ app.post('/webhook/telegram', async (c) => {
 
   const update = await c.req.json();
   const channel = new TelegramChannel(token);
-  const orchestrator = new AgentOrchestrator(c.env);
+
+  // Crear orchestrator con manejo de errores
+  const env = c.env;
+  const orchestrator = new AgentOrchestrator({
+    AI: env.AI,
+    DB: env.DB,
+    VECTORIZE: env.VECTORIZE,
+    CACHE: env.CACHE,
+    AGENT_STATE: env.AGENT_STATE
+  });
 
   try {
     const result = await channel.handleUpdate(update, orchestrator);
     return c.json(result);
-  } catch (error) {
-    console.error('Telegram webhook error:', error);
-    return c.json({ error: 'Internal error' }, 500);
+  } catch (error: any) {
+    console.error('Telegram webhook error:', error?.message || error);
+    
+    // Intentar enviar un mensaje de error al usuario
+    try {
+      const message = update.message;
+      if (message?.chat?.id) {
+        await channel.sendMessage(
+          message.chat.id.toString(),
+          'Disculpa, estoy teniendo problemas técnicos. Por favor, intenta de nuevo en unos segundos.'
+        );
+      }
+    } catch (e) {
+      console.error('Error sending error message:', e);
+    }
+    
+    return c.json({ error: 'Internal error', details: error?.message }, 500);
   }
 });
 
