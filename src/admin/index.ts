@@ -15,7 +15,27 @@ type Bindings = {
 
 // Tenant ID helper — extracts from Hono context (set by tenantMiddleware)
 function tId(c: any): string {
-  return c.get('tenantId') || c.req.header('X-Tenant-ID') || 'default';
+  return c.get('tenantId') || c.req.header('X-Tenant-ID') || getCookie(c, 'tenant_id') || 'default';
+}
+
+// Tenant info helper — loads tenant name + list for the sidebar selector
+async function tInfo(c: any): Promise<{ id: string; name: string; tenants: { id: string; name: string; slug: string }[] }> {
+  const id = tId(c);
+  let name = 'Default';
+  let tenants: { id: string; name: string; slug: string }[] = [];
+  try {
+    const tenant = await c.env.DB.prepare('SELECT name FROM tenants WHERE id = ?').bind(id).first<{ name: string }>();
+    if (tenant) name = tenant.name;
+    const result = await c.env.DB.prepare('SELECT id, name, slug FROM tenants ORDER BY name').all<{ id: string; name: string; slug: string }>();
+    tenants = result.results || [];
+  } catch (e) {}
+  return { id, name, tenants };
+}
+
+// Render helper — async wrapper that auto-injects tenant info into layout
+async function renderPage(c: any, title: string, activeTab: string, body: string): Promise<Response> {
+  const ti = await tInfo(c);
+  return c.html(layout(title, activeTab, body, ti));
 }
 
 // Database row types
@@ -155,15 +175,16 @@ function verifyCsrf(c: any): boolean {
 async function auditLog(c: any, action: string, resource: string, resourceId?: string, metadata?: any) {
   try {
     await c.env.DB.prepare(
-      'INSERT INTO audit_logs (id, user_email, action, resource, resource_id, ip, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO audit_logs (id, user_id, user_email, action, resource_type, resource_id, details, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     ).bind(
       crypto.randomUUID(),
+      'admin',
       'admin',
       action,
       resource,
       resourceId || null,
-      c.req.header('CF-Connecting-IP') || 'unknown',
-      JSON.stringify(metadata || {})
+      JSON.stringify(metadata || {}),
+      c.req.header('CF-Connecting-IP') || 'unknown'
     ).run();
   } catch (e) {}
 }
@@ -389,7 +410,12 @@ function loginPage(error: string) {
 }
 
 // Layout helper - GIM Style (returns raw string, NOT html tagged)
-const layout = (title: string, activeTab: string, body: string) => `<!DOCTYPE html>
+const layout = (title: string, activeTab: string, body: string, tenantInfo?: { id: string; name: string; tenants: { id: string; name: string; slug: string }[] }) => {
+  const currentTenantId = tenantInfo?.id || 'default';
+  const currentTenantName = tenantInfo?.name || 'Default';
+  const tenantsList = tenantInfo?.tenants || [];
+  const tenantBadge = currentTenantId !== 'default' ? `<span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-gim-cyan-50 text-gim-cyan-600 font-medium">${currentTenantName}</span>` : '';
+  return `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -553,6 +579,14 @@ const layout = (title: string, activeTab: string, body: string) => `<!DOCTYPE ht
       
       <!-- Footer -->
       <div class="p-4 border-t border-gim-neutral-100">
+        <!-- Tenant Selector -->
+        <div class="mb-3">
+          <label class="text-xs text-gim-neutral-400 font-medium mb-1 block">Tenant activo</label>
+          <select onchange="switchTenant(this.value)" class="w-full text-sm font-semibold text-gim-neutral-700 bg-gim-neutral-50 border border-gim-neutral-200 rounded-lg px-3 py-2 focus:outline-none focus:border-gim-orange-400 transition">
+            <option value="${currentTenantId}" selected>${currentTenantName}</option>
+            ${tenantsList.filter(t => t.id !== currentTenantId).map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
+          </select>
+        </div>
         <div class="flex items-center gap-2 text-sm text-gim-neutral-500">
           <span class="w-2 h-2 bg-green-500 rounded-full pulse-dot"></span>
           <span>Sistema activo</span>
@@ -578,14 +612,49 @@ const layout = (title: string, activeTab: string, body: string) => `<!DOCTYPE ht
       }
       updateLastUpdate();
       setInterval(updateLastUpdate, 30000);
+
+      // ═══════════════════════════════════════════════════════════════════════════════
+      // TENANT INTERCEPTOR — injects X-Tenant-ID into ALL fetch() and htmx calls
+      // ═══════════════════════════════════════════════════════════════════════════════
+      (function() {
+        var TENANT_ID = '${currentTenantId}';
+
+        // Save original fetch
+        var originalFetch = window.fetch;
+        window.fetch = function(input, init) {
+          init = init || {};
+          init.headers = init.headers || {};
+          // Handle headers as object or Headers instance
+          if (init.headers instanceof Headers) {
+            if (!init.headers.has('X-Tenant-ID')) init.headers.set('X-Tenant-ID', TENANT_ID);
+          } else {
+            if (!init.headers['X-Tenant-ID']) init.headers['X-Tenant-ID'] = TENANT_ID;
+          }
+          return originalFetch.call(this, input, init);
+        };
+
+        // htmx: inject header via events
+        if (window.htmx) {
+          document.body.addEventListener('htmx:configRequest', function(event) {
+            event.detail.headers['X-Tenant-ID'] = TENANT_ID;
+          });
+        }
+
+        // Tenant switcher
+        window.switchTenant = function(tenantId) {
+          document.cookie = 'tenant_id=' + tenantId + ';path=/;max-age=86400';
+          window.location.reload();
+        };
+      })();
     </script>
   </div>
 </body>
 </html>`;
+};
 
 // Main dashboard
 admin.get('/', async (c) => {
-  return c.html(layout('Resumen', 'overview', `
+  return renderPage(c, 'Resumen', 'overview', `
     <div class="fade-in">
       <!-- Header -->
       <div class="mb-8">
@@ -812,7 +881,7 @@ admin.get('/', async (c) => {
         setInterval(loadRecentConversations, 10000);
       </script>
     </div>
-  `));
+  `);
 });
 
 // Conversations page
@@ -841,7 +910,7 @@ admin.get('/conversations', async (c) => {
     total = totalResult?.count || 0;
   } catch (e) { conversations = []; total = 0; }
   
-  return c.html(layout('Conversaciones', 'conversations', `
+  return renderPage(c, 'Conversaciones', 'conversations', `
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
         <div>
@@ -908,7 +977,7 @@ admin.get('/conversations', async (c) => {
       <div id="thread-panel" class="fixed right-0 top-0 w-[450px] h-full bg-white border-l border-gim-neutral-200 hidden overflow-y-auto shadow-2xl">
       </div>
     </div>
-  `));
+  `);
 });
 
 // Conversation thread
@@ -1022,7 +1091,7 @@ admin.get('/tickets', async (c) => {
     tickets = result.results || [];
   } catch (e) { tickets = []; }
   
-  return c.html(layout('Tickets', 'tickets', `
+  return renderPage(c, 'Tickets', 'tickets', `
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
         <div>
@@ -1074,128 +1143,7 @@ admin.get('/tickets', async (c) => {
         `).join('') || '<div class="text-gim-neutral-400 text-center py-12">No hay tickets</div>'}
       </div>
     </div>
-  `));
-});
-
-// Knowledge Base page
-admin.get('/knowledge', async (c) => {
-  let documents: KnowledgeRow[] = [];
-  try {
-    const result = await c.env.DB.prepare(
-      'SELECT * FROM knowledge_base WHERE tenant_id = ? ORDER BY updated_at DESC'
-    ).bind(tId(c)).all<KnowledgeRow>();
-    documents = result.results || [];
-  } catch (e) { documents = []; }
-  
-  return c.html(layout('Base de Conocimiento', 'knowledge', `
-    <div class="fade-in">
-      <div class="flex justify-between items-center mb-8">
-        <div>
-          <h1 class="text-4xl font-extrabold mb-2">
-            <span class="text-gradient-orange">Base de Conocimiento</span>
-          </h1>
-          <p class="text-gim-neutral-500">${documents.length} documentos indexados</p>
-        </div>
-        <button onclick="showCreateDocument()" class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
-          + Nuevo Documento
-        </button>
-      </div>
-      
-      <!-- Create/Edit Form -->
-      <div id="kb-form" class="hidden bg-white rounded-2xl p-6 border border-gim-neutral-200 mb-8 shadow-sm">
-        <h3 class="text-xl font-bold text-gim-neutral-900 mb-6">Nuevo Documento</h3>
-        <form hx-post="/admin/kb/save" hx-target="#kb-list" hx-swap="innerHTML">
-          <input type="hidden" id="doc-id" name="id" value="">
-          
-          <div class="grid grid-cols-2 gap-6 mb-6">
-            <div>
-              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Título</label>
-              <input type="text" name="title" id="doc-title" required
-                     class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors">
-            </div>
-            <div>
-              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Categoría</label>
-              <input type="text" name="category" id="doc-category"
-                     class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors"
-                     placeholder="ej: FAQ, Productos, Políticas">
-            </div>
-          </div>
-          
-          <div class="mb-6">
-            <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Contenido</label>
-            <textarea name="content" id="doc-content" required rows="8"
-                      class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-gim-orange-400 transition-colors"></textarea>
-          </div>
-          
-          <div class="mb-6">
-            <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Tags (separados por coma)</label>
-            <input type="text" name="tags" id="doc-tags"
-                   class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors"
-                   placeholder="precio, envío, garantía">
-          </div>
-          
-          <div class="flex gap-3">
-            <button type="submit" class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
-              Guardar
-            </button>
-            <button type="button" onclick="hideCreateDocument()" class="bg-gim-neutral-100 rounded-xl px-6 py-3 font-semibold hover:bg-gim-neutral-200 transition text-gim-neutral-700">
-              Cancelar
-            </button>
-          </div>
-        </form>
-      </div>
-      
-      <!-- Documents list -->
-      <div id="kb-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        ${documents.map((d: KnowledgeRow) => `
-          <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
-            <div class="flex justify-between items-start mb-4">
-              <div class="w-10 h-10 bg-gradient-cyan rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-gim-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-              </div>
-              <div class="flex gap-2">
-                <button onclick="editDocument('${d.id}', '${d.title}', '${d.category || ''}', '${d.content.replace(/'/g, "\\'")}')"
-                        class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
-                <button hx-delete="/admin/kb/${d.id}" 
-                        hx-confirm="¿Eliminar este documento?"
-                        hx-target="#kb-list"
-                        class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-red-100 transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
-              </div>
-            </div>
-            <div class="font-semibold text-gim-neutral-900 mb-2">${d.title}</div>
-            <div class="text-sm text-gim-neutral-500 mb-4 line-clamp-2">${d.content.substring(0, 150)}...</div>
-            <div class="flex gap-2">
-              <span class="px-3 py-1 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600">${d.category || 'Sin categoría'}</span>
-              <span class="text-xs text-gim-neutral-400">${d.view_count || 0} vistas</span>
-            </div>
-          </div>
-        `).join('') || '<div class="col-span-3 text-gim-neutral-400 text-center py-12">No hay documentos. ¡Crea el primero!</div>'}
-      </div>
-      
-      <script>
-        function showCreateDocument() {
-          document.getElementById('kb-form').classList.remove('hidden');
-          document.getElementById('doc-id').value = '';
-          document.getElementById('doc-title').value = '';
-          document.getElementById('doc-category').value = '';
-          document.getElementById('doc-content').value = '';
-          document.getElementById('doc-tags').value = '';
-        }
-        
-        function hideCreateDocument() {
-          document.getElementById('kb-form').classList.add('hidden');
-        }
-        
-        function editDocument(id, title, category, content) {
-          document.getElementById('kb-form').classList.remove('hidden');
-          document.getElementById('doc-id').value = id;
-          document.getElementById('doc-title').value = title;
-          document.getElementById('doc-category').value = category;
-          document.getElementById('doc-content').value = content;
-        }
-      </script>
-    </div>
-  `));
+  `);
 });
 
 // Leads page
@@ -1221,7 +1169,7 @@ admin.get('/leads', async (c) => {
     leads = result.results || [];
   } catch (e) { leads = []; }
   
-  return c.html(layout('Leads', 'leads', `
+  return renderPage(c, 'Leads', 'leads', `
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
         <div>
@@ -1279,7 +1227,7 @@ admin.get('/leads', async (c) => {
         `).join('') || '<div class="text-gim-neutral-400 text-center py-12">No hay leads</div>'}
       </div>
     </div>
-  `));
+  `);
 });
 
 admin.get('/leads/export', async (c) => {
@@ -1321,7 +1269,7 @@ admin.get('/agents', async (c) => {
     kbDocs = result.results || [];
   } catch (e) { kbDocs = []; }
   
-  return c.html(layout('Agentes', 'agents', `
+  return renderPage(c, 'Agentes', 'agents', `
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
         <div>
@@ -1566,7 +1514,7 @@ admin.get('/agents', async (c) => {
         }
       </script>
     </div>
-  `));
+  `);
 });
 
 // Insights page
@@ -1624,7 +1572,7 @@ admin.get('/insights', async (c) => {
   const resolutionRate = stats.totalTickets > 0 ? Math.round((stats.resolvedTickets / stats.totalTickets) * 100) : 0;
   const conversionRate = stats.totalLeads > 0 ? Math.round((stats.convertedLeads / stats.totalLeads) * 100) : 0;
 
-  return c.html(layout('Insights', 'insights', `
+  return renderPage(c, 'Insights', 'insights', `
     <div class="fade-in">
       <div class="mb-8">
         <h1 class="text-4xl font-extrabold mb-2">
@@ -1690,17 +1638,17 @@ admin.get('/insights', async (c) => {
         </div>
       </div>
     </div>
-  `));
+  `);
 });
 
 // Campaigns page
 admin.get('/campaigns', async (c) => {
   let campaigns: any[] = [];
   try {
-    campaigns = (await c.env.DB.prepare('SELECT * FROM campaigns ORDER BY created_at DESC').all()).results || [];
+    campaigns = (await c.env.DB.prepare('SELECT * FROM campaigns WHERE tenant_id = ? ORDER BY created_at DESC').bind(tId(c)).all()).results || [];
   } catch (e) { campaigns = []; }
 
-  return c.html(layout('Campañas', 'campaigns', `
+  return renderPage(c, 'Campañas', 'campaigns', `
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
         <div>
@@ -1785,7 +1733,7 @@ admin.get('/campaigns', async (c) => {
         `).join('') || '<div class="col-span-2 bg-white rounded-2xl p-12 border border-gim-neutral-200 text-center shadow-sm"><div class="mb-4"><svg class="w-12 h-12 text-gim-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div><h2 class="text-xl font-bold text-gim-neutral-900 mb-2">Sin campañas</h2><p class="text-gim-neutral-500">Crea tu primera campaña masiva.</p></div>'}
       </div>
     </div>
-  `));
+  `);
 });
 
 admin.post('/campaigns/save', async (c) => {
@@ -1797,8 +1745,8 @@ admin.post('/campaigns/save', async (c) => {
   if (!name || !message) return c.redirect('/admin/campaigns');
   try {
     await c.env.DB.prepare(
-      'INSERT INTO campaigns (id, name, channel, message, segment, status, sent_count, opened_count, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, 0, datetime(\'now\'))'
-    ).bind(crypto.randomUUID(), name, channel, message, segment, 'draft').run();
+      'INSERT INTO campaigns (id, name, channel, message, segment, status, sent_count, opened_count, tenant_id, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, datetime(\'now\'))'
+    ).bind(crypto.randomUUID(), name, channel, message, segment, 'draft', tId(c)).run();
   } catch (e: any) {}
   await auditLog(c, 'create', 'campaign', undefined, { name, channel });
   return c.redirect('/admin/campaigns');
@@ -1806,19 +1754,19 @@ admin.post('/campaigns/save', async (c) => {
 
 admin.post('/campaigns/:id/start', async (c) => {
   const id = c.req.param('id');
-  try { await c.env.DB.prepare('UPDATE campaigns SET status = ?, started_at = datetime(\'now\') WHERE id = ?').bind('active', id).run(); } catch (e) {}
+  try { await c.env.DB.prepare('UPDATE campaigns SET status = ?, started_at = datetime(\'now\') WHERE id = ? AND tenant_id = ?').bind('active', id, tId(c)).run(); } catch (e) {}
   return c.redirect('/admin/campaigns');
 });
 
 admin.post('/campaigns/:id/stop', async (c) => {
   const id = c.req.param('id');
-  try { await c.env.DB.prepare('UPDATE campaigns SET status = ? WHERE id = ?').bind('completed', id).run(); } catch (e) {}
+  try { await c.env.DB.prepare('UPDATE campaigns SET status = ? WHERE id = ? AND tenant_id = ?').bind('completed', id, tId(c)).run(); } catch (e) {}
   return c.redirect('/admin/campaigns');
 });
 
 admin.post('/campaigns/:id/delete', async (c) => {
   const id = c.req.param('id');
-  try { await c.env.DB.prepare('DELETE FROM campaigns WHERE id = ?').bind(id).run(); } catch (e) {}
+  try { await c.env.DB.prepare('DELETE FROM campaigns WHERE id = ? AND tenant_id = ?').bind(id, tId(c)).run(); } catch (e) {}
   return c.redirect('/admin/campaigns');
 });
 
@@ -1842,7 +1790,7 @@ admin.get('/costs', async (c) => {
   const totalCost = usage.reduce((sum: number, u: UsageRow) => sum + (u.cost || 0), 0);
   const totalTokens = usage.reduce((sum: number, u: UsageRow) => sum + (u.input_tokens || 0) + (u.output_tokens || 0), 0);
   
-  return c.html(layout('Costos', 'costs', `
+  return renderPage(c, 'Costos', 'costs', `
     <div class="fade-in">
       <div class="mb-8">
         <h1 class="text-4xl font-extrabold mb-2">
@@ -1882,7 +1830,7 @@ admin.get('/costs', async (c) => {
         </div>
       </div>
     </div>
-  `));
+  `);
 });
 
 // Config page
@@ -1895,7 +1843,7 @@ admin.get('/config', async (c) => {
     settings = result.results || [];
   } catch (e) { settings = []; }
   
-  return c.html(layout('Configuración', 'config', `
+  return renderPage(c, 'Configuración', 'config', `
     <div class="fade-in">
       <div class="mb-8">
         <h1 class="text-4xl font-extrabold mb-2">
@@ -1950,7 +1898,7 @@ admin.get('/config', async (c) => {
         </form>
       </div>
     </div>
-  `));
+  `);
 });
 
 // API Routes
@@ -2321,7 +2269,7 @@ admin.delete('/agents/:id', async (c) => {
   return c.body(html);
 });
 
-admin.get('/admin/api/agents/:id/kb', async (c) => {
+admin.get('/api/agents/:id/kb', async (c) => {
   const agentId = c.req.param('id');
   try {
     const result = await c.env.DB.prepare(`
@@ -2471,7 +2419,7 @@ admin.get('/knowledge', async (c) => {
     agents = (await c.env.DB.prepare('SELECT id, name FROM agents WHERE tenant_id = ? ORDER BY name').bind(tId(c)).all()).results || [];
   } catch (e) { agents = []; }
 
-  return c.html(layout('Knowledge Base', 'knowledge', `
+  return renderPage(c, 'Knowledge Base', 'knowledge', `
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
         <div>
@@ -2661,7 +2609,7 @@ admin.get('/knowledge', async (c) => {
         }
       </script>
     </div>
-  `));
+  `);
 });
 
 // Knowledge API endpoints
@@ -2835,7 +2783,7 @@ admin.get('/mcp-tools', async (c) => {
 
   const categories = [...new Set(tools.map(t => t.category))];
 
-  return c.html(layout('MCP Tools', 'mcp-tools', `
+  return renderPage(c, 'MCP Tools', 'mcp-tools', `
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
         <div>
@@ -3011,7 +2959,7 @@ admin.get('/mcp-tools', async (c) => {
         }
       </script>
     </div>
-  `));
+  `);
 });
 
 // MCP Tools API
@@ -3101,7 +3049,7 @@ admin.get('/ai-gateway', async (c) => {
     recentLogs = (await c.env.DB.prepare(query).bind(...params).all()).results || [];
   } catch (e) {}
 
-  return c.html(layout('AI Gateway', 'ai-gateway', `
+  return renderPage(c, 'AI Gateway', 'ai-gateway', `
     <div class="fade-in">
       <div class="mb-8">
         <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-orange">AI Gateway</span></h1>
@@ -3207,12 +3155,12 @@ admin.get('/ai-gateway', async (c) => {
         </div>
       </div>
     </div>
-  `));
+  `);
 });
 
 admin.post('/ai-gateway/purge', async (c) => {
   try {
-    await c.env.DB.prepare('DELETE FROM ai_logs').run();
+    await c.env.DB.prepare('DELETE FROM ai_logs WHERE tenant_id = ?').bind(tId(c)).run();
   } catch (e) {}
   await auditLog(c, 'delete', 'ai_logs', undefined, { purged: true });
   return c.redirect('/admin/ai-gateway');
@@ -3230,7 +3178,7 @@ admin.get('/workflows', async (c) => {
 
   let runs: any[] = [];
   try {
-    runs = (await c.env.DB.prepare('SELECT * FROM workflow_runs ORDER BY started_at DESC LIMIT 20').all()).results || [];
+    runs = (await c.env.DB.prepare('SELECT * FROM workflow_runs WHERE tenant_id = ? ORDER BY started_at DESC LIMIT 20').bind(tId(c)).all()).results || [];
   } catch (e) { runs = []; }
 
   const templates = [
@@ -3239,7 +3187,7 @@ admin.get('/workflows', async (c) => {
     { name: 'Lead Qualification', description: 'Capture → Score → Route → Follow-up', icon: 'LQ' },
   ];
 
-  return c.html(layout('Workflows', 'workflows', `
+  return renderPage(c, 'Workflows', 'workflows', `
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
         <div>
@@ -3363,7 +3311,7 @@ admin.get('/workflows', async (c) => {
         }
       </script>
     </div>
-  `));
+  `);
 });
 
 admin.post('/api/workflows/:id/run', async (c) => {
@@ -3421,7 +3369,7 @@ admin.get('/connectors', async (c) => {
 
   const configuredTypes = connectors.map((conn: any) => conn.type);
 
-  return c.html(layout('Conectores', 'connectors', `
+  return renderPage(c, 'Conectores', 'connectors', `
     <div class="fade-in">
       <div class="mb-8">
         <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-cyan">Conectores</span></h1>
@@ -3527,7 +3475,7 @@ admin.get('/connectors', async (c) => {
         }
       </script>
     </div>
-  `));
+  `);
 });
 
 admin.post('/connectors/save', async (c) => {
@@ -3594,7 +3542,7 @@ admin.get('/channels', async (c) => {
     { type: 'slack', name: 'Slack', icon: 'SL', color: 'green', desc: 'Bot con interactividad' },
   ];
 
-  return c.html(layout('Canales', 'channels', `
+  return renderPage(c, 'Canales', 'channels', `
     <div class="fade-in">
       <div class="mb-8">
         <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-cyan">Canales</span></h1>
@@ -3667,7 +3615,7 @@ admin.get('/channels', async (c) => {
         function hideChannelModal() { document.getElementById('channel-modal').classList.add('hidden'); }
       </script>
     </div>
-  `));
+  `);
 });
 
 admin.post('/channels/save', async (c) => {
@@ -3719,7 +3667,7 @@ admin.get('/voice', async (c) => {
     if (row?.value) voiceConfig = JSON.parse(row.value);
   } catch (e) {}
 
-  return c.html(layout('Voz', 'voice', `
+  return renderPage(c, 'Voz', 'voice', `
     <div class="fade-in">
       <div class="mb-8">
         <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-orange">Voice Agent</span></h1>
@@ -3834,7 +3782,7 @@ admin.get('/voice', async (c) => {
         function stopTTS() { speechSynthesis.cancel(); document.getElementById('tts-status').textContent = 'Detenido.'; }
       </script>
     </div>
-  `));
+  `);
 });
 
 admin.post('/voice/save', async (c) => {
@@ -3871,7 +3819,7 @@ admin.post('/voice/test-tts', async (c) => {
   try {
     if (c.env.AI) {
       // Workers AI no tiene TTS de texto→audio, devolvemos confirmación de que el texto se procesaría
-      return c.html(layout('Test TTS', 'voice', `
+      return renderPage(c, 'Test TTS', 'voice', `
         <div class="fade-in">
           <div class="bg-white rounded-2xl p-8 border border-gim-neutral-200 shadow-sm max-w-2xl mx-auto mt-8">
             <h2 class="text-2xl font-bold mb-4">Resultado TTS</h2>
@@ -3882,7 +3830,7 @@ admin.post('/voice/test-tts', async (c) => {
             <a href="/admin/voice" class="inline-block bg-gradient-cyan rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition">← Volver</a>
           </div>
         </div>
-      `));
+      `);
     }
   } catch (e: any) {
     return c.html(layout('Error', 'voice', `<div class="p-8 text-center text-red-500">Error: ${e.message}</div>`), 500);
@@ -3901,7 +3849,7 @@ admin.get('/ab-testing', async (c) => {
     tests = (await c.env.DB.prepare('SELECT * FROM ab_tests ORDER BY created_at DESC').all()).results || [];
   } catch (e) { tests = []; }
 
-  return c.html(layout('A/B Testing', 'ab-testing', `
+  return renderPage(c, 'A/B Testing', 'ab-testing', `
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
         <div>
@@ -3980,7 +3928,7 @@ admin.get('/ab-testing', async (c) => {
         }).join('') || '<div class="col-span-2 text-gim-neutral-400 text-center py-12">No hay tests. Crea tu primer A/B test para optimizar respuestas.</div>'}
       </div>
     </div>
-  `));
+  `);
 });
 
 admin.post('/ab-testing/save', async (c) => {
@@ -4049,13 +3997,13 @@ admin.get('/monitoring', async (c) => {
   let alerts: any[] = [];
   let healthLogs: any[] = [];
   try {
-    alerts = (await c.env.DB.prepare('SELECT * FROM monitoring_alerts ORDER BY created_at DESC LIMIT 20').all()).results || [];
+    alerts = (await c.env.DB.prepare('SELECT * FROM monitoring_alerts WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 20').bind(tId(c)).all()).results || [];
   } catch (e) { alerts = []; }
   try {
     healthLogs = (await c.env.DB.prepare('SELECT * FROM health_logs ORDER BY created_at DESC LIMIT 10').all()).results || [];
   } catch (e) { healthLogs = []; }
 
-  return c.html(layout('Monitoring', 'monitoring', `
+  return renderPage(c, 'Monitoring', 'monitoring', `
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
         <div>
@@ -4162,7 +4110,7 @@ admin.get('/monitoring', async (c) => {
         }
       </script>
     </div>
-  `));
+  `);
 });
 
 admin.post('/api/health-check', async (c) => {
@@ -4231,7 +4179,7 @@ admin.get('/backups', async (c) => {
     backups = (await c.env.DB.prepare('SELECT * FROM backup_logs ORDER BY started_at DESC LIMIT 20').all()).results || [];
   } catch (e) { backups = []; }
 
-  return c.html(layout('Backups', 'backups', `
+  return renderPage(c, 'Backups', 'backups', `
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
         <div>
@@ -4323,7 +4271,7 @@ admin.get('/backups', async (c) => {
         }
       </script>
     </div>
-  `));
+  `);
 });
 
 admin.post('/api/backup', async (c) => {
@@ -4425,7 +4373,7 @@ admin.get('/tenants', async (c) => {
 
   const plans = { free: 'Free', starter: 'Starter', pro: 'Pro', enterprise: 'Enterprise' };
 
-  return c.html(layout('Tenants', 'tenants', `
+  return renderPage(c, 'Tenants', 'tenants', `
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
         <div>
@@ -4524,7 +4472,7 @@ admin.get('/tenants', async (c) => {
         }
       </script>
     </div>
-  `));
+  `);
 });
 
 admin.post('/tenants/save', async (c) => {
@@ -4570,6 +4518,19 @@ admin.post('/tenants/save', async (c) => {
 admin.post('/tenants/:id/delete', async (c) => {
   const id = c.req.param('id');
   try {
+    await c.env.DB.prepare('DELETE FROM agents WHERE tenant_id = ?').bind(id).run();
+    await c.env.DB.prepare('DELETE FROM conversations WHERE tenant_id = ?').bind(id).run();
+    await c.env.DB.prepare('DELETE FROM messages WHERE tenant_id = ?').bind(id).run();
+    await c.env.DB.prepare('DELETE FROM tickets WHERE tenant_id = ?').bind(id).run();
+    await c.env.DB.prepare('DELETE FROM leads WHERE tenant_id = ?').bind(id).run();
+    await c.env.DB.prepare('DELETE FROM knowledge_base WHERE tenant_id = ?').bind(id).run();
+    await c.env.DB.prepare('DELETE FROM knowledge_chunks WHERE tenant_id = ?').bind(id).run();
+    await c.env.DB.prepare('DELETE FROM mcp_tools WHERE tenant_id = ?').bind(id).run();
+    await c.env.DB.prepare('DELETE FROM workflows WHERE tenant_id = ?').bind(id).run();
+    await c.env.DB.prepare('DELETE FROM connectors WHERE tenant_id = ?').bind(id).run();
+    await c.env.DB.prepare('DELETE FROM channel_configs WHERE tenant_id = ?').bind(id).run();
+    await c.env.DB.prepare('DELETE FROM ai_logs WHERE tenant_id = ?').bind(id).run();
+    await c.env.DB.prepare('DELETE FROM audit_logs WHERE tenant_id = ?').bind(id).run();
     await c.env.DB.prepare('DELETE FROM tenants WHERE id = ?').bind(id).run();
   } catch (e) {}
   return c.redirect('/admin/tenants');
@@ -4598,7 +4559,7 @@ admin.get('/users', async (c) => {
     viewer: 'bg-gim-neutral-100 text-gim-neutral-600',
   };
 
-  return c.html(layout('Usuarios', 'users', `
+  return renderPage(c, 'Usuarios', 'users', `
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
         <div>
@@ -4713,7 +4674,7 @@ admin.get('/users', async (c) => {
         });
       </script>
     </div>
-  `));
+  `);
 });
 
 admin.post('/users/save', async (c) => {
@@ -4776,7 +4737,7 @@ admin.get('/audit', async (c) => {
     login: 'bg-purple-100 text-purple-600',
   };
 
-  return c.html(layout('Audit Log', 'audit', `
+  return renderPage(c, 'Audit Log', 'audit', `
     <div class="fade-in">
       <div class="mb-8">
         <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-orange">Audit Log</span></h1>
@@ -4812,7 +4773,7 @@ admin.get('/audit', async (c) => {
         </div>
       </div>
     </div>
-  `));
+  `);
 });
 
 export { admin as AdminPanel };
