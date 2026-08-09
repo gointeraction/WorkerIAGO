@@ -239,22 +239,30 @@ Panel de administración completo con HTMX para actualizaciones en tiempo real:
 ```
 workeriago/
 ├── src/
-│   ├── index.ts              # Worker principal + scheduled functions
-│   ├── ai.ts                 # Integración con Workers AI
-│   ├── orchestrator/         # Orquestador de agentes
-│   ├── channels/             # Integración con canales
-│   │   ├── telegram.ts
-│   │   ├── whatsapp.ts
-│   │   └── web.ts
-│   ├── actions/              # Engine de acciones
-│   ├── admin/                # Panel de administración (HTMX)
-│   │   └── index.ts          # 1000+ líneas de UI
-│   └── durable-object.ts     # Estado de conversaciones
-├── schema.sql                # Esquema de base de datos (12 tablas)
-├── seed.sql                  # Datos iniciales
-├── wrangler.toml             # Configuración de Cloudflare
-├── deploy.sh                 # Script de instalación
-└── package.json
+│   ├── index.ts                    # Worker principal + scheduled functions
+│   ├── ai.ts                       # Integración con Workers AI
+│   ├── durable-object.ts           # Estado de conversaciones (Durable Objects)
+│   ├── orchestrator/
+│   │   └── index.ts                # Orquestador de agentes
+│   ├── channels/
+│   │   ├── telegram.ts             # Integración con Telegram Bot API
+│   │   ├── whatsapp.ts             # Integración con WhatsApp Business API
+│   │   └── web.ts                  # Widget de chat web
+│   ├── actions/
+│   │   └── index.ts                # Engine de acciones (11 acciones)
+│   └── admin/
+│       └── index.ts                # Panel de administración (HTMX)
+├── scripts/
+│   ├── setup-resources.sh          # Setup de recursos Cloudflare
+│   └── setup.sh                    # Script de instalación
+├── schema.sql                      # Esquema de base de datos (12 tablas)
+├── seed.sql                        # Datos iniciales (3 agentes, 11 acciones)
+├── wrangler.toml                   # Configuración de Cloudflare Workers
+├── package.json                    # Dependencias y scripts
+├── tsconfig.json                   # Configuración de TypeScript
+├── deploy.sh                       # Script de deploy automático
+├── .dev.vars.example               # Variables de entorno (ejemplo)
+└── README.md                       # Esta documentación
 ```
 
 ---
