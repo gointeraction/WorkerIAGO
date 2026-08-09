@@ -58,7 +58,7 @@ app.get('/api/test-ai', async (c) => {
       return c.json({ error: 'AI binding not available' }, 500);
     }
     
-    const result = await ai.run('@cf/meta/llama-3.1-8b-instruct', {
+    const result = await ai.run('@cf/meta/llama-3.1-8b-instruct-fp8', {
       messages: [{ role: 'user', content: 'Responde solo: Hola mundo' }],
       max_tokens: 10
     });

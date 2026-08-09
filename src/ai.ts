@@ -15,9 +15,9 @@ interface ChatMessage {
 
 // Modelos disponibles en Workers AI
 export const MODELS = {
-  chat: '@cf/meta/llama-3.1-8b-instruct',
-  chatSmall: '@cf/meta/llama-3.1-8b-instruct',
-  chatLarge: '@cf/meta/llama-3.1-70b-instruct',
+  chat: '@cf/meta/llama-3.1-8b-instruct-fp8',
+  chatSmall: '@cf/meta/llama-3.2-3b-instruct',
+  chatLarge: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
   embedding: '@cf/baai/bge-base-en-v1.5',
   embeddingLarge: '@cf/baai/bge-large-en-v1.5',
   image: '@cf/stabilityai/stable-diffusion-xl-base-1.0',
