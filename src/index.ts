@@ -263,4 +263,121 @@ app.get('/api/stats', async (c) => {
 });
 
 export { AgentState };
-export default app;
+export default {
+  fetch: app.fetch,
+  async scheduled(event: ScheduledController, env: Bindings): Promise<void> {
+    console.log('Running scheduled task:', event.cron);
+    
+    // Purge old messages (90 days)
+    try {
+      await purgeOldMessages(env);
+    } catch (e) {
+      console.error('Purge error:', e);
+    }
+    
+    // Run follow-ups for leads
+    try {
+      await runFollowups(env);
+    } catch (e) {
+      console.error('Followup error:', e);
+    }
+    
+    // Check bot health
+    try {
+      await checkBotHealth(env);
+    } catch (e) {
+      console.error('Health check error:', e);
+    }
+  }
+};
+
+// Purge messages older than 90 days
+async function purgeOldMessages(env: Bindings) {
+  const result = await env.DB.prepare(
+    'DELETE FROM messages WHERE created_at < datetime("now", "-90 days")'
+  ).run();
+  console.log(`Purged ${result.meta?.changes || 0} old messages`);
+}
+
+// Run follow-ups for leads that are due
+async function runFollowups(env: Bindings) {
+  const { results: dueFollowups } = await env.DB.prepare(
+    `SELECT f.*, l.name, l.phone, l.email, l.interest
+     FROM followups f
+     JOIN leads l ON f.lead_id = l.id
+     WHERE f.status = 'pending' 
+     AND f.scheduled_at <= datetime('now')
+     LIMIT 10`
+  ).all();
+  
+  for (const followup of dueFollowups) {
+    try {
+      // TODO: Send followup message through appropriate channel
+      await env.DB.prepare(
+        `UPDATE followups SET status = 'sent', sent_at = datetime('now') WHERE id = ?`
+      ).bind(followup.id).run();
+      
+      // Update lead's last contact
+      await env.DB.prepare(
+        `UPDATE leads SET last_contact_at = datetime('now'), followup_count = followup_count + 1 WHERE id = ?`
+      ).bind(followup.lead_id).run();
+      
+      console.log(`Followup sent to lead ${followup.lead_id}`);
+    } catch (e) {
+      await env.DB.prepare(
+        `UPDATE followups SET status = 'failed' WHERE id = ?`
+      ).bind(followup.id).run();
+      console.error(`Followup failed for lead ${followup.lead_id}:`, e);
+    }
+  }
+}
+
+// Check bot health and log issues
+async function checkBotHealth(env: Bindings) {
+  try {
+    // Check for recent errors
+    const { count: recentErrors } = await env.DB.prepare(
+      `SELECT COUNT(*) as count FROM health_logs 
+       WHERE status = 'error' 
+       AND created_at > datetime('now', '-1 hour')`
+    ).first() as any;
+    
+    // Check conversation success rate
+    const { count: totalConversations } = await env.DB.prepare(
+      `SELECT COUNT(*) as count FROM conversations 
+       WHERE created_at > datetime('now', '-24 hours')`
+    ).first() as any;
+    
+    const { count: failedConversations } = await env.DB.prepare(
+      `SELECT COUNT(*) as count FROM conversations 
+       WHERE status = 'escalated' 
+       AND created_at > datetime('now', '-24 hours')`
+    ).first() as any;
+    
+    const successRate = totalConversations > 0 
+      ? ((totalConversations - failedConversations) / totalConversations * 100)
+      : 100;
+    
+    // Log health status
+    const status = recentErrors > 5 || successRate < 70 ? 'degraded' : 'ok';
+    
+    await env.DB.prepare(
+      `INSERT INTO health_logs (status, error_count, metadata)
+       VALUES (?, ?, ?)`
+    ).bind(status, recentErrors, JSON.stringify({
+      success_rate: successRate,
+      total_conversations: totalConversations,
+      failed_conversations: failedConversations
+    })).run();
+    
+    // Alert if degraded
+    if (status === 'degraded') {
+      console.warn(`Bot health degraded: ${recentErrors} errors, ${successRate.toFixed(1)}% success rate`);
+      // TODO: Send alert to owner via Telegram/email
+    }
+    
+    console.log(`Health check: ${status} (${successRate.toFixed(1)}% success rate)`);
+  } catch (e) {
+    console.error('Health check failed:', e);
+  }
+}

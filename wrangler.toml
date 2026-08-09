@@ -52,6 +52,12 @@ tag = "v1"
 new_sqlite_classes = ["AgentState"]
 
 # =============================================================================
+# SCHEDULED FUNCTIONS - Cron jobs para tareas automáticas
+# =============================================================================
+[scheduled]
+cron = "0 3 * * *"  # Diario a las 3am UTC
+
+# =============================================================================
 # ENVIRONMENT VARIABLES
 # =============================================================================
 # Configurar con: wrangler secret put NOMBRE_VARIABLE
@@ -67,3 +73,8 @@ new_sqlite_classes = ["AgentState"]
 
 [vars]
 ENVIRONMENT = "development"
+BOT_NAME = "WorkerIAGO"
+BUSINESS_NAME = "Mi Negocio"
+BOT_LANGUAGE = "es"
+BUFFER_SECONDS = "15"
+DASHBOARD_BASE_URL = "https://workeriago.ibohorquez.workers.dev"
