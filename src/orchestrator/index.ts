@@ -49,9 +49,11 @@ export class AgentOrchestrator {
   private env: Env;
   private actionEngine: ActionEngine;
   private aiConfig: AIConfig;
+  private tenantId: string;
 
-  constructor(env: Env) {
+  constructor(env: Env, tenantId: string = 'default') {
     this.env = env;
+    this.tenantId = tenantId;
     this.actionEngine = new ActionEngine(env);
     this.aiConfig = {
       provider: 'workers',
@@ -94,8 +96,8 @@ export class AgentOrchestrator {
       let toolDefs: any[] = [];
       try {
         const linked = await this.env.DB.prepare(
-          'SELECT t.* FROM mcp_tools t INNER JOIN agent_tools at ON t.id = at.tool_id WHERE at.agent_id = ? AND t.is_active = 1'
-        ).bind(agent.id).all();
+          'SELECT t.* FROM mcp_tools t INNER JOIN agent_tools at ON t.id = at.tool_id WHERE at.agent_id = ? AND t.is_active = 1 AND t.tenant_id = ?'
+        ).bind(agent.id, this.tenantId).all();
         mcpTools = linked.results || [];
         toolDefs = mcpTools.map(t => ({
           id: t.id, name: t.name, description: t.description,
@@ -180,15 +182,15 @@ export class AgentOrchestrator {
 
   private async getDefaultAgent(): Promise<Agent | null> {
     const agent = await this.env.DB.prepare(
-      'SELECT * FROM agents WHERE is_active = 1 ORDER BY created_at ASC LIMIT 1'
-    ).first<Agent>();
+      'SELECT * FROM agents WHERE is_active = 1 AND tenant_id = ? ORDER BY created_at ASC LIMIT 1'
+    ).bind(this.tenantId).first<Agent>();
     return agent;
   }
 
   private async getAgentById(id: string): Promise<Agent | null> {
     const agent = await this.env.DB.prepare(
-      'SELECT * FROM agents WHERE id = ?'
-    ).bind(id).first<Agent>();
+      'SELECT * FROM agents WHERE id = ? AND tenant_id = ?'
+    ).bind(id, this.tenantId).first<Agent>();
     return agent;
   }
 
@@ -200,8 +202,8 @@ export class AgentOrchestrator {
         STORAGE: this.env.STORAGE,
         AI: this.env.AI,
       };
-      const context = await buildRagContext(knowledgeEnv, query, agentId, 5);
-      console.log('RAG context:', context ? `[${context.length} chars]` : '[empty]', 'for agent:', agentId, 'query:', query);
+      const context = await buildRagContext(knowledgeEnv, query, agentId, 5, this.tenantId);
+      console.log('RAG context:', context ? `[${context.length} chars]` : '[empty]', 'for agent:', agentId, 'tenant:', this.tenantId, 'query:', query);
       return context ? [{ metadata: { content: context } }] : [];
     } catch (error) {
       console.error('Knowledge search error:', error);
@@ -239,23 +241,23 @@ export class AgentOrchestrator {
   ): Promise<void> {
     try {
       let conversation = await this.env.DB.prepare(
-        'SELECT id FROM conversations WHERE chat_id = ? AND channel = ? AND status = "active"'
-      ).bind(chatId, channel).first<{ id: number }>();
+        'SELECT id FROM conversations WHERE chat_id = ? AND channel = ? AND status = "active" AND tenant_id = ?'
+      ).bind(chatId, channel, this.tenantId).first<{ id: number }>();
 
       if (!conversation) {
         const result = await this.env.DB.prepare(
-          'INSERT INTO conversations (agent_id, channel, chat_id, intent) VALUES (?, ?, ?, ?)'
-        ).bind(agent.id, channel, chatId, intent).run();
+          'INSERT INTO conversations (agent_id, channel, chat_id, intent, tenant_id) VALUES (?, ?, ?, ?, ?)'
+        ).bind(agent.id, channel, chatId, intent, this.tenantId).run();
         conversation = { id: result.meta.last_row_id as number };
       }
 
       await this.env.DB.prepare(
-        'INSERT INTO messages (conversation_id, role, content) VALUES (?, "user", ?)'
-      ).bind(conversation.id, message).run();
+        'INSERT INTO messages (conversation_id, role, content, tenant_id) VALUES (?, "user", ?, ?)'
+      ).bind(conversation.id, message, this.tenantId).run();
 
       await this.env.DB.prepare(
-        'INSERT INTO messages (conversation_id, role, content) VALUES (?, "assistant", ?)'
-      ).bind(conversation.id, response).run();
+        'INSERT INTO messages (conversation_id, role, content, tenant_id) VALUES (?, "assistant", ?, ?)'
+      ).bind(conversation.id, response, this.tenantId).run();
 
       await this.env.DB.prepare(
         'UPDATE conversations SET intent = ?, updated_at = datetime("now") WHERE id = ?'

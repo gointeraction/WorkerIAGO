@@ -235,12 +235,48 @@ export class TenantManager {
 }
 
 /**
- * Tenant context helper — inject tenant_id into all queries
+ * Tenant-scoped query builder — safe parameterized tenant filtering
+ * 
+ * Usage:
+ *   const { sql, binds } = tenantQuery(tenantId, 'SELECT * FROM agents WHERE is_active = 1', [agentId]);
+ *   const result = await db.prepare(sql).bind(...binds).all();
+ */
+export function tenantQuery(
+  tenantId: string,
+  query: string,
+  existingBinds: (string | number | null)[] = []
+): { sql: string; binds: (string | number | null)[] } {
+  if (query.includes('WHERE')) {
+    return {
+      sql: query.replace('WHERE', 'WHERE tenant_id = ? AND'),
+      binds: [tenantId, ...existingBinds],
+    };
+  }
+  if (query.includes('ORDER BY') || query.includes('GROUP BY') || query.includes('LIMIT')) {
+    return {
+      sql: query.replace(/(ORDER BY|GROUP BY|LIMIT)/, 'WHERE tenant_id = ? $1'),
+      binds: [...existingBinds, tenantId],
+    };
+  }
+  return {
+    sql: query + ' WHERE tenant_id = ?',
+    binds: [...existingBinds, tenantId],
+  };
+}
+
+/**
+ * Legacy alias — use tenantQuery() instead for new code.
+ * This wrapper calls tenantQuery and returns just the SQL string
+ * (binds must be prepended by caller).
  */
 export function withTenant(tenantId: string, query: string): string {
-  // Append tenant_id filter to query
-  if (query.includes('WHERE')) {
-    return query.replace('WHERE', `WHERE tenant_id = '${tenantId}' AND`);
-  }
-  return query + ` WHERE tenant_id = '${tenantId}'`;
+  const { sql } = tenantQuery(tenantId, query);
+  return sql;
+}
+
+/**
+ * Get tenant ID from Hono context (set by tenantMiddleware)
+ */
+export function getTenantId(c: any): string {
+  return c.get('tenantId') || c.req.header('X-Tenant-ID') || 'default';
 }

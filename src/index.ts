@@ -7,6 +7,7 @@ import { WebChannel } from './channels/web';
 import { AdminPanel } from './admin';
 import { AgentState } from './durable-object';
 import { generateEmbedding } from './ai';
+import { tenantMiddleware } from './tenant/middleware';
 
 // =============================================================================
 // BINDINGS - Cloudflare AI, D1, Vectorize, KV, Durable Objects
@@ -42,6 +43,9 @@ const app = new Hono<{ Bindings: Bindings }>();
 
 // CORS for admin panel
 app.use('/admin/*', cors());
+
+// Tenant resolution middleware — applies to all routes
+app.use('*', tenantMiddleware());
 
 // Health check
 app.get('/', (c) => {
@@ -84,7 +88,7 @@ app.post('/webhook/telegram', async (c) => {
   const update = await c.req.json();
   const channel = new TelegramChannel(token);
 
-  // Crear orchestrator con manejo de errores
+  const tenantId = c.get('tenantId') || 'default';
   const env = c.env;
   const orchestrator = new AgentOrchestrator({
     AI: env.AI,
@@ -92,7 +96,7 @@ app.post('/webhook/telegram', async (c) => {
     VECTORIZE: env.VECTORIZE,
     CACHE: env.CACHE,
     AGENT_STATE: env.AGENT_STATE
-  });
+  }, tenantId);
 
   try {
     const result = await channel.handleUpdate(update, orchestrator);
@@ -125,7 +129,8 @@ app.post('/webhook/whatsapp', async (c) => {
 
   const body = await c.req.json();
   const channel = new WhatsAppChannel(token, phoneId);
-  const orchestrator = new AgentOrchestrator(c.env);
+  const tenantId = c.get('tenantId') || 'default';
+  const orchestrator = new AgentOrchestrator(c.env, tenantId);
 
   try {
     const result = await channel.handleWebhook(body, orchestrator);
@@ -140,7 +145,8 @@ app.post('/webhook/whatsapp', async (c) => {
 app.post('/api/chat', async (c) => {
   const { message, chatId, agentId } = await c.req.json();
   const channel = new WebChannel();
-  const orchestrator = new AgentOrchestrator(c.env);
+  const tenantId = c.get('tenantId') || 'default';
+  const orchestrator = new AgentOrchestrator(c.env, tenantId);
 
   try {
     const result = await channel.handleMessage(message, chatId, agentId, orchestrator);
@@ -156,36 +162,40 @@ app.route('/admin', AdminPanel);
 
 // API para gestión de agentes
 app.get('/api/agents', async (c) => {
-  const { results } = await c.env.DB.prepare('SELECT * FROM agents ORDER BY created_at DESC').all();
+  const tenantId = c.get('tenantId') || 'default';
+  const { results } = await c.env.DB.prepare('SELECT * FROM agents WHERE tenant_id = ? ORDER BY created_at DESC').bind(tenantId).all();
   return c.json(results);
 });
 
 app.post('/api/agents', async (c) => {
+  const tenantId = c.get('tenantId') || 'default';
   const agent = await c.req.json();
   const id = agent.id || `agent-${Date.now()}`;
   
   await c.env.DB.prepare(
-    'INSERT INTO agents (id, name, description, type, system_prompt, model, tools) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).bind(id, agent.name, agent.description, agent.type, agent.system_prompt, agent.model || '@cf/meta/llama-3.1-8b-instruct', JSON.stringify(agent.tools || []))
+    'INSERT INTO agents (id, name, description, type, system_prompt, model, tools, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  ).bind(id, agent.name, agent.description, agent.type, agent.system_prompt, agent.model || '@cf/meta/llama-3.1-8b-instruct', JSON.stringify(agent.tools || []), tenantId)
     .run();
 
   return c.json({ id, ...agent }, 201);
 });
 
 app.get('/api/agents/:id', async (c) => {
+  const tenantId = c.get('tenantId') || 'default';
   const id = c.req.param('id');
-  const agent = await c.env.DB.prepare('SELECT * FROM agents WHERE id = ?').bind(id).first();
+  const agent = await c.env.DB.prepare('SELECT * FROM agents WHERE id = ? AND tenant_id = ?').bind(id, tenantId).first();
   if (!agent) return c.json({ error: 'Agent not found' }, 404);
   return c.json(agent);
 });
 
 app.put('/api/agents/:id', async (c) => {
+  const tenantId = c.get('tenantId') || 'default';
   const id = c.req.param('id');
   const updates = await c.req.json();
   
   await c.env.DB.prepare(
-    'UPDATE agents SET name = ?, description = ?, system_prompt = ?, model = ?, tools = ?, updated_at = datetime("now") WHERE id = ?'
-  ).bind(updates.name, updates.description, updates.system_prompt, updates.model, JSON.stringify(updates.tools || []), id)
+    'UPDATE agents SET name = ?, description = ?, system_prompt = ?, model = ?, tools = ?, updated_at = datetime("now") WHERE id = ? AND tenant_id = ?'
+  ).bind(updates.name, updates.description, updates.system_prompt, updates.model, JSON.stringify(updates.tools || []), id, tenantId)
     .run();
 
   return c.json({ id, ...updates });
@@ -255,35 +265,39 @@ app.post('/api/knowledge/:agentId', async (c) => {
 
 // API para conversations
 app.get('/api/conversations', async (c) => {
+  const tenantId = c.get('tenantId') || 'default';
   const { results } = await c.env.DB.prepare(
-    'SELECT c.*, a.name as agent_name FROM conversations c LEFT JOIN agents a ON c.agent_id = a.id ORDER BY c.updated_at DESC LIMIT 100'
-  ).all();
+    'SELECT c.*, a.name as agent_name FROM conversations c LEFT JOIN agents a ON c.agent_id = a.id WHERE c.tenant_id = ? ORDER BY c.updated_at DESC LIMIT 100'
+  ).bind(tenantId).all();
   return c.json(results);
 });
 
 app.get('/api/conversations/:id/messages', async (c) => {
+  const tenantId = c.get('tenantId') || 'default';
   const id = c.req.param('id');
   const { results } = await c.env.DB.prepare(
-    'SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC'
-  ).bind(id).all();
+    'SELECT m.* FROM messages m INNER JOIN conversations c ON m.conversation_id = c.id WHERE m.conversation_id = ? AND c.tenant_id = ? ORDER BY m.created_at ASC'
+  ).bind(id, tenantId).all();
   return c.json(results);
 });
 
 // API para leads
 app.get('/api/leads', async (c) => {
+  const tenantId = c.get('tenantId') || 'default';
   const { results } = await c.env.DB.prepare(
-    'SELECT l.*, a.name as agent_name FROM leads l LEFT JOIN agents a ON l.agent_id = a.id ORDER BY l.score DESC LIMIT 100'
-  ).all();
+    'SELECT l.*, a.name as agent_name FROM leads l LEFT JOIN agents a ON l.agent_id = a.id WHERE l.tenant_id = ? ORDER BY l.score DESC LIMIT 100'
+  ).bind(tenantId).all();
   return c.json(results);
 });
 
 // API para stats
 app.get('/api/stats', async (c) => {
+  const tenantId = c.get('tenantId') || 'default';
   const [conversations, leads, messages, agents] = await Promise.all([
-    c.env.DB.prepare('SELECT COUNT(*) as count FROM conversations WHERE created_at > datetime("now", "-24 hours")').first(),
-    c.env.DB.prepare('SELECT COUNT(*) as count FROM leads WHERE created_at > datetime("now", "-24 hours")').first(),
-    c.env.DB.prepare('SELECT COUNT(*) as count FROM messages WHERE created_at > datetime("now", "-24 hours")').first(),
-    c.env.DB.prepare('SELECT COUNT(*) as count FROM agents WHERE is_active = 1').first(),
+    c.env.DB.prepare('SELECT COUNT(*) as count FROM conversations WHERE tenant_id = ? AND created_at > datetime("now", "-24 hours")').bind(tenantId).first(),
+    c.env.DB.prepare('SELECT COUNT(*) as count FROM leads WHERE tenant_id = ? AND created_at > datetime("now", "-24 hours")').bind(tenantId).first(),
+    c.env.DB.prepare('SELECT COUNT(*) as count FROM messages WHERE tenant_id = ? AND created_at > datetime("now", "-24 hours")').bind(tenantId).first(),
+    c.env.DB.prepare('SELECT COUNT(*) as count FROM agents WHERE tenant_id = ? AND is_active = 1').bind(tenantId).first(),
   ]);
 
   return c.json({

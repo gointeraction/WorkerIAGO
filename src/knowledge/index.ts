@@ -93,7 +93,8 @@ export async function generateEmbedding(
 export async function processDocument(
   env: KnowledgeEnv,
   kbId: string,
-  content: string
+  content: string,
+  tenantId: string = 'default'
 ): Promise<{ chunkCount: number; errors: string[] }> {
   const errors: string[] = [];
   let chunkCount = 0;
@@ -108,15 +109,16 @@ export async function processDocument(
       // 1. Generate embedding
       const vector = await generateEmbedding(env.AI, chunkContent);
 
-      // 2. Store in Vectorize
+      // 2. Store in Vectorize with tenant metadata
       await env.VECTORIZE.upsert([{
         id: chunkId,
         values: vector,
-        namespace: kbId, // namespace = document ID for filtered search
+        namespace: kbId,
         metadata: {
           kb_id: kbId,
           chunk_index: i,
           content_preview: chunkContent.slice(0, 200),
+          tenantId,
         },
       }]);
 
@@ -146,7 +148,8 @@ export async function processDocument(
 export async function processUrl(
   env: KnowledgeEnv,
   kbId: string,
-  url: string
+  url: string,
+  tenantId: string = 'default'
 ): Promise<{ chunkCount: number; errors: string[] }> {
   try {
     const res = await fetch(url);
@@ -180,7 +183,7 @@ export async function processUrl(
        content_preview=?, source_url=?, updated_at=datetime('now') WHERE id=?`
     ).bind(r2Key, text.length, text.slice(0, 500), url, kbId).run();
 
-    return await processDocument(env, kbId, text);
+    return await processDocument(env, kbId, text, tenantId);
   } catch (e: any) {
     return { chunkCount: 0, errors: [e.message] };
   }
@@ -192,7 +195,8 @@ export async function processUrl(
 export async function processUploadedFile(
   env: KnowledgeEnv,
   kbId: string,
-  r2Key: string
+  r2Key: string,
+  tenantId: string = 'default'
 ): Promise<{ chunkCount: number; errors: string[] }> {
   try {
     const obj = await env.STORAGE.get(r2Key);
@@ -205,7 +209,7 @@ export async function processUploadedFile(
       `UPDATE knowledge_base SET content_preview=?, file_size=?, updated_at=datetime('now') WHERE id=?`
     ).bind(text.slice(0, 500), text.length, kbId).run();
 
-    return await processDocument(env, kbId, text);
+    return await processDocument(env, kbId, text, tenantId);
   } catch (e: any) {
     return { chunkCount: 0, errors: [e.message] };
   }
@@ -227,15 +231,17 @@ export async function semanticSearch(
   env: KnowledgeEnv,
   query: string,
   agentId?: string,
-  topK = 5
+  topK = 5,
+  tenantId: string = 'default'
 ): Promise<SearchResult[]> {
   // 1. Generate query embedding
   const queryVector = await generateEmbedding(env.AI, query);
 
-  // 2. Query Vectorize (no server-side filter; we filter by metadata.agentId)
+  // 2. Query Vectorize with tenant filter
   const options: any = {
-    topK: topK * 3, // fetch more, filter down
+    topK: topK * 3,
     returnMetadata: true,
+    filter: { tenantId: { $eq: tenantId } },
   };
 
   // 3. Query Vectorize
@@ -245,6 +251,9 @@ export async function semanticSearch(
   const enriched: SearchResult[] = [];
   for (const match of results.matches || []) {
     const meta = match.metadata as any;
+
+    // Tenant isolation (belt + suspenders — also checked via Vectorize filter)
+    if (meta?.tenantId && meta.tenantId !== tenantId) continue;
 
     // Match by agentId in metadata (works for both new and old inserts)
     if (agentId && meta?.agentId !== agentId) continue;
@@ -283,9 +292,10 @@ export async function buildRagContext(
   env: KnowledgeEnv,
   query: string,
   agentId: string,
-  maxChunks = 5
+  maxChunks = 5,
+  tenantId: string = 'default'
 ): Promise<string> {
-  const results = await semanticSearch(env, query, agentId, maxChunks);
+  const results = await semanticSearch(env, query, agentId, maxChunks, tenantId);
   
   if (results.length === 0) return '';
 

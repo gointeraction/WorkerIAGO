@@ -13,6 +13,11 @@ type Bindings = {
   ENVIRONMENT?: string;
 };
 
+// Tenant ID helper — extracts from Hono context (set by tenantMiddleware)
+function tId(c: any): string {
+  return c.get('tenantId') || c.req.header('X-Tenant-ID') || 'default';
+}
+
 // Database row types
 interface ConversationRow {
   id: number;
@@ -824,14 +829,15 @@ admin.get('/conversations', async (c) => {
        (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id) as message_count
        FROM conversations c 
        LEFT JOIN agents a ON c.agent_id = a.id 
+       WHERE c.tenant_id = ?
        ORDER BY c.updated_at DESC 
        LIMIT ? OFFSET ?`
-    ).bind(limit, offset).all<ConversationRow>();
+    ).bind(tId(c), limit, offset).all<ConversationRow>();
     conversations = result.results || [];
     
     const totalResult = await c.env.DB.prepare(
-      'SELECT COUNT(*) as count FROM conversations'
-    ).first<{ count: number }>();
+      'SELECT COUNT(*) as count FROM conversations WHERE tenant_id = ?'
+    ).bind(tId(c)).first<{ count: number }>();
     total = totalResult?.count || 0;
   } catch (e) { conversations = []; total = 0; }
   
@@ -913,8 +919,8 @@ admin.get('/conversations/:id/thread', async (c) => {
   let messages: MessageRow[] = [];
   try {
     conversation = await c.env.DB.prepare(
-      'SELECT * FROM conversations WHERE id = ?'
-    ).bind(id).first();
+      'SELECT * FROM conversations WHERE id = ? AND tenant_id = ?'
+    ).bind(id, tId(c)).first();
     
     if (!conversation) {
       return c.html('<div class="p-6 text-red-500">Conversación no encontrada</div>');
@@ -1001,11 +1007,12 @@ admin.get('/tickets', async (c) => {
     let query = `SELECT t.*, a.name as agent_name, c.user_name 
                  FROM tickets t 
                  LEFT JOIN agents a ON t.agent_id = a.id 
-                 LEFT JOIN conversations c ON t.conversation_id = c.id`;
-    const params: string[] = [];
+                 LEFT JOIN conversations c ON t.conversation_id = c.id
+                 WHERE t.tenant_id = ?`;
+    const params: string[] = [tId(c)];
     
     if (status !== 'all') {
-      query += ` WHERE t.status = ?`;
+      query += ` AND t.status = ?`;
       params.push(status);
     }
     
@@ -1075,8 +1082,8 @@ admin.get('/knowledge', async (c) => {
   let documents: KnowledgeRow[] = [];
   try {
     const result = await c.env.DB.prepare(
-      'SELECT * FROM knowledge_base ORDER BY updated_at DESC'
-    ).all<KnowledgeRow>();
+      'SELECT * FROM knowledge_base WHERE tenant_id = ? ORDER BY updated_at DESC'
+    ).bind(tId(c)).all<KnowledgeRow>();
     documents = result.results || [];
   } catch (e) { documents = []; }
   
@@ -1199,11 +1206,12 @@ admin.get('/leads', async (c) => {
   try {
     let query = `SELECT l.*, a.name as agent_name 
                  FROM leads l 
-                 LEFT JOIN agents a ON l.agent_id = a.id`;
-    const params: string[] = [];
+                 LEFT JOIN agents a ON l.agent_id = a.id
+                 WHERE l.tenant_id = ?`;
+    const params: string[] = [tId(c)];
     
     if (status !== 'all') {
-      query += ` WHERE l.status = ?`;
+      query += ` AND l.status = ?`;
       params.push(status);
     }
     
@@ -1277,8 +1285,8 @@ admin.get('/leads', async (c) => {
 admin.get('/leads/export', async (c) => {
   try {
     const { results } = await c.env.DB.prepare(
-      'SELECT l.*, a.name as agent_name FROM leads l LEFT JOIN agents a ON l.agent_id = a.id ORDER BY l.score DESC'
-    ).all<LeadRow>();
+      'SELECT l.*, a.name as agent_name FROM leads l LEFT JOIN agents a ON l.agent_id = a.id WHERE l.tenant_id = ? ORDER BY l.score DESC'
+    ).bind(tId(c)).all<LeadRow>();
     const rows = results || [];
     const header = 'ID,Nombre,Email,Phone,Status,Score,Agent,Source,Created At\n';
     const csv = header + rows.map((r: LeadRow) =>
@@ -1302,14 +1310,14 @@ admin.get('/agents', async (c) => {
   let kbDocs: KnowledgeRow[] = [];
   try {
     const result = await c.env.DB.prepare(
-      'SELECT * FROM agents ORDER BY created_at DESC'
-    ).all<AgentRow>();
+      'SELECT * FROM agents WHERE tenant_id = ? ORDER BY created_at DESC'
+    ).bind(tId(c)).all<AgentRow>();
     agents = result.results || [];
   } catch (e) { agents = []; }
   try {
     const result = await c.env.DB.prepare(
-      'SELECT * FROM knowledge_base ORDER BY updated_at DESC'
-    ).all<KnowledgeRow>();
+      'SELECT * FROM knowledge_base WHERE tenant_id = ? ORDER BY updated_at DESC'
+    ).bind(tId(c)).all<KnowledgeRow>();
     kbDocs = result.results || [];
   } catch (e) { kbDocs = []; }
   
@@ -1574,22 +1582,22 @@ admin.get('/insights', async (c) => {
   } catch (e) {}
 
   try {
-    const convCount = await c.env.DB.prepare('SELECT COUNT(*) as c FROM conversations').first();
+    const convCount = await c.env.DB.prepare('SELECT COUNT(*) as c FROM conversations WHERE tenant_id = ?').bind(tId(c)).first();
     stats.totalConversations = convCount?.c || 0;
   } catch (e) {}
 
   try {
     const ticketStats = await c.env.DB.prepare(
-      `SELECT COUNT(*) as total, SUM(CASE WHEN status='resolved' THEN 1 ELSE 0 END) as resolved FROM tickets`
-    ).first();
+      `SELECT COUNT(*) as total, SUM(CASE WHEN status='resolved' THEN 1 ELSE 0 END) as resolved FROM tickets WHERE tenant_id = ?`
+    ).bind(tId(c)).first();
     stats.totalTickets = ticketStats?.total || 0;
     stats.resolvedTickets = ticketStats?.resolved || 0;
   } catch (e) {}
 
   try {
     const leadStats = await c.env.DB.prepare(
-      `SELECT COUNT(*) as total, SUM(CASE WHEN status='converted' THEN 1 ELSE 0 END) as converted FROM leads`
-    ).first();
+      `SELECT COUNT(*) as total, SUM(CASE WHEN status='converted' THEN 1 ELSE 0 END) as converted FROM leads WHERE tenant_id = ?`
+    ).bind(tId(c)).first();
     stats.totalLeads = leadStats?.total || 0;
     stats.convertedLeads = leadStats?.converted || 0;
   } catch (e) {}
@@ -1600,16 +1608,16 @@ admin.get('/insights', async (c) => {
   } catch (e) {}
 
   try {
-    const agentCount = await c.env.DB.prepare('SELECT COUNT(*) as c FROM agents').first();
+    const agentCount = await c.env.DB.prepare('SELECT COUNT(*) as c FROM agents WHERE tenant_id = ?').bind(tId(c)).first();
     stats.totalAgents = agentCount?.c || 0;
   } catch (e) {}
 
   try {
     const daily = await c.env.DB.prepare(
       `SELECT date(created_at) as date, COUNT(*) as conversations 
-       FROM conversations WHERE created_at > datetime('now', '-7 days') 
+       FROM conversations WHERE created_at > datetime('now', '-7 days') AND tenant_id = ?
        GROUP BY date(created_at) ORDER BY date DESC`
-    ).all();
+    ).bind(tId(c)).all();
     dailyData = daily.results || [];
   } catch (e) {}
 
@@ -1950,11 +1958,11 @@ admin.get('/config', async (c) => {
 admin.get('/api/stats', async (c) => {
   try {
     const [conversations, leads, messages, agents, tickets, usage] = await Promise.all([
-      c.env.DB.prepare('SELECT COUNT(*) as count FROM conversations WHERE created_at > datetime("now", "-24 hours")').first(),
-      c.env.DB.prepare('SELECT COUNT(*) as count FROM leads WHERE created_at > datetime("now", "-24 hours")').first(),
+      c.env.DB.prepare('SELECT COUNT(*) as count FROM conversations WHERE created_at > datetime("now", "-24 hours") AND tenant_id = ?').bind(tId(c)).first(),
+      c.env.DB.prepare('SELECT COUNT(*) as count FROM leads WHERE created_at > datetime("now", "-24 hours") AND tenant_id = ?').bind(tId(c)).first(),
       c.env.DB.prepare('SELECT COUNT(*) as count FROM messages WHERE created_at > datetime("now", "-24 hours")').first(),
-      c.env.DB.prepare('SELECT COUNT(*) as count FROM agents WHERE is_active = 1').first(),
-      c.env.DB.prepare('SELECT COUNT(*) as count FROM tickets WHERE status IN ("new", "in_progress")').first(),
+      c.env.DB.prepare('SELECT COUNT(*) as count FROM agents WHERE is_active = 1 AND tenant_id = ?').bind(tId(c)).first(),
+      c.env.DB.prepare('SELECT COUNT(*) as count FROM tickets WHERE status IN ("new", "in_progress") AND tenant_id = ?').bind(tId(c)).first(),
       c.env.DB.prepare('SELECT SUM(cost_usd) as cost FROM usage_logs WHERE created_at > datetime("now", "-24 hours")').first(),
     ]);
 
@@ -1979,9 +1987,10 @@ admin.get('/api/conversations', async (c) => {
        (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id) as message_count
        FROM conversations c 
        LEFT JOIN agents a ON c.agent_id = a.id 
+       WHERE c.tenant_id = ?
        ORDER BY c.updated_at DESC 
        LIMIT ?`
-    ).bind(limit).all();
+    ).bind(tId(c), limit).all();
     return c.json(results || []);
   } catch (e) { return c.json([]); }
 });
@@ -1989,10 +1998,10 @@ admin.get('/api/conversations', async (c) => {
 admin.get('/api/tickets', async (c) => {
   try {
     const status = c.req.query('status');
-    let query = 'SELECT * FROM tickets';
-    const params: string[] = [];
+    let query = 'SELECT * FROM tickets WHERE tenant_id = ?';
+    const params: string[] = [tId(c)];
     if (status && status !== 'all') {
-      query += ` WHERE status = ?`;
+      query += ` AND status = ?`;
       params.push(status);
     }
     query += ' ORDER BY priority DESC, created_at DESC';
@@ -2005,8 +2014,8 @@ admin.get('/api/leads', async (c) => {
   try {
     const limit = parseInt(c.req.query('limit') || '50');
     const { results } = await c.env.DB.prepare(
-      'SELECT * FROM leads ORDER BY score DESC LIMIT ?'
-    ).bind(limit).all();
+      'SELECT * FROM leads WHERE tenant_id = ? ORDER BY score DESC LIMIT ?'
+    ).bind(tId(c), limit).all();
     return c.json(results || []);
   } catch (e) { return c.json([]); }
 });
@@ -2014,8 +2023,8 @@ admin.get('/api/leads', async (c) => {
 admin.get('/api/kb', async (c) => {
   try {
     const { results } = await c.env.DB.prepare(
-      'SELECT * FROM knowledge_base ORDER BY updated_at DESC'
-    ).all();
+      'SELECT * FROM knowledge_base WHERE tenant_id = ? ORDER BY updated_at DESC'
+    ).bind(tId(c)).all();
     return c.json(results || []);
   } catch (e) { return c.json([]); }
 });
@@ -2023,8 +2032,8 @@ admin.get('/api/kb', async (c) => {
 admin.get('/api/agents', async (c) => {
   try {
     const { results } = await c.env.DB.prepare(
-      'SELECT * FROM agents ORDER BY created_at DESC'
-    ).all();
+      'SELECT * FROM agents WHERE tenant_id = ? ORDER BY created_at DESC'
+    ).bind(tId(c)).all();
     return c.json(results || []);
   } catch (e) { return c.json([]); }
 });
@@ -2042,9 +2051,9 @@ admin.post('/kb/save', async (c) => {
   }
   
   await c.env.DB.prepare(
-    `INSERT OR REPLACE INTO knowledge_base (id, title, content, category, tags, updated_at)
-     VALUES (?, ?, ?, ?, ?, datetime('now'))`
-  ).bind(id, title, content, category, JSON.stringify(tags)).run();
+    `INSERT OR REPLACE INTO knowledge_base (id, title, content, category, tags, tenant_id, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
+  ).bind(id, title, content, category, JSON.stringify(tags), tId(c)).run();
   
   await auditLog(c, 'create', 'knowledge_base', id, { title });
   return c.redirect('/admin/kb');
@@ -2057,7 +2066,7 @@ admin.delete('/kb/:id', async (c) => {
     await deleteDocument({ DB: c.env.DB, VECTORIZE: c.env.VECTORIZE, STORAGE: c.env.STORAGE, AI: c.env.AI }, id);
   } catch (e) { /* ignore */ }
 
-  const docs = (await c.env.DB.prepare('SELECT * FROM knowledge_base ORDER BY updated_at DESC').all<KnowledgeRow>()).results || [];
+  const docs = (await c.env.DB.prepare('SELECT * FROM knowledge_base WHERE tenant_id = ? ORDER BY updated_at DESC').bind(tId(c)).all<KnowledgeRow>()).results || [];
   const html = docs.map((d: KnowledgeRow) => `
     <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
       <div class="flex justify-between items-start mb-4">
@@ -2091,8 +2100,8 @@ admin.post('/tickets/:id/status', async (c) => {
   const status = String(form.get('status') || 'new');
   
   await c.env.DB.prepare(
-    'UPDATE tickets SET status = ?, updated_at = datetime("now") WHERE id = ?'
-  ).bind(status, id).run();
+    'UPDATE tickets SET status = ?, updated_at = datetime("now") WHERE id = ? AND tenant_id = ?'
+  ).bind(status, id, tId(c)).run();
   
   return c.json({ ok: true });
 });
@@ -2103,8 +2112,8 @@ admin.post('/leads/:id/status', async (c) => {
   const status = String(form.get('status') || 'new');
   
   await c.env.DB.prepare(
-    'UPDATE leads SET status = ?, updated_at = datetime("now") WHERE id = ?'
-  ).bind(status, id).run();
+    'UPDATE leads SET status = ?, updated_at = datetime("now") WHERE id = ? AND tenant_id = ?'
+  ).bind(status, id, tId(c)).run();
   
   return c.json({ ok: true });
 });
@@ -2119,8 +2128,8 @@ admin.post('/conversations/:id/reply', async (c) => {
   }
   
   const conversation = await c.env.DB.prepare(
-    'SELECT * FROM conversations WHERE id = ?'
-  ).bind(id).first() as any;
+    'SELECT * FROM conversations WHERE id = ? AND tenant_id = ?'
+  ).bind(id, tId(c)).first() as any;
   
   if (!conversation) {
     return c.html('<span class="text-red-500">Conversación no encontrada</span>');
@@ -2131,8 +2140,8 @@ admin.post('/conversations/:id/reply', async (c) => {
   ).bind(id, text).run();
   
   await c.env.DB.prepare(
-    'UPDATE conversations SET updated_at = datetime("now") WHERE id = ?'
-  ).bind(id).run();
+    'UPDATE conversations SET updated_at = datetime("now") WHERE id = ? AND tenant_id = ?'
+  ).bind(id, tId(c)).run();
   
   return c.html('<span class="text-green-500 font-medium">✓ Mensaje enviado</span>');
 });
@@ -2141,8 +2150,8 @@ admin.post('/conversations/:id/pause', async (c) => {
   const id = c.req.param('id');
   
   await c.env.DB.prepare(
-    `UPDATE conversations SET status = 'paused', paused_until = datetime('now', '+1 hour') WHERE id = ?`
-  ).bind(id).run();
+    `UPDATE conversations SET status = 'paused', paused_until = datetime('now', '+1 hour') WHERE id = ? AND tenant_id = ?`
+  ).bind(id, tId(c)).run();
   
   return c.json({ ok: true });
 });
@@ -2151,19 +2160,19 @@ admin.post('/conversations/:id/escalate', async (c) => {
   const id = c.req.param('id');
   
   await c.env.DB.prepare(
-    `UPDATE conversations SET status = 'escalated', priority = 2 WHERE id = ?`
-  ).bind(id).run();
+    `UPDATE conversations SET status = 'escalated', priority = 2 WHERE id = ? AND tenant_id = ?`
+  ).bind(id, tId(c)).run();
   
   const conversation = await c.env.DB.prepare(
-    'SELECT * FROM conversations WHERE id = ?'
-  ).bind(id).first() as any;
+    'SELECT * FROM conversations WHERE id = ? AND tenant_id = ?'
+  ).bind(id, tId(c)).first() as any;
   
   if (conversation) {
     await c.env.DB.prepare(
-      `INSERT INTO tickets (conversation_id, agent_id, title, description, priority, category)
-       VALUES (?, ?, ?, ?, 2, 'escalation')`
+      `INSERT INTO tickets (conversation_id, agent_id, title, description, priority, category, tenant_id)
+       VALUES (?, ?, ?, ?, 2, 'escalation', ?)`
     ).bind(id, conversation.agent_id, `Escalación de ${conversation.user_name || 'Anónimo'}`, 
-           'Conversación escalada por el sistema').run();
+           'Conversación escalada por el sistema', tId(c)).run();
   }
   
   return c.json({ ok: true });
@@ -2205,20 +2214,20 @@ admin.post('/agents/save', async (c) => {
   try {
     if (id) {
       await c.env.DB.prepare(
-        `UPDATE agents SET name=?, type=?, model=?, temperature=?, description=?, system_prompt=?, updated_at=datetime('now') WHERE id=?`
-      ).bind(name, type, model, temperature, description, systemPrompt, id).run();
+        `UPDATE agents SET name=?, type=?, model=?, temperature=?, description=?, system_prompt=?, updated_at=datetime('now') WHERE id=? AND tenant_id = ?`
+      ).bind(name, type, model, temperature, description, systemPrompt, id, tId(c)).run();
     } else {
       const newId = crypto.randomUUID();
       await c.env.DB.prepare(
-        `INSERT INTO agents (id, name, type, model, temperature, description, system_prompt, is_active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 1)`
-      ).bind(newId, name, type, model, temperature, description, systemPrompt).run();
+        `INSERT INTO agents (id, name, type, model, temperature, description, system_prompt, is_active, tenant_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`
+      ).bind(newId, name, type, model, temperature, description, systemPrompt, tId(c)).run();
     }
   } catch (e) {
     console.error('Error saving agent:', e);
   }
 
-  const agents = (await c.env.DB.prepare('SELECT * FROM agents ORDER BY created_at DESC').all<AgentRow>()).results || [];
+  const agents = (await c.env.DB.prepare('SELECT * FROM agents WHERE tenant_id = ? ORDER BY created_at DESC').bind(tId(c)).all<AgentRow>()).results || [];
   let html = agents.map((a: AgentRow) => `
     <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
       <div class="flex justify-between items-start mb-4">
@@ -2265,10 +2274,10 @@ admin.post('/agents/save', async (c) => {
 admin.delete('/agents/:id', async (c) => {
   const id = c.req.param('id');
   try {
-    await c.env.DB.prepare('DELETE FROM agents WHERE id=?').bind(id).run();
+    await c.env.DB.prepare('DELETE FROM agents WHERE id=? AND tenant_id = ?').bind(id, tId(c)).run();
   } catch (e) { /* ignore */ }
   
-  const agents = (await c.env.DB.prepare('SELECT * FROM agents ORDER BY created_at DESC').all<AgentRow>()).results || [];
+  const agents = (await c.env.DB.prepare('SELECT * FROM agents WHERE tenant_id = ? ORDER BY created_at DESC').bind(tId(c)).all<AgentRow>()).results || [];
   let html = agents.map((a: AgentRow) => `
     <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
       <div class="flex justify-between items-start mb-4">
@@ -2318,8 +2327,8 @@ admin.get('/admin/api/agents/:id/kb', async (c) => {
     const result = await c.env.DB.prepare(`
       SELECT kb.* FROM knowledge_base kb
       JOIN agent_knowledge ak ON kb.id = ak.kb_id
-      WHERE ak.agent_id = ?
-    `).bind(agentId).all<KnowledgeRow>();
+      WHERE ak.agent_id = ? AND kb.tenant_id = ?
+    `).bind(agentId, tId(c)).all<KnowledgeRow>();
     return c.json(result.results || []);
   } catch (e) {
     return c.json([]);
@@ -2351,8 +2360,8 @@ admin.post('/agents/:id/kb/attach/:kbId', async (c) => {
     const result = await c.env.DB.prepare(`
       SELECT kb.* FROM knowledge_base kb
       JOIN agent_knowledge ak ON kb.id = ak.kb_id
-      WHERE ak.agent_id = ?
-    `).bind(agentId).all<KnowledgeRow>();
+      WHERE ak.agent_id = ? AND kb.tenant_id = ?
+    `).bind(agentId, tId(c)).all<KnowledgeRow>();
     const linked = result.results || [];
     const html = linked.length > 0 ? linked.map((d: KnowledgeRow) =>
       `<div class="flex items-center justify-between p-3 bg-gim-cyan-50 rounded-xl border border-gim-cyan-200">
@@ -2379,8 +2388,8 @@ admin.delete('/agents/:agentId/kb/:kbId', async (c) => {
     const result = await c.env.DB.prepare(`
       SELECT kb.* FROM knowledge_base kb
       JOIN agent_knowledge ak ON kb.id = ak.kb_id
-      WHERE ak.agent_id = ?
-    `).bind(agentId).all<KnowledgeRow>();
+      WHERE ak.agent_id = ? AND kb.tenant_id = ?
+    `).bind(agentId, tId(c)).all<KnowledgeRow>();
     const linked = result.results || [];
     const html = linked.length > 0 ? linked.map((d: KnowledgeRow) =>
       `<div class="flex items-center justify-between p-3 bg-gim-cyan-50 rounded-xl border border-gim-cyan-200">
@@ -2406,8 +2415,8 @@ admin.post('/agents/kb/link', async (c) => {
   try {
     const kbId = crypto.randomUUID();
     await c.env.DB.prepare(
-      `INSERT INTO knowledge_base (id, title, content, category) VALUES (?, ?, ?, ?)`
-    ).bind(kbId, title, content, category || null).run();
+      `INSERT INTO knowledge_base (id, title, content, category, tenant_id) VALUES (?, ?, ?, ?, ?)`
+    ).bind(kbId, title, content, category || null, tId(c)).run();
 
     try {
       await c.env.DB.prepare(
@@ -2431,8 +2440,8 @@ admin.post('/agents/kb/link', async (c) => {
     const result = await c.env.DB.prepare(`
       SELECT kb.* FROM knowledge_base kb
       JOIN agent_knowledge ak ON kb.id = ak.kb_id
-      WHERE ak.agent_id = ?
-    `).bind(agentId).all<KnowledgeRow>();
+      WHERE ak.agent_id = ? AND kb.tenant_id = ?
+    `).bind(agentId, tId(c)).all<KnowledgeRow>();
     const linked = result.results || [];
     const html = linked.length > 0 ? linked.map((d: KnowledgeRow) =>
       `<div class="flex items-center justify-between p-3 bg-gim-cyan-50 rounded-xl border border-gim-cyan-200">
@@ -2456,10 +2465,10 @@ admin.get('/knowledge', async (c) => {
   let docs: any[] = [];
   let agents: any[] = [];
   try {
-    docs = (await c.env.DB.prepare('SELECT * FROM knowledge_base ORDER BY updated_at DESC').all()).results || [];
+    docs = (await c.env.DB.prepare('SELECT * FROM knowledge_base WHERE tenant_id = ? ORDER BY updated_at DESC').bind(tId(c)).all()).results || [];
   } catch (e) { docs = []; }
   try {
-    agents = (await c.env.DB.prepare('SELECT id, name FROM agents ORDER BY name').all()).results || [];
+    agents = (await c.env.DB.prepare('SELECT id, name FROM agents WHERE tenant_id = ? ORDER BY name').bind(tId(c)).all()).results || [];
   } catch (e) { agents = []; }
 
   return c.html(layout('Knowledge Base', 'knowledge', `
@@ -2664,8 +2673,8 @@ admin.get('/api/knowledge/search', async (c) => {
     // Simple search: find matching docs by title/content
     const docs = await c.env.DB.prepare(
       `SELECT id, title, category, content_preview FROM knowledge_base 
-       WHERE title LIKE ? OR content_preview LIKE ? OR category LIKE ? LIMIT 10`
-    ).bind(`%${q}%`, `%${q}%`, `%${q}%`).all();
+       WHERE (title LIKE ? OR content_preview LIKE ? OR category LIKE ?) AND tenant_id = ? LIMIT 10`
+    ).bind(`%${q}%`, `%${q}%`, `%${q}%`, tId(c)).all();
     
     for (const doc of (docs.results || [])) {
       results.push({
@@ -2685,7 +2694,7 @@ admin.get('/api/knowledge/search', async (c) => {
 admin.get('/api/knowledge/:id', async (c) => {
   const id = c.req.param('id');
   try {
-    const doc = await c.env.DB.prepare('SELECT * FROM knowledge_base WHERE id = ?').bind(id).first();
+    const doc = await c.env.DB.prepare('SELECT * FROM knowledge_base WHERE id = ? AND tenant_id = ?').bind(id, tId(c)).first();
     if (doc?.r2_key && c.env.STORAGE) {
       const obj = await c.env.STORAGE.get(doc.r2_key);
       if (obj) {
@@ -2717,9 +2726,9 @@ admin.post('/knowledge/upload', async (c) => {
 
     // Create D1 record
     await c.env.DB.prepare(
-      `INSERT INTO knowledge_base (id, title, category, source_type, r2_key, mime_type, file_size)
-       VALUES (?, ?, ?, 'file', ?, ?, ?)`
-    ).bind(kbId, title, category, r2Key, file.type, file.size).run();
+      `INSERT INTO knowledge_base (id, title, category, source_type, r2_key, mime_type, file_size, tenant_id)
+       VALUES (?, ?, ?, 'file', ?, ?, ?, ?)`
+    ).bind(kbId, title, category, r2Key, file.type, file.size, tId(c)).run();
 
     // Process: extract text and generate embeddings
     const text = await file.text();
@@ -2741,8 +2750,8 @@ admin.post('/knowledge/import-url', async (c) => {
   const kbId = crypto.randomUUID();
   try {
     await c.env.DB.prepare(
-      `INSERT INTO knowledge_base (id, title, category, source_type, source_url) VALUES (?, ?, ?, 'url', ?)`
-    ).bind(kbId, title, category, url).run();
+      `INSERT INTO knowledge_base (id, title, category, source_type, source_url, tenant_id) VALUES (?, ?, ?, 'url', ?, ?)`
+    ).bind(kbId, title, category, url, tId(c)).run();
 
     const { processUrl } = await import('../knowledge');
     await processUrl({ DB: c.env.DB, VECTORIZE: c.env.VECTORIZE, STORAGE: c.env.STORAGE, AI: c.env.AI }, kbId, url);
@@ -2762,8 +2771,8 @@ admin.post('/knowledge/save-text', async (c) => {
   const kbId = crypto.randomUUID();
   try {
     await c.env.DB.prepare(
-      `INSERT INTO knowledge_base (id, title, category, source_type, content_preview) VALUES (?, ?, ?, 'manual', ?)`
-    ).bind(kbId, title, category, content.slice(0, 500)).run();
+      `INSERT INTO knowledge_base (id, title, category, source_type, content_preview, tenant_id) VALUES (?, ?, ?, 'manual', ?, ?)`
+    ).bind(kbId, title, category, content.slice(0, 500), tId(c)).run();
 
     const { processDocument } = await import('../knowledge');
     await processDocument({ DB: c.env.DB, VECTORIZE: c.env.VECTORIZE, STORAGE: c.env.STORAGE, AI: c.env.AI }, kbId, content);
@@ -2777,7 +2786,7 @@ admin.post('/knowledge/save-text', async (c) => {
 admin.post('/api/knowledge/:id/reindex', async (c) => {
   const id = c.req.param('id');
   try {
-    const doc = await c.env.DB.prepare('SELECT * FROM knowledge_base WHERE id = ?').bind(id).first() as any;
+    const doc = await c.env.DB.prepare('SELECT * FROM knowledge_base WHERE id = ? AND tenant_id = ?').bind(id, tId(c)).first() as any;
     if (!doc) return c.json({ error: 'Not found' }, 404);
 
     // Get content from R2 or preview
@@ -2821,7 +2830,7 @@ admin.delete('/api/knowledge/:id', async (c) => {
 admin.get('/mcp-tools', async (c) => {
   let tools: any[] = [];
   try {
-    tools = (await c.env.DB.prepare('SELECT * FROM mcp_tools ORDER BY created_at DESC').all()).results || [];
+    tools = (await c.env.DB.prepare('SELECT * FROM mcp_tools WHERE tenant_id = ? ORDER BY created_at DESC').bind(tId(c)).all()).results || [];
   } catch (e) { tools = []; }
 
   const categories = [...new Set(tools.map(t => t.category))];
@@ -3022,14 +3031,14 @@ admin.post('/mcp-tools/save', async (c) => {
   try {
     if (id) {
       await c.env.DB.prepare(
-        `UPDATE mcp_tools SET name=?, description=?, category=?, endpoint_url=?, method=?, auth_type=?, parameters_schema=?, timeout_ms=?, updated_at=datetime('now') WHERE id=?`
-      ).bind(name, description, category, endpointUrl, method, authType, JSON.stringify(parametersSchema), timeoutMs, id).run();
+        `UPDATE mcp_tools SET name=?, description=?, category=?, endpoint_url=?, method=?, auth_type=?, parameters_schema=?, timeout_ms=?, updated_at=datetime('now') WHERE id=? AND tenant_id = ?`
+      ).bind(name, description, category, endpointUrl, method, authType, JSON.stringify(parametersSchema), timeoutMs, id, tId(c)).run();
     } else {
       const newId = crypto.randomUUID();
       await c.env.DB.prepare(
-        `INSERT INTO mcp_tools (id, name, description, category, endpoint_url, method, auth_type, parameters_schema, timeout_ms)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(newId, name, description, category, endpointUrl, method, authType, JSON.stringify(parametersSchema), timeoutMs).run();
+        `INSERT INTO mcp_tools (id, name, description, category, endpoint_url, method, auth_type, parameters_schema, timeout_ms, tenant_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(newId, name, description, category, endpointUrl, method, authType, JSON.stringify(parametersSchema), timeoutMs, tId(c)).run();
     }
   } catch (e) { console.error('Tool save error:', e); }
 
@@ -3038,7 +3047,7 @@ admin.post('/mcp-tools/save', async (c) => {
 
 admin.delete('/mcp-tools/:id', async (c) => {
   const id = c.req.param('id');
-  try { await c.env.DB.prepare('DELETE FROM mcp_tools WHERE id=?').bind(id).run(); } catch (e) {}
+  try { await c.env.DB.prepare('DELETE FROM mcp_tools WHERE id=? AND tenant_id = ?').bind(id, tId(c)).run(); } catch (e) {}
   return c.redirect('/admin/mcp-tools');
 });
 
@@ -3046,7 +3055,7 @@ admin.post('/api/mcp-tools/:id/test', async (c) => {
   const id = c.req.param('id');
   const params = await c.req.json();
   try {
-    const tool = await c.env.DB.prepare('SELECT * FROM mcp_tools WHERE id=?').bind(id).first() as any;
+    const tool = await c.env.DB.prepare('SELECT * FROM mcp_tools WHERE id=? AND tenant_id=?').bind(id, tId(c)).first() as any;
     if (!tool) return c.json({ success: false, error: 'Tool not found' });
 
     const { executeTool } = await import('../mcp');
@@ -3216,7 +3225,7 @@ admin.post('/ai-gateway/purge', async (c) => {
 admin.get('/workflows', async (c) => {
   let workflows: any[] = [];
   try {
-    workflows = (await c.env.DB.prepare('SELECT * FROM workflows ORDER BY created_at DESC').all()).results || [];
+    workflows = (await c.env.DB.prepare('SELECT * FROM workflows WHERE tenant_id = ? ORDER BY created_at DESC').bind(tId(c)).all()).results || [];
   } catch (e) { workflows = []; }
 
   let runs: any[] = [];
@@ -3384,8 +3393,8 @@ admin.post('/workflows/save', async (c) => {
 
   try {
     await c.env.DB.prepare(
-      'INSERT INTO workflows (id, name, description, steps, is_active, created_at) VALUES (?, ?, ?, ?, 1, datetime(\'now\'))'
-    ).bind(crypto.randomUUID(), name, description, JSON.stringify(steps)).run();
+      'INSERT INTO workflows (id, name, description, steps, is_active, created_at, tenant_id) VALUES (?, ?, ?, ?, 1, datetime(\'now\'), ?)'
+    ).bind(crypto.randomUUID(), name, description, JSON.stringify(steps), tId(c)).run();
   } catch (e: any) {
     return c.html(layout('Error', 'workflows', `<div class="p-8 text-center text-red-500">Error: ${e.message}</div>`), 500);
   }
@@ -3400,7 +3409,7 @@ admin.post('/workflows/save', async (c) => {
 admin.get('/connectors', async (c) => {
   let connectors: any[] = [];
   try {
-    connectors = (await c.env.DB.prepare('SELECT * FROM connectors ORDER BY created_at DESC').all()).results || [];
+    connectors = (await c.env.DB.prepare('SELECT * FROM connectors WHERE tenant_id = ? ORDER BY created_at DESC').bind(tId(c)).all()).results || [];
   } catch (e) { connectors = []; }
 
   const available = [
@@ -3533,13 +3542,13 @@ admin.post('/connectors/save', async (c) => {
   }
 
   try {
-    const existing = await c.env.DB.prepare('SELECT id FROM connectors WHERE type = ?').bind(type).first();
+    const existing = await c.env.DB.prepare('SELECT id FROM connectors WHERE type = ? AND tenant_id = ?').bind(type, tId(c)).first();
     if (existing) {
-      await c.env.DB.prepare('UPDATE connectors SET config = ?, is_active = 1, name = ? WHERE type = ?').bind(JSON.stringify(config), name, type).run();
+      await c.env.DB.prepare('UPDATE connectors SET config = ?, is_active = 1, name = ? WHERE type = ? AND tenant_id = ?').bind(JSON.stringify(config), name, type, tId(c)).run();
     } else {
       await c.env.DB.prepare(
-        'INSERT INTO connectors (id, type, name, is_active, config, sync_status, items_synced, created_at) VALUES (?, ?, ?, 1, ?, ?, 0, datetime(\'now\'))'
-      ).bind(crypto.randomUUID(), type, name, JSON.stringify(config), 'idle').run();
+        'INSERT INTO connectors (id, type, name, is_active, config, sync_status, items_synced, created_at, tenant_id) VALUES (?, ?, ?, 1, ?, ?, 0, datetime(\'now\'), ?)'
+      ).bind(crypto.randomUUID(), type, name, JSON.stringify(config), 'idle', tId(c)).run();
     }
   } catch (e: any) {}
   return c.redirect('/admin/connectors');
@@ -3549,8 +3558,8 @@ admin.post('/connectors/:id/sync', async (c) => {
   const id = c.req.param('id');
   try {
     await c.env.DB.prepare(
-      'UPDATE connectors SET last_sync_at = datetime(\'now\'), sync_status = ? WHERE id = ?'
-    ).bind('ok', id).run();
+      'UPDATE connectors SET last_sync_at = datetime(\'now\'), sync_status = ? WHERE id = ? AND tenant_id = ?'
+    ).bind('ok', id, tId(c)).run();
     return c.json({ ok: true });
   } catch (e: any) {
     return c.json({ error: e.message }, 500);
@@ -3559,7 +3568,7 @@ admin.post('/connectors/:id/sync', async (c) => {
 
 admin.delete('/connectors/:id', async (c) => {
   const id = c.req.param('id');
-  try { await c.env.DB.prepare('DELETE FROM connectors WHERE id = ?').bind(id).run(); } catch (e) {}
+  try { await c.env.DB.prepare('DELETE FROM connectors WHERE id = ? AND tenant_id = ?').bind(id, tId(c)).run(); } catch (e) {}
   return c.json({ ok: true });
 });
 
@@ -3570,7 +3579,7 @@ admin.delete('/connectors/:id', async (c) => {
 admin.get('/channels', async (c) => {
   let channels: any[] = [];
   try {
-    channels = (await c.env.DB.prepare('SELECT * FROM channel_configs ORDER BY channel_type').all()).results || [];
+    channels = (await c.env.DB.prepare('SELECT * FROM channel_configs WHERE tenant_id = ? ORDER BY channel_type').bind(tId(c)).all()).results || [];
   } catch (e) { channels = []; }
 
   const available = [
@@ -3672,15 +3681,15 @@ admin.post('/channels/save', async (c) => {
   }
 
   try {
-    const existing = await c.env.DB.prepare('SELECT id FROM channel_configs WHERE channel_type = ?').bind(channel_type).first();
+    const existing = await c.env.DB.prepare('SELECT id FROM channel_configs WHERE channel_type = ? AND tenant_id = ?').bind(channel_type, tId(c)).first();
     if (existing) {
       await c.env.DB.prepare(
-        'UPDATE channel_configs SET config = ?, is_active = 1, updated_at = datetime(\'now\') WHERE channel_type = ?'
-      ).bind(JSON.stringify(config), channel_type).run();
+        'UPDATE channel_configs SET config = ?, is_active = 1, updated_at = datetime(\'now\') WHERE channel_type = ? AND tenant_id = ?'
+      ).bind(JSON.stringify(config), channel_type, tId(c)).run();
     } else {
       await c.env.DB.prepare(
-        'INSERT INTO channel_configs (id, channel_type, is_active, config) VALUES (?, ?, 1, ?)'
-      ).bind(crypto.randomUUID(), channel_type, JSON.stringify(config)).run();
+        'INSERT INTO channel_configs (id, channel_type, is_active, config, tenant_id) VALUES (?, ?, 1, ?, ?)'
+      ).bind(crypto.randomUUID(), channel_type, JSON.stringify(config), tId(c)).run();
     }
   } catch (e: any) {
     return c.html(layout('Error', 'channels', `<div class="p-8 text-center text-red-500">Error guardando canal: ${e.message}</div>`), 500);
@@ -3693,7 +3702,7 @@ admin.post('/channels/save', async (c) => {
 admin.post('/channels/:type/deactivate', async (c) => {
   const type = c.req.param('type');
   try {
-    await c.env.DB.prepare('UPDATE channel_configs SET is_active = 0, updated_at = datetime(\'now\') WHERE channel_type = ?').bind(type).run();
+    await c.env.DB.prepare('UPDATE channel_configs SET is_active = 0, updated_at = datetime(\'now\') WHERE channel_type = ? AND tenant_id = ?').bind(type, tId(c)).run();
   } catch (e) {}
   await auditLog(c, 'update', 'channel', type, { deactivated: true });
   return c.redirect('/admin/channels');
