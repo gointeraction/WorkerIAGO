@@ -317,7 +317,7 @@ function loginPage(error: string) {
     <div class="text-center mb-8">
       <div class="inline-flex items-center gap-3 mb-4">
         <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/25">
-          <span class="text-2xl">🤖</span>
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
         </div>
         <div class="text-left">
           <h1 class="text-2xl font-extrabold text-gim-neutral-900">WorkerIAGO</h1>
@@ -445,7 +445,7 @@ const layout = (title: string, activeTab: string, body: string) => `<!DOCTYPE ht
       <div class="p-6 border-b border-gim-neutral-100">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/20">
-            <span class="text-xl">🤖</span>
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
           </div>
           <div>
             <h1 class="font-extrabold text-lg text-gim-neutral-900">WorkerIAGO</h1>
@@ -457,91 +457,91 @@ const layout = (title: string, activeTab: string, body: string) => `<!DOCTYPE ht
       <!-- Navigation -->
       <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
         <a href="/admin" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'overview' ? 'active' : ''}">
-          <span class="text-lg">📊</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
           <span>Resumen</span>
         </a>
         <a href="/admin/conversations" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'conversations' ? 'active' : ''}">
-          <span class="text-lg">💬</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 12h8M8 8h8m-8 8h5m2-13a9 9 0 11-9 9 9 9 0 019-9z"/></svg>
           <span>Conversaciones</span>
         </a>
         <a href="/admin/tickets" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'tickets' ? 'active' : ''}">
-          <span class="text-lg">🎫</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 5v2m0 0v2m0-2h2m-2 0h-2M5 5h6v6H5V5zm0 8h6v6H5v-6zm8 0h6v6h-6v-6z"/></svg>
           <span>Tickets</span>
         </a>
         <a href="/admin/leads" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'leads' ? 'active' : ''}">
-          <span class="text-lg">👥</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
           <span>Leads</span>
         </a>
         <a href="/admin/knowledge" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'knowledge' ? 'active' : ''}">
-          <span class="text-lg">📚</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
           <span>Base de Conocimiento</span>
         </a>
         <a href="/admin/agents" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'agents' ? 'active' : ''}">
-          <span class="text-lg">🤖</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
           <span>Agentes</span>
         </a>
         <a href="/admin/mcp-tools" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'mcp-tools' ? 'active' : ''}">
-          <span class="text-lg">🔧</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11.42 15.17L17.25 21A2.072 2.072 0 003 19.75V4.25C3 3.56 3.56 3 4.25 3h15.5c.69 0 1.25.56 1.25 1.25M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 0A3 3 0 106.5 6.5a3 3 0 002.621 1.621zM19 19l-2.879-2.879m0 0a3 3 0 10-2.621-2.621"/></svg>
           <span>MCP Tools</span>
         </a>
         <a href="/admin/ai-gateway" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'ai-gateway' ? 'active' : ''}">
-          <span class="text-lg">📊</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 12h4l3-9 4 18 3-9h4"/></svg>
           <span>AI Gateway</span>
         </a>
         <a href="/admin/workflows" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'workflows' ? 'active' : ''}">
-          <span class="text-lg">⚡</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
           <span>Workflows</span>
         </a>
         <a href="/admin/connectors" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'connectors' ? 'active' : ''}">
-          <span class="text-lg">🔌</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
           <span>Conectores</span>
         </a>
         <a href="/admin/insights" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'insights' ? 'active' : ''}">
-          <span class="text-lg">💡</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
           <span>Insights</span>
         </a>
         <a href="/admin/campaigns" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'campaigns' ? 'active' : ''}">
-          <span class="text-lg">📢</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5.882V19.118a1 1 0 01-1.707.707L4.414 15H2a1 1 0 01-1-1v-4a1 1 0 011-1h2.414l4.879-4.825A1 1 0 0111 5.882zM15 9a3 3 0 010 6M19.418 4.582a9 9 0 010 12.836"/></svg>
           <span>Campañas</span>
         </a>
         <a href="/admin/costs" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'costs' ? 'active' : ''}">
-          <span class="text-lg">💰</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           <span>Costos</span>
         </a>
         <a href="/admin/channels" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'channels' ? 'active' : ''}">
-          <span class="text-lg">📡</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 12l5 5 9-9M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/></svg>
           <span>Canales</span>
         </a>
         <a href="/admin/voice" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'voice' ? 'active' : ''}">
-          <span class="text-lg">🎙️</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H9m2 0h2m-5-9a7 7 0 0114 0"/></svg>
           <span>Voz</span>
         </a>
         <a href="/admin/ab-testing" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'ab-testing' ? 'active' : ''}">
-          <span class="text-lg">🧪</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714a2.25 2.25 0 00.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5"/></svg>
           <span>A/B Testing</span>
         </a>
         <a href="/admin/monitoring" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'monitoring' ? 'active' : ''}">
-          <span class="text-lg">🩺</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
           <span>Monitoring</span>
         </a>
         <a href="/admin/backups" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'backups' ? 'active' : ''}">
-          <span class="text-lg">💾</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M8 4a2 2 0 11-4 0 2 2 0 014 0zm10 0a2 2 0 11-4 0 2 2 0 014 0zM8 4h8M8 12a2 2 0 11-4 0 2 2 0 014 0zm10 0a2 2 0 11-4 0 2 2 0 014 0zM8 12h8"/></svg>
           <span>Backups</span>
         </a>
         <a href="/admin/tenants" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'tenants' ? 'active' : ''}">
-          <span class="text-lg">🏢</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-6 0H6m0 0H4m2 0V9h12v12M9 9h2m-2 4h2"/></svg>
           <span>Tenants</span>
         </a>
         <a href="/admin/users" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'users' ? 'active' : ''}">
-          <span class="text-lg">👤</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
           <span>Usuarios</span>
         </a>
         <a href="/admin/audit" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'audit' ? 'active' : ''}">
-          <span class="text-lg">📋</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
           <span>Audit Log</span>
         </a>
         <a href="/admin/config" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'config' ? 'active' : ''}">
-          <span class="text-lg">⚙️</span>
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
           <span>Configuración</span>
         </a>
       </nav>
@@ -595,7 +595,7 @@ admin.get('/', async (c) => {
         <div class="stat-card-orange rounded-2xl p-6 card-hover">
           <div class="flex items-center justify-between mb-4">
             <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/20">
-              <span class="text-2xl">💬</span>
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 12h8M8 8h8m-8 8h5m2-13a9 9 0 11-9 9 9 9 0 019-9z"/></svg>
             </div>
             <span class="text-green-500 text-sm font-semibold">↑ 12%</span>
           </div>
@@ -606,7 +606,7 @@ admin.get('/', async (c) => {
         <div class="stat-card-cyan rounded-2xl p-6 card-hover">
           <div class="flex items-center justify-between mb-4">
             <div class="w-12 h-12 bg-gradient-cyan rounded-xl flex items-center justify-center shadow-lg shadow-gim-cyan-500/20">
-              <span class="text-2xl">👥</span>
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
             </div>
             <span class="text-green-500 text-sm font-semibold">↑ 8%</span>
           </div>
@@ -617,7 +617,7 @@ admin.get('/', async (c) => {
         <div class="stat-card-purple rounded-2xl p-6 card-hover">
           <div class="flex items-center justify-between mb-4">
             <div class="w-12 h-12 bg-gradient-purple rounded-xl flex items-center justify-center shadow-lg shadow-gim-purple-500/20">
-              <span class="text-2xl">🎫</span>
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 5v2m0 0v2m0-2h2m-2 0h-2M5 5h6v6H5V5zm0 8h6v6H5v-6zm8 0h6v6h-6v-6z"/></svg>
             </div>
             <span class="text-gim-orange-500 text-sm font-semibold">3 urgentes</span>
           </div>
@@ -628,7 +628,7 @@ admin.get('/', async (c) => {
         <div class="stat-card-green rounded-2xl p-6 card-hover">
           <div class="flex items-center justify-between mb-4">
             <div class="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/20">
-              <span class="text-2xl">💰</span>
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             </div>
             <span class="text-gim-neutral-400 text-sm">Proyección</span>
           </div>
@@ -642,7 +642,7 @@ admin.get('/', async (c) => {
         <!-- Recent Conversations -->
         <div class="lg:col-span-2 bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
           <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-bold text-gim-neutral-900">💬 Conversaciones Recientes</h2>
+            <h2 class="text-xl font-bold text-gim-neutral-900">Conversaciones Recientes</h2>
             <a href="/admin/conversations" class="text-gim-orange-500 hover:text-gim-orange-600 text-sm font-semibold transition-colors">Ver todas →</a>
           </div>
           <div id="recent-conversations" class="space-y-4">
@@ -653,7 +653,7 @@ admin.get('/', async (c) => {
         <!-- Active Tickets -->
         <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
           <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-bold text-gim-neutral-900">🎫 Tickets Activos</h2>
+            <h2 class="text-xl font-bold text-gim-neutral-900">Tickets Activos</h2>
             <a href="/admin/tickets" class="text-gim-orange-500 hover:text-gim-orange-600 text-sm font-semibold transition-colors">Ver todos →</a>
           </div>
           <div id="active-tickets" class="space-y-4">
@@ -664,11 +664,11 @@ admin.get('/', async (c) => {
       
       <!-- Quick Actions -->
       <div class="mt-6 bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
-        <h2 class="text-xl font-bold text-gim-neutral-900 mb-6">⚡ Acciones Rápidas</h2>
+        <h2 class="text-xl font-bold text-gim-neutral-900 mb-6">Acciones Rápidas</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <a href="/admin/agents" class="gradient-border rounded-xl p-4 flex items-center gap-4 card-hover">
             <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
-              <span class="text-2xl">🤖</span>
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
             </div>
             <div>
               <div class="font-semibold text-gim-neutral-900">Nuevo Agente</div>
@@ -678,7 +678,7 @@ admin.get('/', async (c) => {
           
           <a href="/admin/knowledge" class="gradient-border rounded-xl p-4 flex items-center gap-4 card-hover">
             <div class="w-12 h-12 bg-gradient-cyan rounded-xl flex items-center justify-center shadow-lg shadow-gim-cyan-500/15">
-              <span class="text-2xl">📚</span>
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
             </div>
             <div>
               <div class="font-semibold text-gim-neutral-900">Agregar Documento</div>
@@ -688,7 +688,7 @@ admin.get('/', async (c) => {
           
           <a href="/admin/campaigns" class="gradient-border rounded-xl p-4 flex items-center gap-4 card-hover">
             <div class="w-12 h-12 bg-gradient-purple rounded-xl flex items-center justify-center shadow-lg shadow-gim-purple-500/15">
-              <span class="text-2xl">📢</span>
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5.882V19.118a1 1 0 01-1.707.707L4.414 15H2a1 1 0 01-1-1v-4a1 1 0 011-1h2.414l4.879-4.825A1 1 0 0111 5.882zM15 9a3 3 0 010 6"/></svg>
             </div>
             <div>
               <div class="font-semibold text-gim-neutral-900">Nueva Campaña</div>
@@ -755,7 +755,7 @@ admin.get('/', async (c) => {
               '<div class="flex items-center justify-between p-4 bg-gim-neutral-50 rounded-xl card-hover border border-gim-neutral-100">' +
                 '<div class="flex items-center gap-4">' +
                   '<div class="w-10 h-10 bg-gradient-orange rounded-lg flex items-center justify-center">' +
-                    '<span class="text-lg">' + (c.channel === 'telegram' ? '📱' : c.channel === 'whatsapp' ? '💬' : '🌐') + '</span>' +
+                    '<span class="text-lg">' + (c.channel === 'telegram' ? 'TG' : c.channel === 'whatsapp' ? 'WA' : 'WEB') + '</span>' +
                   '</div>' +
                   '<div>' +
                     '<div class="font-semibold text-gim-neutral-900">' + (c.user_name || 'Anónimo') + '</div>' +
@@ -779,7 +779,7 @@ admin.get('/', async (c) => {
             const data = await res.json();
             const container = document.getElementById('active-tickets');
             if (data.length === 0) {
-              container.innerHTML = '<div class="text-gim-neutral-400 text-center py-8">No hay tickets activos 🎉</div>';
+              container.innerHTML = '<div class="text-gim-neutral-400 text-center py-8">No hay tickets activos</div>';
               return;
             }
             container.innerHTML = data.map(t => 
@@ -870,7 +870,7 @@ admin.get('/conversations', async (c) => {
             <div class="flex justify-between items-start">
               <div class="flex items-center gap-4">
                 <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
-                  <span class="text-xl">${c.channel === 'telegram' ? '📱' : c.channel === 'whatsapp' ? '💬' : '🌐'}</span>
+                  <span class="text-sm font-bold text-white">${c.channel === 'telegram' ? 'TG' : c.channel === 'whatsapp' ? 'WA' : 'WEB'}</span>
                 </div>
                 <div>
                   <div class="font-semibold text-lg text-gim-neutral-900">${c.user_name || 'Anónimo'}</div>
@@ -933,7 +933,7 @@ admin.get('/conversations/:id/thread', async (c) => {
       <div class="flex justify-between items-center mb-6 pb-6 border-b border-gim-neutral-100">
         <div class="flex items-center gap-4">
           <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
-            <span class="text-xl">${conversation.channel === 'telegram' ? '📱' : '💬'}</span>
+            <span class="text-sm font-bold text-white">${conversation.channel === 'telegram' ? 'TG' : 'WA'}</span>
           </div>
           <div>
             <div class="font-semibold text-lg text-gim-neutral-900">${conversation.user_name || 'Anónimo'}</div>
@@ -942,7 +942,7 @@ admin.get('/conversations/:id/thread', async (c) => {
         </div>
         <button onclick="document.getElementById('thread-panel').classList.add('hidden')" 
                 class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500">
-          ✕
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
       
@@ -952,7 +952,7 @@ admin.get('/conversations/:id/thread', async (c) => {
                 hx-post="/admin/conversations/${id}/reply"
                 hx-target="#reply-status"
                 hx-vals='js:{"text": document.getElementById("reply-input").value}'>
-          📤 Responder
+          Responder
         </button>
         <button class="bg-gim-neutral-100 rounded-xl py-3 px-4 font-semibold hover:bg-gim-neutral-200 transition text-gim-neutral-700"
                 hx-post="/admin/conversations/${id}/pause">
@@ -960,7 +960,7 @@ admin.get('/conversations/:id/thread', async (c) => {
         </button>
         <button class="bg-red-50 rounded-xl py-3 px-4 font-semibold hover:bg-red-100 transition border border-red-200 text-red-600"
                 hx-post="/admin/conversations/${id}/escalate">
-          🚨 Escalar
+          Escalar
         </button>
       </div>
       
@@ -1129,7 +1129,7 @@ admin.get('/knowledge', async (c) => {
           
           <div class="flex gap-3">
             <button type="submit" class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
-              💾 Guardar
+              Guardar
             </button>
             <button type="button" onclick="hideCreateDocument()" class="bg-gim-neutral-100 rounded-xl px-6 py-3 font-semibold hover:bg-gim-neutral-200 transition text-gim-neutral-700">
               Cancelar
@@ -1144,15 +1144,15 @@ admin.get('/knowledge', async (c) => {
           <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
             <div class="flex justify-between items-start mb-4">
               <div class="w-10 h-10 bg-gradient-cyan rounded-lg flex items-center justify-center">
-                <span class="text-lg">📄</span>
+                <svg class="w-5 h-5 text-gim-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
               </div>
               <div class="flex gap-2">
                 <button onclick="editDocument('${d.id}', '${d.title}', '${d.category || ''}', '${d.content.replace(/'/g, "\\'")}')"
-                        class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500">✏️</button>
+                        class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
                 <button hx-delete="/admin/kb/${d.id}" 
                         hx-confirm="¿Eliminar este documento?"
                         hx-target="#kb-list"
-                        class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-red-100 transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
+                        class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-red-100 transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
               </div>
             </div>
             <div class="font-semibold text-gim-neutral-900 mb-2">${d.title}</div>
@@ -1228,7 +1228,7 @@ admin.get('/leads', async (c) => {
           <a href="/admin/leads?status=contacted" class="px-4 py-2 rounded-xl text-sm font-medium ${status === 'contacted' ? 'bg-gradient-orange text-white shadow-lg shadow-gim-orange-500/20' : 'bg-white border border-gim-neutral-200 text-gim-neutral-700 hover:bg-gim-neutral-50'} transition">Contactados</a>
           <a href="/admin/leads?status=converted" class="px-4 py-2 rounded-xl text-sm font-medium ${status === 'converted' ? 'bg-gradient-orange text-white shadow-lg shadow-gim-orange-500/20' : 'bg-white border border-gim-neutral-200 text-gim-neutral-700 hover:bg-gim-neutral-50'} transition">Convertidos</a>
           <a href="/admin/leads/export" class="bg-gradient-cyan rounded-xl px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-cyan-500/20 ml-4">
-            📥 Exportar CSV
+            Exportar CSV
           </a>
         </div>
       </div>
@@ -1239,14 +1239,14 @@ admin.get('/leads', async (c) => {
             <div class="flex justify-between items-start">
               <div class="flex items-center gap-4">
                 <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
-                  <span class="text-xl">👤</span>
+                  <svg class="w-5 h-5 text-gim-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                 </div>
                 <div>
                   <div class="font-semibold text-lg text-gim-neutral-900">${l.name || 'Anónimo'}</div>
                   <div class="text-gim-neutral-500">${l.interest || 'Sin interés definido'}</div>
                   <div class="flex gap-2 mt-2">
-                    ${l.phone ? `<span class="px-3 py-1 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600">📱 ${l.phone}</span>` : ''}
-                    ${l.email ? `<span class="px-3 py-1 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600">📧 ${l.email}</span>` : ''}
+                    ${l.phone ? `<span class="px-3 py-1 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600"><svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg> ${l.phone}</span>` : ''}
+                    ${l.email ? `<span class="px-3 py-1 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600"><svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg> ${l.email}</span>` : ''}
                     <span class="text-xs text-gim-neutral-400">${new Date(l.created_at).toLocaleString()}</span>
                   </div>
                 </div>
@@ -1380,7 +1380,7 @@ admin.get('/agents', async (c) => {
           
           <div class="flex gap-3">
             <button type="submit" class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
-              💾 Guardar
+              Guardar
             </button>
             <button type="button" onclick="hideAgentForm()" class="bg-gim-neutral-100 rounded-xl px-6 py-3 font-semibold hover:bg-gim-neutral-200 transition text-gim-neutral-700">
               Cancelar
@@ -1395,7 +1395,7 @@ admin.get('/agents', async (c) => {
           <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
             <div class="flex justify-between items-start mb-4">
               <div class="w-14 h-14 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
-                <span class="text-2xl">🤖</span>
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
               </div>
               <span class="px-3 py-1 rounded-full text-xs font-medium ${a.is_active ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}">
                 ${a.is_active ? 'Activo' : 'Inactivo'}
@@ -1423,13 +1423,13 @@ admin.get('/agents', async (c) => {
             <!-- KB Link -->
             <div class="mb-4">
               <button onclick="showKBModal('${a.id}', '${a.name}')" class="w-full bg-gim-cyan-50 hover:bg-gim-cyan-100 border border-gim-cyan-200 rounded-xl py-2 text-sm font-semibold text-gim-cyan-600 transition">
-                📚 Base de Conocimiento
+                Base de Conocimiento
               </button>
             </div>
             
             <div class="flex gap-3">
-              <button onclick="editAgent('${a.id}', '${a.name}', '${a.type}', '${a.model}', ${a.temperature}, '${(a.description || '').replace(/'/g, "\\'")}', \`${(a.system_prompt || '').replace(/`/g, '\\`')}\`)" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">✏️ Editar</button>
-              <button hx-delete="/admin/agents/${a.id}" hx-confirm="¿Eliminar este agente?" hx-target="#agent-list" hx-swap="innerHTML" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
+              <button onclick="editAgent('${a.id}', '${a.name}', '${a.type}', '${a.model}', ${a.temperature}, '${(a.description || '').replace(/'/g, "\\'")}', \`${(a.system_prompt || '').replace(/`/g, '\\`')}\`)" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">Editar</button>
+              <button hx-delete="/admin/agents/${a.id}" hx-confirm="¿Eliminar este agente?" hx-target="#agent-list" hx-swap="innerHTML" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
             </div>
           </div>
         `).join('') || '<div class="col-span-3 text-gim-neutral-400 text-center py-12">No hay agentes configurados</div>'}
@@ -1444,7 +1444,7 @@ admin.get('/agents', async (c) => {
               <h3 class="text-xl font-bold text-gim-neutral-900">Base de Conocimiento</h3>
               <p id="kb-agent-name" class="text-sm text-gim-neutral-500"></p>
             </div>
-            <button onclick="hideKBModal()" class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500">✕</button>
+            <button onclick="hideKBModal()" class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
           </div>
           
           <div id="kb-linked-list" class="mb-6">
@@ -1471,7 +1471,7 @@ admin.get('/agents', async (c) => {
               <textarea name="content" rows="3" placeholder="Contenido del documento..." required
                         class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors mb-4"></textarea>
               <button type="submit" class="bg-gradient-cyan rounded-xl px-5 py-2.5 font-semibold text-white text-sm hover:opacity-90 transition shadow-lg shadow-gim-cyan-500/20">
-                📚 Crear y Vincular
+                Crear y Vincular
               </button>
             </form>
           </div>
@@ -1524,7 +1524,7 @@ admin.get('/agents', async (c) => {
                   '<div class="font-semibold text-sm text-gim-neutral-900">' + d.title + '</div>' +
                   '<div class="text-xs text-gim-neutral-500">' + (d.category || 'Sin categoría') + '</div>' +
                 '</div>' +
-                '<button hx-delete="/admin/agents/' + agentId + '/kb/' + d.id + '" hx-target="#kb-linked-list" hx-swap="innerHTML" hx-confirm="¿Desvincular documento?" class="text-red-500 hover:text-red-600 text-sm font-medium">✕</button>' +
+                '<button hx-delete="/admin/agents/' + agentId + '/kb/' + d.id + '" hx-target="#kb-linked-list" hx-swap="innerHTML" hx-confirm="¿Desvincular documento?" class="text-red-500 hover:text-red-600 text-sm font-medium"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>' +
               '</div>'
             ).join('') : '<div class="text-sm text-gim-neutral-400 text-center py-4">No hay documentos vinculados</div>';
             document.getElementById('kb-linked-list').innerHTML = linkedHtml;
@@ -1744,7 +1744,7 @@ admin.get('/campaigns', async (c) => {
           <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
             <div class="flex justify-between items-start mb-4">
               <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
-                <span class="text-xl">📣</span>
+                <svg class="w-5 h-5 text-gim-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5.882V19.118a1 1 0 01-1.707.707L4.414 15H2a1 1 0 01-1-1v-4a1 1 0 011-1h2.414l4.879-4.825A1 1 0 0111 5.882zM15 9a3 3 0 010 6"/></svg>
               </div>
               <span class="px-3 py-1 rounded-full text-xs font-medium ${cmp.status === 'active' ? 'bg-green-100 text-green-600' : cmp.status === 'draft' ? 'bg-gim-neutral-100 text-gim-neutral-500' : 'bg-blue-100 text-blue-600'}">
                 ${cmp.status || 'draft'}
@@ -1770,11 +1770,11 @@ admin.get('/campaigns', async (c) => {
               ${cmp.status === 'draft' ? `<form method="POST" action="/admin/campaigns/${cmp.id}/start" class="inline"><button class="flex-1 bg-green-50 hover:bg-green-100 rounded-xl py-2 text-sm font-semibold text-green-600 transition">▶ Iniciar</button></form>` : ''}
               ${cmp.status === 'active' ? `<form method="POST" action="/admin/campaigns/${cmp.id}/stop" class="inline"><button class="flex-1 bg-red-50 hover:bg-red-100 rounded-xl py-2 text-sm font-semibold text-red-600 transition">⏹ Detener</button></form>` : ''}
               <form method="POST" action="/admin/campaigns/${cmp.id}/delete" onsubmit="return confirm('¿Eliminar campaña?')" class="inline">
-                <button class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
+                <button class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
               </form>
             </div>
           </div>
-        `).join('') || '<div class="col-span-2 bg-white rounded-2xl p-12 border border-gim-neutral-200 text-center shadow-sm"><div class="text-6xl mb-4">📭</div><h2 class="text-xl font-bold text-gim-neutral-900 mb-2">Sin campañas</h2><p class="text-gim-neutral-500">Crea tu primera campaña masiva.</p></div>'}
+        `).join('') || '<div class="col-span-2 bg-white rounded-2xl p-12 border border-gim-neutral-200 text-center shadow-sm"><div class="mb-4"><svg class="w-12 h-12 text-gim-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div><h2 class="text-xl font-bold text-gim-neutral-900 mb-2">Sin campañas</h2><p class="text-gim-neutral-500">Crea tu primera campaña masiva.</p></div>'}
       </div>
     </div>
   `));
@@ -1859,7 +1859,7 @@ admin.get('/costs', async (c) => {
       </div>
       
       <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
-        <h2 class="text-xl font-bold text-gim-neutral-900 mb-6">📊 Uso Diario</h2>
+        <h2 class="text-xl font-bold text-gim-neutral-900 mb-6">Uso Diario</h2>
         <div class="space-y-3">
           ${usage.slice(0, 10).map((u: UsageRow) => `
             <div class="flex justify-between items-center py-4 px-4 bg-gim-neutral-50 rounded-xl border border-gim-neutral-100">
@@ -1937,7 +1937,7 @@ admin.get('/config', async (c) => {
           </div>
           
           <button type="submit" class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
-            💾 Guardar Configuración
+            Guardar Configuración
           </button>
         </form>
       </div>
@@ -2062,15 +2062,15 @@ admin.delete('/kb/:id', async (c) => {
     <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
       <div class="flex justify-between items-start mb-4">
         <div class="w-10 h-10 bg-gradient-cyan rounded-lg flex items-center justify-center">
-          <span class="text-lg">📄</span>
+          <svg class="w-5 h-5 text-gim-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
         </div>
         <div class="flex gap-2">
           <button onclick="editDocument('${d.id}', '${d.title}', '${d.category || ''}', '${(d.content || '').replace(/'/g, "\\'")}')"
-                  class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500">✏️</button>
+                  class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
           <button hx-delete="/admin/kb/${d.id}"
                   hx-confirm="¿Eliminar este documento?"
                   hx-target="#kb-list"
-                  class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-red-100 transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
+                  class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-red-100 transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
         </div>
       </div>
       <div class="font-semibold text-gim-neutral-900 mb-2">${d.title}</div>
@@ -2223,7 +2223,7 @@ admin.post('/agents/save', async (c) => {
     <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
       <div class="flex justify-between items-start mb-4">
         <div class="w-14 h-14 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
-          <span class="text-2xl">🤖</span>
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
         </div>
         <span class="px-3 py-1 rounded-full text-xs font-medium ${a.is_active ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}">
           ${a.is_active ? 'Activo' : 'Inactivo'}
@@ -2247,12 +2247,12 @@ admin.post('/agents/save', async (c) => {
       </div>
       <div class="mb-4">
         <button onclick="showKBModal('${a.id}', '${a.name}')" class="w-full bg-gim-cyan-50 hover:bg-gim-cyan-100 border border-gim-cyan-200 rounded-xl py-2 text-sm font-semibold text-gim-cyan-600 transition">
-          📚 Base de Conocimiento
+          Base de Conocimiento
         </button>
       </div>
       <div class="flex gap-3">
-        <button onclick="editAgent('${a.id}', '${a.name}', '${a.type}', '${a.model}', ${a.temperature}, '${(a.description || '').replace(/'/g, "\\'")}', \`${(a.system_prompt || '').replace(/`/g, '\\`')}\`)" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">✏️ Editar</button>
-        <button hx-delete="/admin/agents/${a.id}" hx-confirm="¿Eliminar este agente?" hx-target="#agent-list" hx-swap="innerHTML" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
+        <button onclick="editAgent('${a.id}', '${a.name}', '${a.type}', '${a.model}', ${a.temperature}, '${(a.description || '').replace(/'/g, "\\'")}', \`${(a.system_prompt || '').replace(/`/g, '\\`')}\`)" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">Editar</button>
+        <button hx-delete="/admin/agents/${a.id}" hx-confirm="¿Eliminar este agente?" hx-target="#agent-list" hx-swap="innerHTML" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
       </div>
     </div>
   `).join('');
@@ -2273,7 +2273,7 @@ admin.delete('/agents/:id', async (c) => {
     <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
       <div class="flex justify-between items-start mb-4">
         <div class="w-14 h-14 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
-          <span class="text-2xl">🤖</span>
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
         </div>
         <span class="px-3 py-1 rounded-full text-xs font-medium ${a.is_active ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}">
           ${a.is_active ? 'Activo' : 'Inactivo'}
@@ -2297,12 +2297,12 @@ admin.delete('/agents/:id', async (c) => {
       </div>
       <div class="mb-4">
         <button onclick="showKBModal('${a.id}', '${a.name}')" class="w-full bg-gim-cyan-50 hover:bg-gim-cyan-100 border border-gim-cyan-200 rounded-xl py-2 text-sm font-semibold text-gim-cyan-600 transition">
-          📚 Base de Conocimiento
+          Base de Conocimiento
         </button>
       </div>
       <div class="flex gap-3">
-        <button onclick="editAgent('${a.id}', '${a.name}', '${a.type}', '${a.model}', ${a.temperature}, '${(a.description || '').replace(/'/g, "\\'")}', \`${(a.system_prompt || '').replace(/`/g, '\\`')}\`)" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">✏️ Editar</button>
-        <button hx-delete="/admin/agents/${a.id}" hx-confirm="¿Eliminar este agente?" hx-target="#agent-list" hx-swap="innerHTML" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
+        <button onclick="editAgent('${a.id}', '${a.name}', '${a.type}', '${a.model}', ${a.temperature}, '${(a.description || '').replace(/'/g, "\\'")}', \`${(a.system_prompt || '').replace(/`/g, '\\`')}\`)" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">Editar</button>
+        <button hx-delete="/admin/agents/${a.id}" hx-confirm="¿Eliminar este agente?" hx-target="#agent-list" hx-swap="innerHTML" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
       </div>
     </div>
   `).join('');
@@ -2357,7 +2357,7 @@ admin.post('/agents/:id/kb/attach/:kbId', async (c) => {
     const html = linked.length > 0 ? linked.map((d: KnowledgeRow) =>
       `<div class="flex items-center justify-between p-3 bg-gim-cyan-50 rounded-xl border border-gim-cyan-200">
         <div><div class="font-semibold text-sm text-gim-neutral-900">${d.title}</div><div class="text-xs text-gim-neutral-500">${d.category || 'Sin categoría'}</div></div>
-        <button hx-delete="/admin/agents/${agentId}/kb/${d.id}" hx-target="#kb-linked-list" hx-swap="innerHTML" hx-confirm="¿Desvincular?" class="text-red-500 hover:text-red-600 text-sm font-medium">✕</button>
+        <button hx-delete="/admin/agents/${agentId}/kb/${d.id}" hx-target="#kb-linked-list" hx-swap="innerHTML" hx-confirm="¿Desvincular?" class="text-red-500 hover:text-red-600 text-sm font-medium"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
       </div>`
     ).join('') : '<div class="text-sm text-gim-neutral-400 text-center py-4">No hay documentos vinculados</div>';
     c.header('Content-Type', 'text/html');
@@ -2385,7 +2385,7 @@ admin.delete('/agents/:agentId/kb/:kbId', async (c) => {
     const html = linked.length > 0 ? linked.map((d: KnowledgeRow) =>
       `<div class="flex items-center justify-between p-3 bg-gim-cyan-50 rounded-xl border border-gim-cyan-200">
         <div><div class="font-semibold text-sm text-gim-neutral-900">${d.title}</div><div class="text-xs text-gim-neutral-500">${d.category || 'Sin categoría'}</div></div>
-        <button hx-delete="/admin/agents/${agentId}/kb/${d.id}" hx-target="#kb-linked-list" hx-swap="innerHTML" hx-confirm="¿Desvincular?" class="text-red-500 hover:text-red-600 text-sm font-medium">✕</button>
+        <button hx-delete="/admin/agents/${agentId}/kb/${d.id}" hx-target="#kb-linked-list" hx-swap="innerHTML" hx-confirm="¿Desvincular?" class="text-red-500 hover:text-red-600 text-sm font-medium"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
       </div>`
     ).join('') : '<div class="text-sm text-gim-neutral-400 text-center py-4">No hay documentos vinculados</div>';
     c.header('Content-Type', 'text/html');
@@ -2437,7 +2437,7 @@ admin.post('/agents/kb/link', async (c) => {
     const html = linked.length > 0 ? linked.map((d: KnowledgeRow) =>
       `<div class="flex items-center justify-between p-3 bg-gim-cyan-50 rounded-xl border border-gim-cyan-200">
         <div><div class="font-semibold text-sm text-gim-neutral-900">${d.title}</div><div class="text-xs text-gim-neutral-500">${d.category || 'Sin categoría'}</div></div>
-        <button hx-delete="/admin/agents/${agentId}/kb/${d.id}" hx-target="#kb-linked-list" hx-swap="innerHTML" hx-confirm="¿Desvincular?" class="text-red-500 hover:text-red-600 text-sm font-medium">✕</button>
+        <button hx-delete="/admin/agents/${agentId}/kb/${d.id}" hx-target="#kb-linked-list" hx-swap="innerHTML" hx-confirm="¿Desvincular?" class="text-red-500 hover:text-red-600 text-sm font-medium"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
       </div>`
     ).join('') : '<div class="text-sm text-gim-neutral-400 text-center py-4">No hay documentos vinculados</div>';
     c.header('Content-Type', 'text/html');
@@ -2480,7 +2480,7 @@ admin.get('/knowledge', async (c) => {
           <input type="text" id="kb-search-input" placeholder="Buscar en la base de conocimiento..."
                  class="flex-1 bg-white border-2 border-gim-neutral-200 rounded-xl px-5 py-3 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors"
                  onkeyup="if(event.key==='Enter')searchKB()">
-          <button onclick="searchKB()" class="bg-gim-cyan-500 hover:bg-gim-cyan-600 text-white rounded-xl px-6 py-3 font-semibold transition">🔍 Buscar</button>
+          <button onclick="searchKB()" class="bg-gim-cyan-500 hover:bg-gim-cyan-600 text-white rounded-xl px-6 py-3 font-semibold transition">Buscar</button>
         </div>
         <div id="kb-search-results" class="hidden mt-4 bg-white rounded-2xl border border-gim-neutral-200 p-6 shadow-sm">
           <h3 class="text-sm font-semibold text-gim-neutral-700 mb-3">Resultados de búsqueda semántica</h3>
@@ -2494,7 +2494,7 @@ admin.get('/knowledge', async (c) => {
           <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
             <div class="flex justify-between items-start mb-4">
               <div class="w-12 h-12 bg-gradient-cyan rounded-xl flex items-center justify-center shadow-lg shadow-gim-cyan-500/15">
-                <span class="text-xl">📄</span>
+                <svg class="w-5 h-5 text-gim-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
               </div>
               <span class="px-3 py-1 rounded-full text-xs font-medium ${d.is_published ? 'bg-green-100 text-green-600' : 'bg-gim-neutral-100 text-gim-neutral-500'}">
                 ${d.is_published ? 'Publicado' : 'Borrador'}
@@ -2505,13 +2505,13 @@ admin.get('/knowledge', async (c) => {
             <div class="flex items-center gap-2 mb-4">
               <span class="px-2 py-0.5 rounded-full text-xs bg-gim-cyan-50 text-gim-cyan-600">${d.category || 'general'}</span>
               <span class="text-xs text-gim-neutral-400">${d.chunk_count || 0} chunks</span>
-              ${d.source_type === 'file' ? '<span class="text-xs text-gim-neutral-400">📁 Archivo</span>' : ''}
-              ${d.source_type === 'url' ? '<span class="text-xs text-gim-neutral-400">🔗 URL</span>' : ''}
+              ${d.source_type === 'file' ? '<span class="text-xs text-gim-neutral-400"><svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg> Archivo</span>' : ''}
+              ${d.source_type === 'url' ? '<span class="text-xs text-gim-neutral-400"><svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg> URL</span>' : ''}
             </div>
             <div class="flex gap-2">
-              <button onclick="viewKBDoc('${d.id}')" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">👁️ Ver</button>
-              <button onclick="reindexKBDoc('${d.id}')" class="bg-gim-cyan-50 hover:bg-gim-cyan-100 rounded-xl py-2 px-3 text-sm transition text-gim-cyan-600" title="Re-indexar">🔄</button>
-              <button onclick="deleteKBDoc('${d.id}')" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-3 text-sm transition text-gim-neutral-500 hover:text-red-500" title="Eliminar">🗑️</button>
+              <button onclick="viewKBDoc('${d.id}')" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg> Ver</button>
+              <button onclick="reindexKBDoc('${d.id}')" class="bg-gim-cyan-50 hover:bg-gim-cyan-100 rounded-xl py-2 px-3 text-sm transition text-gim-cyan-600" title="Re-indexar"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4v5h-.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg></button>
+              <button onclick="deleteKBDoc('${d.id}')" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-3 text-sm transition text-gim-neutral-500 hover:text-red-500" title="Eliminar"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
             </div>
           </div>
         `).join('') || '<div class="col-span-3 text-gim-neutral-400 text-center py-12">No hay documentos. Sube tu primer documento para empezar con RAG.</div>'}
@@ -2523,13 +2523,13 @@ admin.get('/knowledge', async (c) => {
         <div class="relative bg-white rounded-2xl p-8 w-full max-w-xl mx-4 shadow-2xl border border-gim-neutral-200">
           <div class="flex justify-between items-center mb-6">
             <h3 class="text-xl font-bold text-gim-neutral-900">Subir Documento</h3>
-            <button onclick="hideUploadModal()" class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500">✕</button>
+            <button onclick="hideUploadModal()" class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
           </div>
 
           <div class="flex gap-2 mb-6">
-            <button onclick="showTab('upload-file')" id="tab-file" class="flex-1 py-2 text-sm font-semibold rounded-xl bg-gim-cyan-500 text-white transition">📁 Archivo</button>
-            <button onclick="showTab('upload-url')" id="tab-url" class="flex-1 py-2 text-sm font-semibold rounded-xl bg-gim-neutral-100 text-gim-neutral-600 transition">🔗 URL</button>
-            <button onclick="showTab('upload-text')" id="tab-text" class="flex-1 py-2 text-sm font-semibold rounded-xl bg-gim-neutral-100 text-gim-neutral-600 transition">📝 Texto</button>
+            <button onclick="showTab('upload-file')" id="tab-file" class="flex-1 py-2 text-sm font-semibold rounded-xl bg-gim-cyan-500 text-white transition"><svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg> Archivo</button>
+            <button onclick="showTab('upload-url')" id="tab-url" class="flex-1 py-2 text-sm font-semibold rounded-xl bg-gim-neutral-100 text-gim-neutral-600 transition"><svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg> URL</button>
+            <button onclick="showTab('upload-text')" id="tab-text" class="flex-1 py-2 text-sm font-semibold rounded-xl bg-gim-neutral-100 text-gim-neutral-600 transition"><svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> Texto</button>
           </div>
 
           <!-- File Upload -->
@@ -2549,7 +2549,7 @@ admin.get('/knowledge', async (c) => {
                        class="w-full bg-gim-neutral-50 border-2 border-dashed border-gim-neutral-300 rounded-xl px-4 py-6 text-sm text-center cursor-pointer hover:border-gim-cyan-400 transition-colors">
                 <p class="text-xs text-gim-neutral-400 mt-2">TXT, MD, HTML, CSV, JSON (max 5MB)</p>
               </div>
-              <button type="submit" class="w-full bg-gradient-cyan rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">📤 Subir y Procesar</button>
+              <button type="submit" class="w-full bg-gradient-cyan rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">Subir y Procesar</button>
             </form>
           </div>
 
@@ -2568,7 +2568,7 @@ admin.get('/knowledge', async (c) => {
                 <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Categoría</label>
                 <input type="text" name="category" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors">
               </div>
-              <button type="submit" class="w-full bg-gradient-cyan rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">🔗 Importar y Procesar</button>
+              <button type="submit" class="w-full bg-gradient-cyan rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">Importar y Procesar</button>
             </form>
           </div>
 
@@ -2587,7 +2587,7 @@ admin.get('/knowledge', async (c) => {
                 <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Contenido</label>
                 <textarea name="content" rows="8" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-gim-cyan-400 transition-colors" placeholder="Pega o escribe el contenido aquí..."></textarea>
               </div>
-              <button type="submit" class="w-full bg-gradient-cyan rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">💾 Guardar y Procesar</button>
+              <button type="submit" class="w-full bg-gradient-cyan rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">Guardar y Procesar</button>
             </form>
           </div>
         </div>
@@ -2599,7 +2599,7 @@ admin.get('/knowledge', async (c) => {
         <div class="relative bg-white rounded-2xl p-8 w-full max-w-2xl mx-4 shadow-2xl border border-gim-neutral-200 max-h-[80vh] overflow-y-auto">
           <div class="flex justify-between items-center mb-6">
             <h3 id="view-doc-title" class="text-xl font-bold text-gim-neutral-900"></h3>
-            <button onclick="hideViewDocModal()" class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500">✕</button>
+            <button onclick="hideViewDocModal()" class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
           </div>
           <div id="view-doc-content" class="text-sm text-gim-neutral-700 whitespace-pre-wrap font-mono bg-gim-neutral-50 rounded-xl p-6"></div>
         </div>
@@ -2895,7 +2895,7 @@ admin.get('/mcp-tools', async (c) => {
             <textarea name="parameters_schema" id="tool-params" rows="4" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-gim-purple-400 transition-colors" placeholder='{"type":"object","properties":{"to":{"type":"string"},"subject":{"type":"string"},"body":{"type":"string"}},"required":["to","subject","body"]}'></textarea>
           </div>
           <div class="flex gap-3">
-            <button type="submit" class="bg-gradient-purple rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-purple-500/20">💾 Guardar</button>
+            <button type="submit" class="bg-gradient-purple rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-purple-500/20">Guardar</button>
             <button type="button" onclick="hideToolForm()" class="bg-gim-neutral-100 rounded-xl px-6 py-3 font-semibold hover:bg-gim-neutral-200 transition text-gim-neutral-700">Cancelar</button>
           </div>
         </form>
@@ -2907,7 +2907,7 @@ admin.get('/mcp-tools', async (c) => {
           <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
             <div class="flex justify-between items-start mb-4">
               <div class="w-12 h-12 bg-gradient-purple rounded-xl flex items-center justify-center shadow-lg shadow-gim-purple-500/15">
-                <span class="text-xl">⚙️</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
               </div>
               <span class="px-3 py-1 rounded-full text-xs font-medium ${t.is_active ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}">
                 ${t.is_active ? 'Activo' : 'Inactivo'}
@@ -2934,9 +2934,9 @@ admin.get('/mcp-tools', async (c) => {
               </div>
             </div>
             <div class="flex gap-2">
-              <button onclick="editTool('${t.id}', '${t.name}', '${t.description}', '${t.category}', '${t.endpoint_url || ''}', '${t.method}', '${t.auth_type}', ${t.timeout_ms}, '${btoa(JSON.stringify(t.parameters_schema || {}))}')" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">✏️ Editar</button>
-              <button onclick="testTool('${t.id}', '${t.name}')" class="bg-gim-purple-50 hover:bg-gim-purple-100 rounded-xl py-2 px-3 text-sm transition text-gim-purple-600" title="Test">🧪</button>
-              <button hx-delete="/admin/mcp-tools/${t.id}" hx-target="#tools-grid" hx-swap="innerHTML" hx-confirm="¿Eliminar tool?" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-3 text-sm transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
+              <button onclick="editTool('${t.id}', '${t.name}', '${t.description}', '${t.category}', '${t.endpoint_url || ''}', '${t.method}', '${t.auth_type}', ${t.timeout_ms}, '${btoa(JSON.stringify(t.parameters_schema || {}))}')" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">Editar</button>
+              <button onclick="testTool('${t.id}', '${t.name}')" class="bg-gim-purple-50 hover:bg-gim-purple-100 rounded-xl py-2 px-3 text-sm transition text-gim-purple-600" title="Test"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714a2.25 2.25 0 00.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5"/></svg></button>
+              <button hx-delete="/admin/mcp-tools/${t.id}" hx-target="#tools-grid" hx-swap="innerHTML" hx-confirm="¿Eliminar tool?" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-3 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
             </div>
           </div>
         `).join('') || '<div class="col-span-3 text-gim-neutral-400 text-center py-12">No hay tools configurados. Crea tu primer tool MCP.</div>'}
@@ -2948,13 +2948,13 @@ admin.get('/mcp-tools', async (c) => {
         <div class="relative bg-white rounded-2xl p-8 w-full max-w-lg mx-4 shadow-2xl border border-gim-neutral-200">
           <div class="flex justify-between items-center mb-6">
             <h3 id="test-modal-title" class="text-xl font-bold text-gim-neutral-900">Test Tool</h3>
-            <button onclick="hideTestModal()" class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500">✕</button>
+            <button onclick="hideTestModal()" class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
           </div>
           <div class="mb-4">
             <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Parámetros (JSON)</label>
             <textarea id="test-params" rows="6" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-gim-purple-400 transition-colors" placeholder='{"to":"test@example.com","subject":"Test","body":"Hello"}'></textarea>
           </div>
-          <button onclick="runTest()" class="w-full bg-gradient-purple rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">🧪 Ejecutar Test</button>
+          <button onclick="runTest()" class="w-full bg-gradient-purple rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">Ejecutar Test</button>
           <div id="test-result" class="mt-4 hidden bg-gim-neutral-50 rounded-xl p-4 text-sm font-mono text-gim-neutral-700 max-h-60 overflow-y-auto"></div>
         </div>
       </div>
@@ -2998,7 +2998,7 @@ admin.get('/mcp-tools', async (c) => {
           const result = await res.json();
           const el = document.getElementById('test-result');
           el.classList.remove('hidden');
-          el.innerHTML = '<div class="mb-2 ' + (result.success ? 'text-green-600' : 'text-red-600') + '">' + (result.success ? '✅ Éxito' : '❌ Error: ' + result.error) + '</div><div class="text-xs text-gim-neutral-500 mb-2">Latencia: ' + result.latency_ms + 'ms</div><pre class="text-xs whitespace-pre-wrap">' + JSON.stringify(result.data, null, 2) + '</pre>';
+          el.innerHTML = '<div class="mb-2 ' + (result.success ? 'text-green-600' : 'text-red-600') + '">' + (result.success ? 'Exito' : 'Error: ' + result.error) + '</div><div class="text-xs text-gim-neutral-500 mb-2">Latencia: ' + result.latency_ms + 'ms</div><pre class="text-xs whitespace-pre-wrap">' + JSON.stringify(result.data, null, 2) + '</pre>';
         }
       </script>
     </div>
@@ -3225,9 +3225,9 @@ admin.get('/workflows', async (c) => {
   } catch (e) { runs = []; }
 
   const templates = [
-    { name: 'Atención al Cliente', description: 'Clasificar → Buscar KB → Responder → Escalar', icon: '🎧' },
-    { name: 'Generador de Contenido', description: 'Investigar → Escribir → Revisar → Publicar', icon: '✍️' },
-    { name: 'Lead Qualification', description: 'Capture → Score → Route → Follow-up', icon: '🎯' },
+    { name: 'Atención al Cliente', description: 'Clasificar → Buscar KB → Responder → Escalar', icon: 'CS' },
+    { name: 'Generador de Contenido', description: 'Investigar → Escribir → Revisar → Publicar', icon: 'CW' },
+    { name: 'Lead Qualification', description: 'Capture → Score → Route → Follow-up', icon: 'LQ' },
   ];
 
   return c.html(layout('Workflows', 'workflows', `
@@ -3266,7 +3266,7 @@ admin.get('/workflows', async (c) => {
             <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
               <div class="flex justify-between items-start mb-4">
                 <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
-                  <span class="text-xl">⚡</span>
+                  <svg class="w-5 h-5 text-gim-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                 </div>
                 <span class="px-3 py-1 rounded-full text-xs font-medium ${w.is_active ? 'bg-green-100 text-green-600' : 'bg-gim-neutral-100 text-gim-neutral-500'}">
                   ${w.is_active ? 'Activo' : 'Inactivo'}
@@ -3281,7 +3281,7 @@ admin.get('/workflows', async (c) => {
               </div>
               <div class="flex gap-2">
                 <button onclick="runWorkflow('${w.id}')" class="flex-1 bg-green-50 hover:bg-green-100 rounded-xl py-2 text-sm font-semibold text-green-600 transition">▶ Ejecutar</button>
-                <button class="bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-700">✏️</button>
+                <button class="bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-700"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
               </div>
             </div>
           `;
@@ -3404,10 +3404,10 @@ admin.get('/connectors', async (c) => {
   } catch (e) { connectors = []; }
 
   const available = [
-    { type: 'google_drive', name: 'Google Drive', icon: '📁', description: 'Documentos, PDFs, Sheets de Google Drive' },
-    { type: 'notion', name: 'Notion', icon: '📝', description: 'Páginas y bases de datos de Notion' },
-    { type: 'rss', name: 'RSS Feed', icon: '📰', description: 'Sigue feeds RSS y sincroniza artículos' },
-    { type: 'webhook', name: 'Webhook', icon: '🔗', description: 'Recibe datos de cualquier API externa' },
+    { type: 'google_drive', name: 'Google Drive', icon: 'GDrive', description: 'Documentos, PDFs, Sheets de Google Drive' },
+    { type: 'notion', name: 'Notion', icon: 'Notion', description: 'Páginas y bases de datos de Notion' },
+    { type: 'rss', name: 'RSS Feed', icon: 'RSS', description: 'Sigue feeds RSS y sincroniza artículos' },
+    { type: 'webhook', name: 'Webhook', icon: 'Hook', description: 'Recibe datos de cualquier API externa' },
   ];
 
   const configuredTypes = connectors.map((conn: any) => conn.type);
@@ -3448,7 +3448,7 @@ admin.get('/connectors', async (c) => {
                 <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
                   <div class="flex justify-between items-start mb-4">
                     <div class="w-12 h-12 bg-gradient-cyan rounded-xl flex items-center justify-center shadow-lg shadow-gim-cyan-500/15">
-                      <span class="text-xl">${avail?.icon || '🔌'}</span>
+                      <span class="text-sm font-bold text-white">${avail?.icon || 'App'}</span>
                     </div>
                     <span class="px-3 py-1 rounded-full text-xs font-medium ${conn.is_active ? 'bg-green-100 text-green-600' : 'bg-gim-neutral-100 text-gim-neutral-500'}">
                       ${conn.is_active ? 'Activo' : 'Inactivo'}
@@ -3471,9 +3471,9 @@ admin.get('/connectors', async (c) => {
                     </div>
                   </div>
                   <div class="flex gap-2">
-                    <button onclick="syncConnector('${conn.id}')" class="flex-1 bg-gim-cyan-50 hover:bg-gim-cyan-100 rounded-xl py-2 text-sm font-semibold text-gim-cyan-600 transition">🔄 Sincronizar</button>
-                    <button class="bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-700">⚙️</button>
-                    <button hx-delete="/admin/connectors/${conn.id}" hx-confirm="¿Eliminar conector?" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-3 text-sm transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
+                    <button onclick="syncConnector('${conn.id}')" class="flex-1 bg-gim-cyan-50 hover:bg-gim-cyan-100 rounded-xl py-2 text-sm font-semibold text-gim-cyan-600 transition">Sincronizar</button>
+                    <button class="bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-700"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></button>
+                    <button hx-delete="/admin/connectors/${conn.id}" hx-confirm="¿Eliminar conector?" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-3 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                   </div>
                 </div>
               `;
@@ -3574,15 +3574,15 @@ admin.get('/channels', async (c) => {
   } catch (e) { channels = []; }
 
   const available = [
-    { type: 'whatsapp', name: 'WhatsApp', icon: '💬', color: 'green', desc: 'Business API con webhooks' },
-    { type: 'telegram', name: 'Telegram', icon: '✈️', color: 'blue', desc: 'Bot API con comandos' },
-    { type: 'web', name: 'Web Chat', icon: '🌐', color: 'cyan', desc: 'Widget embeddable' },
-    { type: 'instagram', name: 'Instagram', icon: '📸', color: 'pink', desc: 'Meta Graph API' },
-    { type: 'facebook', name: 'Facebook', icon: '👥', color: 'blue', desc: 'Messenger API' },
-    { type: 'email', name: 'Email', icon: '📧', color: 'orange', desc: 'SendGrid SMTP' },
-    { type: 'sms', name: 'SMS', icon: '📱', color: 'purple', desc: 'Twilio' },
-    { type: 'discord', name: 'Discord', icon: '🎮', color: 'indigo', desc: 'Bot con slash commands' },
-    { type: 'slack', name: 'Slack', icon: '💼', color: 'green', desc: 'Bot con interactividad' },
+    { type: 'whatsapp', name: 'WhatsApp', icon: 'WA', color: 'green', desc: 'Business API con webhooks' },
+    { type: 'telegram', name: 'Telegram', icon: 'TG', color: 'blue', desc: 'Bot API con comandos' },
+    { type: 'web', name: 'Web Chat', icon: 'WEB', color: 'cyan', desc: 'Widget embeddable' },
+    { type: 'instagram', name: 'Instagram', icon: 'IG', color: 'pink', desc: 'Meta Graph API' },
+    { type: 'facebook', name: 'Facebook', icon: 'FB', color: 'blue', desc: 'Messenger API' },
+    { type: 'email', name: 'Email', icon: 'Mail', color: 'orange', desc: 'SendGrid SMTP' },
+    { type: 'sms', name: 'SMS', icon: 'SMS', color: 'purple', desc: 'Twilio' },
+    { type: 'discord', name: 'Discord', icon: 'DC', color: 'indigo', desc: 'Bot con slash commands' },
+    { type: 'slack', name: 'Slack', icon: 'SL', color: 'green', desc: 'Bot con interactividad' },
   ];
 
   return c.html(layout('Canales', 'channels', `
@@ -3622,7 +3622,7 @@ admin.get('/channels', async (c) => {
         <div class="relative bg-white rounded-2xl p-8 w-full max-w-lg mx-4 shadow-2xl border border-gim-neutral-200">
           <div class="flex justify-between items-center mb-6">
             <h3 id="channel-modal-title" class="text-xl font-bold text-gim-neutral-900"></h3>
-            <button onclick="hideChannelModal()" class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500">✕</button>
+            <button onclick="hideChannelModal()" class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
           </div>
           <div id="channel-modal-content"></div>
         </div>
@@ -3722,7 +3722,7 @@ admin.get('/voice', async (c) => {
           <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
             <div class="flex items-center gap-3 mb-6">
               <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
-                <span class="text-xl">🎤</span>
+                <svg class="w-5 h-5 text-gim-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H9m2 0h2m-5-9a7 7 0 0114 0"/></svg>
               </div>
               <div>
                 <div class="font-bold text-gim-neutral-900">Speech-to-Text</div>
@@ -3756,7 +3756,7 @@ admin.get('/voice', async (c) => {
           <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
             <div class="flex items-center gap-3 mb-6">
               <div class="w-12 h-12 bg-gradient-cyan rounded-xl flex items-center justify-center shadow-lg shadow-gim-cyan-500/15">
-                <span class="text-xl">🔊</span>
+                <svg class="w-5 h-5 text-gim-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 5H6a2 2 0 002 2v10a2 2 0 01-2 2H5.586a1 1 0 01-.707-.293l-2-2A1 1 0 012 15.586V8.414a1 1 0 01.293-.707l2-2A1 1 0 015.586 5z"/></svg>
               </div>
               <div>
                 <div class="font-bold text-gim-neutral-900">Text-to-Speech</div>
@@ -3787,7 +3787,7 @@ admin.get('/voice', async (c) => {
 
         <div class="flex justify-end">
           <button type="submit" class="bg-gradient-orange rounded-xl px-8 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
-            💾 Guardar Configuración
+            Guardar Configuración
           </button>
         </div>
       </form>
@@ -3796,7 +3796,7 @@ admin.get('/voice', async (c) => {
         <h3 class="font-bold text-gim-neutral-900 mb-4">Test de Voz</h3>
         <div class="flex gap-3 mb-4">
           <input id="tts-test-text" placeholder="Escribe texto para sintetizar..." class="flex-1 bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400">
-          <button onclick="playTTS()" class="bg-gradient-cyan rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition">🔊 Probar TTS</button>
+          <button onclick="playTTS()" class="bg-gradient-cyan rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition">Probar TTS</button>
           <button onclick="stopTTS()" class="bg-gim-neutral-100 rounded-xl px-6 py-3 font-semibold text-gim-neutral-600 hover:bg-gim-neutral-200 transition">⏹️ Stop</button>
         </div>
         <div id="tts-status" class="text-sm text-gim-neutral-500"></div>
@@ -3865,7 +3865,7 @@ admin.post('/voice/test-tts', async (c) => {
       return c.html(layout('Test TTS', 'voice', `
         <div class="fade-in">
           <div class="bg-white rounded-2xl p-8 border border-gim-neutral-200 shadow-sm max-w-2xl mx-auto mt-8">
-            <h2 class="text-2xl font-bold mb-4">🔊 Resultado TTS</h2>
+            <h2 class="text-2xl font-bold mb-4">Resultado TTS</h2>
             <div class="bg-gim-neutral-50 rounded-xl p-6 mb-4">
               <p class="text-gim-neutral-700">${text}</p>
             </div>
@@ -3963,7 +3963,7 @@ admin.get('/ab-testing', async (c) => {
                 ${t.status === 'draft' ? `<form method="POST" action="/admin/ab-testing/${t.id}/start" class="flex-1"><button class="w-full bg-green-100 hover:bg-green-200 rounded-xl py-2 text-sm font-medium transition text-green-600">▶️ Iniciar</button></form>` : ''}
                 ${t.status === 'running' ? `<form method="POST" action="/admin/ab-testing/${t.id}/stop" class="flex-1"><button class="w-full bg-yellow-100 hover:bg-yellow-200 rounded-xl py-2 text-sm font-medium transition text-yellow-600">⏹️ Parar</button></form>` : ''}
                 <form method="POST" action="/admin/ab-testing/${t.id}/delete" onsubmit="return confirm('¿Eliminar este test?')">
-                  <button class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
+                  <button class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                 </form>
               </div>
             </div>
@@ -4143,7 +4143,7 @@ admin.get('/monitoring', async (c) => {
             ['d1','kv','vec','ai','r2'].forEach(s => {
               const el = document.getElementById('h-' + s);
               const ok = data[s] === 'ok' || data[s] === true;
-              el.textContent = ok ? '●' : '✕';
+              el.textContent = ok ? '●' : '○';
               el.className = 'text-2xl font-bold ' + (ok ? 'text-green-500' : 'text-red-500');
             });
             alert('Health check completado: ' + JSON.stringify(data));
@@ -4231,7 +4231,7 @@ admin.get('/backups', async (c) => {
         </div>
         <div class="flex gap-3">
           <button onclick="createBackup()" class="bg-gradient-cyan rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-cyan-500/20">
-            💾 Crear Backup
+            Crear Backup
           </button>
         </div>
       </div>
@@ -4284,7 +4284,7 @@ admin.get('/backups', async (c) => {
                         <button class="text-xs text-gim-cyan-500 hover:text-gim-cyan-600 font-medium">↺ Restaurar</button>
                       </form>
                       <form method="POST" action="/admin/api/backup/${b.id}/delete" onsubmit="return confirm('¿Eliminar este backup?')">
-                        <button class="text-xs text-red-500 hover:text-red-600 font-medium ml-2">🗑️</button>
+                        <button class="text-xs text-red-500 hover:text-red-600 font-medium ml-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                       </form>
                     </div>
                   </td>
@@ -4309,7 +4309,7 @@ admin.get('/backups', async (c) => {
           } catch (e) {
             alert('Error: ' + e.message);
             btn.disabled = false;
-            btn.textContent = '💾 Crear Backup';
+            btn.textContent = 'Crear Backup';
           }
         }
       </script>
@@ -4470,7 +4470,7 @@ admin.get('/tenants', async (c) => {
             <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 card-hover shadow-sm">
               <div class="flex justify-between items-start mb-4">
                 <div class="w-14 h-14 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
-                  <span class="text-2xl">🏢</span>
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-6 0H6m0 0H4m2 0V9h12v12"/></svg>
                 </div>
                 <span class="px-3 py-1 rounded-full text-xs font-medium ${t.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}">
                   ${t.status}
@@ -4493,9 +4493,9 @@ admin.get('/tenants', async (c) => {
                 </div>
               </div>
               <div class="flex gap-2">
-                <button onclick="editTenant('${t.id}', '${t.name}', '${t.owner_email}', '${t.slug}', '${t.plan}')" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">✏️ Editar</button>
+                <button onclick="editTenant('${t.id}', '${t.name}', '${t.owner_email}', '${t.slug}', '${t.plan}')" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">Editar</button>
                 <form method="POST" action="/admin/tenants/${t.id}/delete" onsubmit="return confirm('¿Eliminar este tenant?')">
-                  <button class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500">🗑️</button>
+                  <button class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                 </form>
               </div>
             </div>
