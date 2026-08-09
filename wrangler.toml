@@ -1,0 +1,73 @@
+name = "workeriago"
+main = "src/index.ts"
+compatibility_date = "2024-08-01"
+compatibility_flags = ["nodejs_compat"]
+
+# =============================================================================
+# CLOUDFLARE AI - Workers AI para embeddings y fallback
+# =============================================================================
+[ai]
+binding = "AI"
+
+# =============================================================================
+# D1 DATABASE - Conversaciones, leads, configuración, base de conocimiento
+# =============================================================================
+[[d1_databases]]
+binding = "DB"
+database_name = "workeriago-db"
+database_id = "placeholder-Replace-with-real-id"
+
+# =============================================================================
+# VECTORIZE - Base de conocimiento RAG (embeddings bge-m3)
+# =============================================================================
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "workeriago-vectors"
+
+# =============================================================================
+# KV - Cache de respuestas y sesiones
+# =============================================================================
+[[kv_namespaces]]
+binding = "CACHE"
+id = "placeholder-Replace-with-real-id"
+
+# =============================================================================
+# R2 - Media (imágenes, audios, documentos)
+# =============================================================================
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "workeriago-storage"
+
+# =============================================================================
+# DURABLE OBJECTS - Estado de conversaciones y agentes stateful
+# =============================================================================
+[durable_objects]
+bindings = [
+  { name = "AGENT_STATE", class_name = "AgentState" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["AgentState"]
+
+# =============================================================================
+# ENVIRONMENT VARIABLES
+# =============================================================================
+# Configurar con: wrangler secret put NOMBRE_VARIABLE
+#
+# Proveedor de IA (uno de estos):
+#   AI_PROVIDER: "workers" | "openai" | "anthropic" | "xai"
+#   AI_API_KEY: tu API key del proveedor
+#
+# Canales de mensajería:
+#   TELEGRAM_BOT_TOKEN: token de @BotFather
+#   WHATSAPP_TOKEN: token de WhatsApp Business API
+#   WHATSAPP_PHONE_ID: Phone Number ID de WhatsApp
+#
+# Seguridad:
+#   ADMIN_PASSWORD: contraseña del panel de administración
+# =============================================================================
+
+[vars]
+ENVIRONMENT = "development"
+AI_PROVIDER = "workers"

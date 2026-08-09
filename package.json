@@ -1,0 +1,32 @@
+{
+  "name": "agentforge",
+  "version": "0.1.0",
+  "description": "Plataforma de agentes de IA modulares para atención al cliente",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute agentforge-db --local --file=./schema.sql",
+    "db:init:remote": "wrangler d1 execute agentforge-db --remote --file=./schema.sql",
+    "db:seed": "wrangler d1 execute agentforge-db --local --file=./seed.sql",
+    "db:seed:remote": "wrangler d1 execute agentforge-db --remote --file=./seed.sql",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "hono": "^4.4.0",
+    "ai": "^3.2.0",
+    "@ai-sdk/openai": "^0.0.50",
+    "@ai-sdk/anthropic": "^0.0.30",
+    "@ai-sdk/xai": "^0.0.10",
+    "@ai-sdk/workers-ai": "^0.0.10",
+    "@cloudflare/ai": "^3.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240806.0",
+    "typescript": "^5.5.0",
+    "wrangler": "^3.70.0",
+    "vitest": "^1.6.0"
+  }
+}

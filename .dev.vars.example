@@ -1,0 +1,20 @@
+# AgentForge - Variables de entorno para desarrollo
+# Copia este archivo a .dev.vars y completa los valores
+
+# API Key de IA (una de estas)
+AI_API_KEY=sk-ant-your-key-here
+# AI_API_KEY=sk-your-openai-key-here
+# AI_API_KEY=xai-your-xai-key-here
+
+# Telegram Bot Token (de @BotFather)
+TELEGRAM_BOT_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
+
+# WhatsApp Business API (opcional)
+# WHATSAPP_TOKEN=your-whatsapp-token
+# WHATSAPP_PHONE_ID=your-phone-number-id
+
+# Password del panel admin
+ADMIN_PASSWORD=tu-password-segura
+
+# Environment
+ENVIRONMENT=development
