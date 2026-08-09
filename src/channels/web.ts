@@ -8,7 +8,7 @@ export class WebChannel {
     orchestrator: AgentOrchestrator
   ): Promise<any> {
     // Process message with orchestrator
-    const result = await orchestrator.processMessage(message, chatId, 'web');
+    const result = await orchestrator.processMessage(message, chatId, 'web', [], agentId);
 
     return {
       response: result.response,

@@ -63,11 +63,12 @@ export class AgentOrchestrator {
     message: string,
     chatId: string,
     channel: string,
-    history: Message[] = []
+    history: Message[] = [],
+    agentId?: string
   ): Promise<OrchestratorResult> {
     try {
       // 1. Obtener agente activo
-      const agent = await this.getDefaultAgent();
+      const agent = agentId ? await this.getAgentById(agentId) : await this.getDefaultAgent();
       if (!agent) {
         return { response: 'No hay agentes configurados.', agent: 'none', intent: 'error' };
       }
@@ -158,6 +159,13 @@ export class AgentOrchestrator {
     return agent;
   }
 
+  private async getAgentById(id: string): Promise<Agent | null> {
+    const agent = await this.env.DB.prepare(
+      'SELECT * FROM agents WHERE id = ?'
+    ).bind(id).first<Agent>();
+    return agent;
+  }
+
   private async searchKnowledge(query: string, agentId: string): Promise<any[]> {
     try {
       const knowledgeEnv: KnowledgeEnv = {
@@ -167,6 +175,7 @@ export class AgentOrchestrator {
         AI: this.env.AI,
       };
       const context = await buildRagContext(knowledgeEnv, query, agentId, 5);
+      console.log('RAG context:', context ? `[${context.length} chars]` : '[empty]', 'for agent:', agentId, 'query:', query);
       return context ? [{ metadata: { content: context } }] : [];
     } catch (error) {
       console.error('Knowledge search error:', error);

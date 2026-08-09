@@ -77,7 +77,7 @@ export async function generateEmbedding(
   ai: any,
   text: string
 ): Promise<number[]> {
-  const result = await ai.run('@cf/baai/bge-m3', {
+  const result = await ai.run('@cf/baai/bge-base-en-v1.5', {
     text: [text],
   });
   return result.data[0];
@@ -232,55 +232,45 @@ export async function semanticSearch(
   // 1. Generate query embedding
   const queryVector = await generateEmbedding(env.AI, query);
 
-  // 2. Build namespace filter — only docs linked to this agent
+  // 2. Query Vectorize (no server-side filter; we filter by metadata.agentId)
   const options: any = {
-    topK,
+    topK: topK * 3, // fetch more, filter down
     returnMetadata: true,
   };
-
-  if (agentId) {
-    // Get linked KB IDs
-    const linked = await env.DB.prepare(
-      `SELECT kb_id FROM agent_knowledge WHERE agent_id = ?`
-    ).bind(agentId).all<{ kb_id: string }>();
-
-    const namespaces = linked.results?.map(r => r.kb_id) || [];
-    if (namespaces.length === 0) return [];
-    
-    // Vectorize doesn't support multi-namespace filter directly
-    // We'll filter after retrieval
-  }
 
   // 3. Query Vectorize
   const results = await env.VECTORIZE.query(queryVector, options);
 
-  // 4. Enrich with D1 data
+  // 4. Enrich with D1 data + filter by agent
   const enriched: SearchResult[] = [];
   for (const match of results.matches || []) {
     const meta = match.metadata as any;
-    if (!meta?.kb_id) continue;
 
-    // If agent filter, check linkage
-    if (agentId) {
-      const linked = await env.DB.prepare(
-        `SELECT 1 FROM agent_knowledge WHERE agent_id = ? AND kb_id = ?`
-      ).bind(agentId, meta.kb_id).first();
-      if (!linked) continue;
+    // Match by agentId in metadata (works for both new and old inserts)
+    if (agentId && meta?.agentId !== agentId) continue;
+
+    // Get document title from D1 if available
+    let docTitle: string | undefined = meta?.title;
+    let docCategory: string | undefined = meta?.category;
+    if (meta?.kb_id) {
+      try {
+        const doc = await env.DB.prepare(
+          `SELECT title, category FROM knowledge_base WHERE id = ?`
+        ).bind(meta.kb_id).first<{ title: string; category: string }>();
+        if (doc) { docTitle = doc.title; docCategory = doc.category; }
+      } catch (e) {}
     }
-
-    // Get document title
-    const doc = await env.DB.prepare(
-      `SELECT title, category FROM knowledge_base WHERE id = ?`
-    ).bind(meta.kb_id).first<{ title: string; category: string }>();
 
     enriched.push({
       chunk_id: match.id,
-      kb_id: meta.kb_id,
-      content: meta.content_preview || '',
+      kb_id: meta?.kb_id || '',
+      content: meta?.content_preview || meta?.content || '',
       score: match.score || 0,
-      title: doc?.title,
-      category: doc?.category,
+      title: docTitle,
+      category: docCategory,
     });
+
+    if (enriched.length >= topK) break;
   }
 
   return enriched;

@@ -200,28 +200,57 @@ app.get('/api/knowledge/:agentId', async (c) => {
   return c.json(results);
 });
 
+app.post('/api/test-rag', async (c) => {
+  try {
+    const body = await c.req.json();
+    const agentId = body.agentId || 'test-agent';
+    const query = body.query || 'Cuanto cuesta el plan Premium?';
+    const { buildRagContext } = await import('./knowledge');
+    const knowledgeEnv = {
+      DB: c.env.DB, VECTORIZE: c.env.VECTORIZE, STORAGE: c.env.STORAGE, AI: c.env.AI,
+    };
+    const context = await buildRagContext(knowledgeEnv, query, agentId, 5);
+    return c.json({ agentId, query, contextLength: context.length, contextPreview: context.slice(0, 500) });
+  } catch (e: any) {
+    return c.json({ error: e.message, stack: e.stack?.split('\n').slice(0, 3) }, 500);
+  }
+});
+
 app.post('/api/knowledge/:agentId', async (c) => {
-  const agentId = c.req.param('agentId');
-  const doc = await c.req.json();
-  
-  // Generar embedding usando Cloudflare Workers AI
-  const aiConfig = { provider: 'workers' as const, ai: c.env.AI };
-  const embedding = await generateEmbedding(aiConfig, doc.content);
+  try {
+    const agentId = c.req.param('agentId');
+    const doc = await c.req.json();
 
-  const vectorId = `kb-${Date.now()}`;
-  await c.env.VECTORIZE.insert([{
-    id: vectorId,
-    values: embedding,
-    metadata: { agentId, title: doc.title, content: doc.content, category: doc.category }
-  }]);
+    // Generar embedding usando Cloudflare Workers AI
+    const aiConfig = { provider: 'workers' as const, ai: c.env.AI };
+    const embedding = await generateEmbedding(aiConfig, doc.content);
 
-  // Guardar en D1
-  await c.env.DB.prepare(
-    'INSERT INTO knowledge_base (agent_id, title, content, category, vector_id, source) VALUES (?, ?, ?, ?, ?, ?)'
-  ).bind(agentId, doc.title, doc.content, doc.category, vectorId, doc.source || 'manual')
-    .run();
+    const vectorId = `kb-${Date.now()}`;
+    const kbId = `kb-doc-${Date.now()}`;
+    await c.env.VECTORIZE.insert([{
+      id: vectorId,
+      values: embedding,
+      metadata: { agentId, kb_id: kbId, title: doc.title, content_preview: (doc.content || '').slice(0, 200), category: doc.category, content: doc.content }
+    }]);
 
-  return c.json({ id: vectorId, ...doc }, 201);
+    // Guardar en D1 (id is INTEGER autoincrement, so we let DB generate it)
+    const insertResult = await c.env.DB.prepare(
+      'INSERT INTO knowledge_base (agent_id, title, content, category, vector_id, source) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind(agentId, doc.title, doc.content, doc.category, vectorId, doc.source || 'manual')
+      .run();
+    const generatedId = String(insertResult.meta?.last_row_id || '');
+
+    // Link KB to agent (required for RAG search)
+    try {
+      await c.env.DB.prepare(
+        'INSERT OR IGNORE INTO agent_knowledge (agent_id, kb_id) VALUES (?, ?)'
+      ).bind(agentId, generatedId).run();
+    } catch (e) {}
+
+    return c.json({ id: vectorId, kbId: generatedId, ...doc }, 201);
+  } catch (e: any) {
+    return c.json({ error: e.message, stack: e.stack?.split('\n').slice(0, 3) }, 500);
+  }
 });
 
 // API para conversations
