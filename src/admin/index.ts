@@ -580,9 +580,12 @@ const layout = (title: string, activeTab: string, body: string, tenantInfo?: { i
       <!-- Footer -->
       <div class="p-4 border-t border-gim-neutral-100">
         <!-- Tenant Selector -->
-        <div class="mb-3">
-          <label class="text-xs text-gim-neutral-400 font-medium mb-1 block">Tenant activo</label>
-          <select onchange="switchTenant(this.value)" class="w-full text-sm font-semibold text-gim-neutral-700 bg-gim-neutral-50 border border-gim-neutral-200 rounded-lg px-3 py-2 focus:outline-none focus:border-gim-orange-400 transition">
+        <div class="mb-3 p-3 bg-gim-neutral-50 rounded-xl border border-gim-neutral-200">
+          <div class="flex items-center gap-2 mb-2">
+            <svg class="w-4 h-4 text-gim-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-6 0H6m0 0H4m2 0V9h12v12"/></svg>
+            <label class="text-xs text-gim-neutral-500 font-semibold">Tenant activo</label>
+          </div>
+          <select onchange="switchTenant(this.value)" class="w-full text-sm font-semibold text-gim-neutral-700 bg-white border border-gim-neutral-200 rounded-lg px-3 py-2 focus:outline-none focus:border-gim-orange-400 focus:ring-2 focus:ring-gim-orange-100 transition cursor-pointer">
             <option value="${currentTenantId}" selected>${currentTenantName}</option>
             ${tenantsList.filter(t => t.id !== currentTenantId).map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
           </select>
@@ -603,6 +606,14 @@ const layout = (title: string, activeTab: string, body: string, tenantInfo?: { i
     
     <!-- Main content -->
     <main class="ml-72 flex-1 p-8">
+      ${currentTenantId !== 'default' ? `
+      <!-- Non-default tenant banner -->
+      <div class="mb-6 bg-gim-cyan-50 border border-gim-cyan-200 rounded-xl px-4 py-3 flex items-center gap-3">
+        <svg class="w-5 h-5 text-gim-cyan-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-6 0H6m0 0H4m2 0V9h12v12"/></svg>
+        <span class="text-sm font-semibold text-gim-cyan-700">Operando en tenant: ${currentTenantName}</span>
+        <span class="text-xs text-gim-cyan-500 ml-auto">Los datos mostrados pertenecen exclusivamente a este cliente</span>
+      </div>
+      ` : ''}
       ${body}
     </main>
     
@@ -1524,8 +1535,8 @@ admin.get('/insights', async (c) => {
 
   try {
     const aiStats = await c.env.DB.prepare(
-      `SELECT AVG(latency_ms) as avg_latency, COUNT(*) as total FROM ai_logs WHERE created_at > datetime('now', '-7 days')`
-    ).first();
+      `SELECT AVG(latency_ms) as avg_latency, COUNT(*) as total FROM ai_logs WHERE created_at > datetime('now', '-7 days') AND tenant_id = ?`
+    ).bind(tId(c)).first();
     stats.avgLatency = Math.round(aiStats?.avg_latency || 0);
   } catch (e) {}
 
@@ -1551,7 +1562,7 @@ admin.get('/insights', async (c) => {
   } catch (e) {}
 
   try {
-    const msgCount = await c.env.DB.prepare('SELECT COUNT(*) as c FROM messages').first();
+    const msgCount = await c.env.DB.prepare('SELECT COUNT(*) as c FROM messages WHERE tenant_id = ?').bind(tId(c)).first();
     stats.totalMessages = msgCount?.c || 0;
   } catch (e) {}
 
@@ -1775,15 +1786,16 @@ admin.get('/costs', async (c) => {
   let usage: UsageRow[] = [];
   try {
     const result = await c.env.DB.prepare(
-      `SELECT date(created_at) as date, 
-       SUM(tokens_input) as input_tokens,
-       SUM(tokens_output) as output_tokens,
-       SUM(cost_usd) as cost
-       FROM usage_logs 
-       WHERE created_at > datetime('now', '-30 days')
-       GROUP BY date(created_at)
+      `SELECT date(u.created_at) as date, 
+       SUM(u.tokens_input) as input_tokens,
+       SUM(u.tokens_output) as output_tokens,
+       SUM(u.cost_usd) as cost
+       FROM usage_logs u
+       JOIN agents a ON u.agent_id = a.id
+       WHERE u.created_at > datetime('now', '-30 days') AND a.tenant_id = ?
+       GROUP BY date(u.created_at)
        ORDER BY date DESC`
-    ).all<UsageRow>();
+    ).bind(tId(c)).all<UsageRow>();
     usage = result.results || [];
   } catch (e) { usage = []; }
   
@@ -1838,8 +1850,8 @@ admin.get('/config', async (c) => {
   let settings: any[] = [];
   try {
     const result = await c.env.DB.prepare(
-      'SELECT * FROM config ORDER BY category, key'
-    ).all();
+      'SELECT * FROM config WHERE tenant_id = ? ORDER BY category, key'
+    ).bind(tId(c)).all();
     settings = result.results || [];
   } catch (e) { settings = []; }
   
@@ -1908,10 +1920,10 @@ admin.get('/api/stats', async (c) => {
     const [conversations, leads, messages, agents, tickets, usage] = await Promise.all([
       c.env.DB.prepare('SELECT COUNT(*) as count FROM conversations WHERE created_at > datetime("now", "-24 hours") AND tenant_id = ?').bind(tId(c)).first(),
       c.env.DB.prepare('SELECT COUNT(*) as count FROM leads WHERE created_at > datetime("now", "-24 hours") AND tenant_id = ?').bind(tId(c)).first(),
-      c.env.DB.prepare('SELECT COUNT(*) as count FROM messages WHERE created_at > datetime("now", "-24 hours")').first(),
+      c.env.DB.prepare('SELECT COUNT(*) as count FROM messages WHERE created_at > datetime("now", "-24 hours") AND tenant_id = ?').bind(tId(c)).first(),
       c.env.DB.prepare('SELECT COUNT(*) as count FROM agents WHERE is_active = 1 AND tenant_id = ?').bind(tId(c)).first(),
       c.env.DB.prepare('SELECT COUNT(*) as count FROM tickets WHERE status IN ("new", "in_progress") AND tenant_id = ?').bind(tId(c)).first(),
-      c.env.DB.prepare('SELECT SUM(cost_usd) as cost FROM usage_logs WHERE created_at > datetime("now", "-24 hours")').first(),
+      c.env.DB.prepare('SELECT SUM(u.cost_usd) as cost FROM usage_logs u JOIN agents a ON u.agent_id = a.id WHERE u.created_at > datetime("now", "-24 hours") AND a.tenant_id = ?').bind(tId(c)).first(),
     ]);
 
     return c.json({
@@ -2139,8 +2151,8 @@ admin.post('/config/save', async (c) => {
   
   for (const update of updates) {
     await c.env.DB.prepare(
-      `INSERT OR REPLACE INTO config (key, value, updated_at) VALUES (?, ?, datetime('now'))`
-    ).bind(update.key, update.value).run();
+      `INSERT OR REPLACE INTO config (key, value, tenant_id, updated_at) VALUES (?, ?, ?, datetime('now'))`
+    ).bind(update.key, update.value, tId(c)).run();
   }
   
   await auditLog(c, 'update', 'config', undefined, { keys: updates.map(u => u.key) });
@@ -2286,6 +2298,12 @@ admin.get('/api/agents/:id/kb', async (c) => {
 admin.post('/agents/:id/kb/attach/:kbId', async (c) => {
   const agentId = c.req.param('id');
   const kbId = c.req.param('kbId');
+  // Verify the agent belongs to the current tenant before linking
+  const agent = await c.env.DB.prepare('SELECT id FROM agents WHERE id = ? AND tenant_id = ?').bind(agentId, tId(c)).first();
+  if (!agent) {
+    c.header('Content-Type', 'text/html');
+    return c.body('<div class="text-sm text-red-500 text-center py-4">Acceso denegado: el agente no pertenece a este tenant.</div>', 403);
+  }
   try {
     await c.env.DB.prepare(
       `INSERT OR IGNORE INTO agent_knowledge (agent_id, kb_id) VALUES (?, ?)`
@@ -2328,6 +2346,12 @@ admin.post('/agents/:id/kb/attach/:kbId', async (c) => {
 admin.delete('/agents/:agentId/kb/:kbId', async (c) => {
   const agentId = c.req.param('agentId');
   const kbId = c.req.param('kbId');
+  // Verify the agent belongs to the current tenant before unlinking
+  const agent = await c.env.DB.prepare('SELECT id FROM agents WHERE id = ? AND tenant_id = ?').bind(agentId, tId(c)).first();
+  if (!agent) {
+    c.header('Content-Type', 'text/html');
+    return c.body('<div class="text-sm text-red-500 text-center py-4">Acceso denegado: el agente no pertenece a este tenant.</div>', 403);
+  }
   try {
     await c.env.DB.prepare('DELETE FROM agent_knowledge WHERE agent_id=? AND kb_id=?').bind(agentId, kbId).run();
   } catch (e) { /* ignore */ }
@@ -2359,6 +2383,13 @@ admin.post('/agents/kb/link', async (c) => {
   const title = form.get('title') as string;
   const category = form.get('category') as string;
   const content = form.get('content') as string;
+
+  // Verify the agent belongs to the current tenant before linking
+  const agent = await c.env.DB.prepare('SELECT id FROM agents WHERE id = ? AND tenant_id = ?').bind(agentId, tId(c)).first();
+  if (!agent) {
+    c.header('Content-Type', 'text/html');
+    return c.body('<div class="text-sm text-red-500 text-center py-4">Acceso denegado: el agente no pertenece a este tenant.</div>', 403);
+  }
 
   try {
     const kbId = crypto.randomUUID();
@@ -3663,7 +3694,7 @@ admin.post('/channels/:type/deactivate', async (c) => {
 admin.get('/voice', async (c) => {
   let voiceConfig: any = {};
   try {
-    const row = await c.env.DB.prepare("SELECT value FROM config WHERE key = 'voice_config'").first();
+    const row = await c.env.DB.prepare("SELECT value FROM config WHERE key = 'voice_config' AND tenant_id = ?").bind(tId(c)).first();
     if (row?.value) voiceConfig = JSON.parse(row.value);
   } catch (e) {}
 
@@ -3797,11 +3828,11 @@ admin.post('/voice/save', async (c) => {
   };
 
   try {
-    const existing = await c.env.DB.prepare("SELECT key FROM config WHERE key = 'voice_config'").first();
+    const existing = await c.env.DB.prepare("SELECT key FROM config WHERE key = 'voice_config' AND tenant_id = ?").bind(tId(c)).first();
     if (existing) {
-      await c.env.DB.prepare("UPDATE config SET value = ? WHERE key = 'voice_config'").bind(JSON.stringify(config)).run();
+      await c.env.DB.prepare("UPDATE config SET value = ? WHERE key = 'voice_config' AND tenant_id = ?").bind(JSON.stringify(config), tId(c)).run();
     } else {
-      await c.env.DB.prepare("INSERT INTO config (key, value) VALUES ('voice_config', ?)").bind(JSON.stringify(config)).run();
+      await c.env.DB.prepare("INSERT INTO config (key, value, tenant_id) VALUES ('voice_config', ?, ?)").bind(JSON.stringify(config), tId(c)).run();
     }
   } catch (e: any) {
     return c.html(layout('Error', 'voice', `<div class="p-8 text-center text-red-500">Error: ${e.message}</div>`), 500);
@@ -3846,7 +3877,7 @@ admin.post('/voice/test-tts', async (c) => {
 admin.get('/ab-testing', async (c) => {
   let tests: any[] = [];
   try {
-    tests = (await c.env.DB.prepare('SELECT * FROM ab_tests ORDER BY created_at DESC').all()).results || [];
+    tests = (await c.env.DB.prepare('SELECT * FROM ab_tests WHERE tenant_id = ? ORDER BY created_at DESC').bind(tId(c)).all()).results || [];
   } catch (e) { tests = []; }
 
   return renderPage(c, 'A/B Testing', 'ab-testing', `
@@ -3951,11 +3982,11 @@ admin.post('/ab-testing/save', async (c) => {
 
   try {
     await c.env.DB.prepare(
-      'INSERT INTO ab_tests (id, name, description, variants, traffic_split, status, primary_metric) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO ab_tests (id, name, description, variants, traffic_split, status, primary_metric, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     ).bind(
       crypto.randomUUID(), name, description,
       JSON.stringify(variants), JSON.stringify(traffic_split),
-      'draft', 'conversion'
+      'draft', 'conversion', tId(c)
     ).run();
   } catch (e: any) {
     return c.html(layout('Error', 'ab-testing', `<div class="p-8 text-center text-red-500">Error: ${e.message}</div>`), 500);
@@ -3967,7 +3998,7 @@ admin.post('/ab-testing/save', async (c) => {
 admin.post('/ab-testing/:id/start', async (c) => {
   const id = c.req.param('id');
   try {
-    await c.env.DB.prepare("UPDATE ab_tests SET status = 'running', start_date = datetime('now') WHERE id = ?").bind(id).run();
+    await c.env.DB.prepare("UPDATE ab_tests SET status = 'running', start_date = datetime('now') WHERE id = ? AND tenant_id = ?").bind(id, tId(c)).run();
   } catch (e) {}
   return c.redirect('/admin/ab-testing');
 });
@@ -3975,7 +4006,7 @@ admin.post('/ab-testing/:id/start', async (c) => {
 admin.post('/ab-testing/:id/stop', async (c) => {
   const id = c.req.param('id');
   try {
-    await c.env.DB.prepare("UPDATE ab_tests SET status = 'completed', end_date = datetime('now') WHERE id = ?").bind(id).run();
+    await c.env.DB.prepare("UPDATE ab_tests SET status = 'completed', end_date = datetime('now') WHERE id = ? AND tenant_id = ?").bind(id, tId(c)).run();
   } catch (e) {}
   return c.redirect('/admin/ab-testing');
 });
@@ -3983,8 +4014,8 @@ admin.post('/ab-testing/:id/stop', async (c) => {
 admin.post('/ab-testing/:id/delete', async (c) => {
   const id = c.req.param('id');
   try {
-    await c.env.DB.prepare('DELETE FROM ab_events WHERE test_id = ?').bind(id).run();
-    await c.env.DB.prepare('DELETE FROM ab_tests WHERE id = ?').bind(id).run();
+    await c.env.DB.prepare('DELETE FROM ab_events WHERE test_id = ? AND tenant_id = ?').bind(id, tId(c)).run();
+    await c.env.DB.prepare('DELETE FROM ab_tests WHERE id = ? AND tenant_id = ?').bind(id, tId(c)).run();
   } catch (e) {}
   return c.redirect('/admin/ab-testing');
 });
