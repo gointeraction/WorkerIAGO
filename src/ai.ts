@@ -1,9 +1,8 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { createXai } from '@ai-sdk/xai';
 import { generateText, streamText } from 'ai';
 
-export type AIProvider = 'openai' | 'anthropic' | 'xai' | 'workers';
+export type AIProvider = 'openai' | 'anthropic';
 
 interface AIConfig {
   provider: AIProvider;
@@ -15,8 +14,6 @@ export function getAIProvider(config: AIConfig) {
   switch (config.provider) {
     case 'anthropic':
       return createAnthropic({ apiKey: config.apiKey });
-    case 'xai':
-      return createXai({ apiKey: config.apiKey });
     case 'openai':
     default:
       return createOpenAI({ apiKey: config.apiKey });
@@ -27,9 +24,7 @@ export function getModel(config: AIConfig) {
   const provider = getAIProvider(config);
   const models: Record<AIProvider, string> = {
     openai: config.model || 'gpt-4o-mini',
-    anthropic: config.model || 'claude-3-haiku-20240307',
-    xai: config.model || 'grok-2',
-    workers: config.model || '@cf/meta/llama-3.1-8b-instruct'
+    anthropic: config.model || 'claude-3-haiku-20240307'
   };
   return provider(models[config.provider]);
 }

@@ -1,15 +1,14 @@
-import { Ai } from '@cloudflare/ai';
 import { ActionEngine } from '../actions';
 import { 
   classifyIntent, 
   detectActions, 
   generateAgentResponse, 
   generateEmbedding,
-  type AIProvider 
+  type AIProvider,
+  type AIConfig
 } from '../ai';
 
 interface Env {
-  AI: any;
   DB: D1Database;
   VECTORIZE: VectorizeIndex;
   CACHE: KVNamespace;
@@ -46,16 +45,14 @@ interface OrchestratorResult {
 
 export class AgentOrchestrator {
   private env: Env;
-  private ai: any;
   private actionEngine: ActionEngine;
-  private aiConfig: { provider: AIProvider; apiKey?: string };
+  private aiConfig: AIConfig;
 
   constructor(env: Env) {
     this.env = env;
-    this.ai = new Ai(env.AI);
     this.actionEngine = new ActionEngine(env);
     this.aiConfig = {
-      provider: env.AI_PROVIDER || 'workers',
+      provider: env.AI_PROVIDER || 'openai',
       apiKey: env.AI_API_KEY
     };
   }
@@ -127,13 +124,11 @@ export class AgentOrchestrator {
 
   private async searchKnowledge(query: string, agentId: string): Promise<any[]> {
     try {
-      // Usar Workers AI para embeddings
-      const embedding = await this.ai.run('@cf/baai/bge-base-en-v1.5', {
-        text: [query]
-      });
+      // Generar embedding usando AI SDK
+      const embedding = await generateEmbedding(this.aiConfig, query);
 
       // Buscar en Vectorize
-      const results = await this.env.VECTORIZE.query(embedding.data[0], {
+      const results = await this.env.VECTORIZE.query(embedding, {
         topK: 3,
         namespace: agentId
       });

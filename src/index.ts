@@ -6,15 +6,12 @@ import { WhatsAppChannel } from './channels/whatsapp';
 import { WebChannel } from './channels/web';
 import { AdminPanel } from './admin';
 import { AgentState } from './durable-object';
-import type { AIProvider } from './ai';
+import { generateEmbedding, type AIProvider } from './ai';
 
 // =============================================================================
-// BINDINGS - D1, Vectorize, R2, KV, Durable Objects, AI
+// BINDINGS - D1, Vectorize, R2, KV, Durable Objects
 // =============================================================================
 type Bindings = {
-  // Cloudflare AI - Embeddings y fallback
-  AI: any;
-  
   // D1 - Conversaciones, leads, configuración
   DB: D1Database;
   
@@ -160,15 +157,17 @@ app.post('/api/knowledge/:agentId', async (c) => {
   const agentId = c.req.param('agentId');
   const doc = await c.req.json();
   
-  // Generar embedding y guardar en Vectorize
-  const embedding = await c.env.AI.run('@cf/baai/bge-base-en-v1.5', {
-    text: [doc.content]
-  });
+  // Generar embedding usando AI SDK
+  const aiConfig = {
+    provider: c.env.AI_PROVIDER || 'openai',
+    apiKey: c.env.AI_API_KEY
+  };
+  const embedding = await generateEmbedding(aiConfig, doc.content);
 
   const vectorId = `kb-${Date.now()}`;
   await c.env.VECTORIZE.insert([{
     id: vectorId,
-    values: embedding.data[0],
+    values: embedding,
     metadata: { agentId, title: doc.title, content: doc.content, category: doc.category }
   }]);
 

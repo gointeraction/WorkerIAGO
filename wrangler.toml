@@ -4,12 +4,6 @@ compatibility_date = "2024-08-01"
 compatibility_flags = ["nodejs_compat"]
 
 # =============================================================================
-# CLOUDFLARE AI - Workers AI para embeddings y fallback
-# =============================================================================
-[ai]
-binding = "AI"
-
-# =============================================================================
 # D1 DATABASE - Conversaciones, leads, configuración, base de conocimiento
 # =============================================================================
 [[d1_databases]]
@@ -56,7 +50,7 @@ new_classes = ["AgentState"]
 # Configurar con: wrangler secret put NOMBRE_VARIABLE
 #
 # Proveedor de IA (uno de estos):
-#   AI_PROVIDER: "workers" | "openai" | "anthropic" | "xai"
+#   AI_PROVIDER: "openai" | "anthropic"
 #   AI_API_KEY: tu API key del proveedor
 #
 # Canales de mensajería:
@@ -70,4 +64,4 @@ new_classes = ["AgentState"]
 
 [vars]
 ENVIRONMENT = "development"
-AI_PROVIDER = "workers"
+AI_PROVIDER = "openai"

@@ -18,10 +18,7 @@
     "hono": "^4.4.0",
     "ai": "^3.2.0",
     "@ai-sdk/openai": "^0.0.50",
-    "@ai-sdk/anthropic": "^0.0.30",
-    "@ai-sdk/xai": "^0.0.10",
-    "@ai-sdk/workers-ai": "^0.0.10",
-    "@cloudflare/ai": "^3.0.0"
+    "@ai-sdk/anthropic": "^0.0.30"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240806.0",
