@@ -32,10 +32,10 @@ export class ActionEngine {
 
     this.handlers.set('create_ticket', async (params, context) => {
       const { title, description, priority } = params;
-      const { chatId, channel, agentId } = context;
+      const { chatId, channel, agentId, tenantId } = context;
       const result = await this.env.DB.prepare(
-        'INSERT INTO leads (agent_id, name, interest, notes, status) VALUES (?, ?, ?, ?, ?)'
-      ).bind(agentId, chatId, title + ': ' + description, JSON.stringify({ priority, channel }), 'new').run();
+        'INSERT INTO tickets (agent_id, title, description, priority, category, status, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).bind(agentId, title || 'New Ticket', description || '', priority || 'medium', 'support', 'new', tenantId || 'default').run();
       return { ticketId: result.meta.last_row_id, priority: priority || 'medium' };
     });
 
@@ -72,10 +72,10 @@ export class ActionEngine {
 
     this.handlers.set('book_appointment', async (params, context) => {
       const { date, time, type } = params;
-      const { chatId, channel, agentId } = context;
+      const { chatId, channel, agentId, tenantId } = context;
       const result = await this.env.DB.prepare(
-        'INSERT INTO leads (agent_id, name, interest, notes, status) VALUES (?, ?, ?, ?, ?)'
-      ).bind(agentId, chatId, type || 'appointment', JSON.stringify({ date, time }), 'qualified').run();
+        'INSERT INTO leads (agent_id, name, interest, notes, status, tenant_id) VALUES (?, ?, ?, ?, ?, ?)'
+      ).bind(agentId, chatId, type || 'appointment', JSON.stringify({ date, time }), 'qualified', tenantId || 'default').run();
       return { bookingId: result.meta.last_row_id, date, time, confirmed: true };
     });
 
@@ -101,10 +101,10 @@ export class ActionEngine {
 
     this.handlers.set('qualify_lead', async (params, context) => {
       const { name, phone, interest, score } = params;
-      const { agentId } = context;
+      const { agentId, tenantId } = context;
       const result = await this.env.DB.prepare(
-        'INSERT INTO leads (agent_id, name, phone, interest, score, status) VALUES (?, ?, ?, ?, ?, ?)'
-      ).bind(agentId, name, phone, interest, score || 50, 'qualified').run();
+        'INSERT INTO leads (agent_id, name, phone, interest, score, status, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).bind(agentId, name, phone, interest, score || 50, 'qualified', tenantId || 'default').run();
       return { leadId: result.meta.last_row_id, score: score || 50 };
     });
   }

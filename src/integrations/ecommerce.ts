@@ -57,7 +57,7 @@ export class EcommerceStore {
           },
         }
       );
-      const data = await res.json();
+      const data = await res.json() as any;
       return (data.products || []).map(this.mapShopifyProduct);
     } catch (e) {
       return [];
@@ -92,7 +92,7 @@ export class EcommerceStore {
         `${this.config.storeUrl}/admin/api/2024-01/products/${productId}.json`,
         { headers: { 'X-Shopify-Access-Token': this.config.apiKey } }
       );
-      const data = await res.json();
+      const data: any = await res.json();
       return data.product ? this.mapShopifyProduct(data.product) : null;
     }
     return null;

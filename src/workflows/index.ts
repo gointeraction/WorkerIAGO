@@ -126,11 +126,12 @@ export class WorkflowEngine {
       context.last_result = result;
 
       // Determine next step
-      if (step.type === 'condition') {
-        currentStepId = result ? step.next_on_true : step.next_on_false;
-      } else {
-        currentStepId = step.next;
-      }
+      const nextId =
+        step.type === 'condition'
+          ? (result ? step.next_on_true : step.next_on_false)
+          : step.next;
+      if (!nextId) break;
+      currentStepId = nextId;
     }
 
     return context;

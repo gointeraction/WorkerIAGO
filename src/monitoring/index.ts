@@ -7,7 +7,7 @@
 
 export interface MonitoringEnv {
   DB: D1Database;
-  AI: any;
+  AI: Ai;
   CACHE: KVNamespace;
 }
 
@@ -106,7 +106,7 @@ export class MonitoringEngine {
     // AI model test
     let aiStatus = 'ok';
     try {
-      await this.env.AI.run('@cf/meta/llama-3.2-3b-instruct', {
+      await this.env.AI.run('@cf/meta/llama-3.2-3b-instruct' as any, {
         messages: [{ role: 'user', content: 'hi' }],
         max_tokens: 5,
       });

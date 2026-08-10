@@ -12,7 +12,7 @@
 
 export interface McpServerEnv {
   DB: D1Database;
-  AI: any;
+  AI: Ai;
   VECTORIZE?: VectorizeIndex;
 }
 
@@ -86,7 +86,7 @@ export async function executeMcpTool(
   if (toolName.startsWith('agent_')) {
     const agentIdShort = toolName.replace('agent_', '');
     // Find agent by short ID
-    const agent = await env.DB.prepare(
+    const agent: any = await env.DB.prepare(
       `SELECT * FROM agents WHERE REPLACE(id, '-', '') LIKE ? || '%'`
     ).bind(agentIdShort).first();
 
@@ -135,10 +135,10 @@ export async function executeMcpTool(
           + (context ? `\n\nHISTORIAL:\n${context}` : ''),
       },
       { role: 'user', content: params.message },
-    ];
+    ] as any[];
 
     try {
-      const result = await env.AI.run(model, {
+      const result: any = await env.AI.run(model as any, {
         messages,
         temperature,
         max_tokens: 512,
@@ -163,7 +163,7 @@ export async function executeMcpTool(
         success: true,
         agent_id: agent.id,
         agent_name: (agent as any).name,
-        response: result.response,
+        response: result.response as string,
       };
     } catch (e: any) {
       return { success: false, error: e.message };

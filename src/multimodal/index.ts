@@ -8,7 +8,7 @@
  */
 
 export interface MultiModalEnv {
-  AI: any;
+  AI: Ai;
   DB: D1Database;
   STORAGE?: R2Bucket;
 }

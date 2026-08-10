@@ -66,7 +66,7 @@ export class DiscordChannel {
         },
         body: JSON.stringify({ recipient_id: userId }),
       });
-      const dm = await dmRes.json();
+      const dm: any = await dmRes.json();
 
       if (!dm.id) return false;
 

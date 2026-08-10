@@ -44,7 +44,7 @@ export class GoogleCalendar {
       `${this.apiBase}/calendars/${this.config.calendarId}/events?key=${this.config.apiKey}` +
       `&timeMin=${startOfDay}&timeMax=${endOfDay}&singleEvents=true&orderBy=startTime`,
     );
-    const data = await res.json();
+    const data = await res.json() as any;
     const events = data.items || [];
 
     // Find free slots
@@ -95,7 +95,7 @@ export class GoogleCalendar {
           }),
         }
       );
-      const data = await res.json();
+      const data: any = await res.json();
       return {
         id: data.id,
         summary: data.summary,
@@ -121,7 +121,7 @@ export class GoogleCalendar {
       `${this.apiBase}/calendars/${this.config.calendarId}/events?key=${this.config.apiKey}` +
       `&timeMin=${now.toISOString()}&timeMax=${future.toISOString()}&singleEvents=true&orderBy=startTime&maxResults=20`,
     );
-    const data = await res.json();
+    const data: any = await res.json();
 
     return (data.items || []).map((e: any) => ({
       id: e.id,

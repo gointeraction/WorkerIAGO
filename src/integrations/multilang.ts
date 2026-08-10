@@ -5,7 +5,7 @@
  */
 
 export interface MultiLangEnv {
-  AI: any;
+  AI: Ai;
 }
 
 /**

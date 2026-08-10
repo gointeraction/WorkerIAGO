@@ -7,14 +7,20 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
-    "hono": "4.4.0"
+    "hono": "4.4.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.9.14",
     "@cloudflare/workers-types": "^4.20240806.0",
+    "@vitest/runner": "^3.0.5",
+    "@vitest/snapshot": "^3.0.5",
     "typescript": "5.5.4",
+    "vitest": "^3.0.5",
     "wrangler": "3.72.0"
   }
 }

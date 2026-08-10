@@ -8,7 +8,7 @@
 export interface BackupEnv {
   DB: D1Database;
   STORAGE: R2Bucket;
-  AI: any;
+  AI: Ai;
 }
 
 export interface BackupManifest {

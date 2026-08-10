@@ -6,7 +6,7 @@ import { WhatsAppChannel } from './channels/whatsapp';
 import { WebChannel } from './channels/web';
 import { AdminPanel } from './admin';
 import { AgentState } from './durable-object';
-import { generateEmbedding } from './ai';
+import { generateEmbedding, runModel } from './ai';
 import { tenantMiddleware } from './tenant/middleware';
 
 // =============================================================================
@@ -14,7 +14,7 @@ import { tenantMiddleware } from './tenant/middleware';
 // =============================================================================
 type Bindings = {
   // Cloudflare AI - Workers AI
-  AI: any;
+  AI: Ai;
   
   // D1 - Conversaciones, leads, configuración
   DB: D1Database;
@@ -39,7 +39,7 @@ type Bindings = {
   ADMIN_PASSWORD?: string;
 };
 
-const app = new Hono<{ Bindings: Bindings }>();
+const app = new Hono<{ Bindings: Bindings; Variables: { tenantId: string } }>();
 
 // CORS for admin panel
 app.use('/admin/*', cors());
@@ -65,14 +65,14 @@ app.get('/api/test-ai', async (c) => {
       return c.json({ error: 'AI binding not available' }, 500);
     }
     
-    const result = await ai.run('@cf/meta/llama-3.1-8b-instruct-fp8', {
+    const result: any = await runModel(ai, '@cf/meta/llama-3.1-8b-instruct-fp8', {
       messages: [{ role: 'user', content: 'Responde solo: Hola mundo' }],
       max_tokens: 10
     });
     
     return c.json({ 
       success: true, 
-      response: result.response,
+      response: result.response as string,
       model: '@cf/meta/llama-3.1-8b-instruct'
     });
   } catch (error: any) {

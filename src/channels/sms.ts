@@ -51,7 +51,7 @@ export class SmsChannel {
         }
       );
 
-      const data = await res.json();
+      const data: any = await res.json();
       return {
         success: res.ok,
         sid: data.sid,
@@ -84,7 +84,7 @@ export class SmsChannel {
         }
       );
 
-      const data = await res.json();
+      const data: any = await res.json();
       return { success: res.ok, sid: data.sid, error: data.message };
     } catch (e: any) {
       return { success: false, error: e.message };

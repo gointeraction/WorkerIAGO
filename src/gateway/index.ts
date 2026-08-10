@@ -70,18 +70,22 @@ export async function logAiRequest(
 // ═══════════════════════════════════════════════════════════════════════════════
 // Response Cache
 // ═══════════════════════════════════════════════════════════════════════════════
-function getCacheKey(model: string, messages: any[]): string {
-  const hash = messages.map(m => `${m.role}:${m.content}`).join('|');
-  return `ai_cache:${model}:${hash.slice(0, 200)}`;
+async function getCacheKey(model: string, messages: any[]): Promise<string> {
+  const hashString = messages.map(m => `${m.role}:${m.content}`).join('|');
+  const msgBuffer = new TextEncoder().encode(hashString);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return `ai_cache:${model}:${hashHex}`;
 }
 
 export async function getCachedResponse(
   env: AiGatewayEnv,
   model: string,
   messages: any[]
-): Promise<{ response: string; tokens: number } | null> {
+): Promise<any | null> {
   try {
-    const key = getCacheKey(model, messages);
+    const key = await getCacheKey(model, messages);
     const cached = await env.CACHE.get(key, 'json');
     return cached;
   } catch {
@@ -98,7 +102,7 @@ export async function setCachedResponse(
   ttlSeconds = 3600
 ): Promise<void> {
   try {
-    const key = getCacheKey(model, messages);
+    const key = await getCacheKey(model, messages);
     await env.CACHE.put(key, JSON.stringify({ response, tokens }), {
       expirationTtl: ttlSeconds,
     });

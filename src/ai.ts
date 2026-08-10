@@ -3,9 +3,15 @@
 
 export type AIProvider = 'workers';
 
+// Helper to call AI models dynamically (chat/embedding/vision models aren't all
+// in the typed catalog for the pinned workers-types version)
+export function runModel(ai: Ai, model: string, inputs: any): Promise<any> {
+  return (ai as any).run(model, inputs);
+}
+
 export interface AIConfig {
   provider: AIProvider;
-  ai: any; // Cloudflare AI binding
+  ai: Ai; // Cloudflare AI binding
 }
 
 interface ChatMessage {
@@ -40,7 +46,7 @@ export async function chat(
   console.log('Calling AI model:', model);
   console.log('Messages count:', messages.length);
 
-  const result = await config.ai.run(model, {
+  const result = await runModel(config.ai, model, {
     messages,
     temperature: options?.temperature ?? 0.7,
     max_tokens: options?.maxTokens ?? 512
@@ -127,7 +133,7 @@ export async function generateEmbedding(
     throw new Error('AI binding not available');
   }
 
-  const result = await config.ai.run(MODELS.embedding, {
+  const result = await runModel(config.ai, MODELS.embedding, {
     text: [text]
   });
 
@@ -142,7 +148,7 @@ export async function generateImage(
     throw new Error('AI binding not available');
   }
 
-  const result = await config.ai.run(MODELS.image, {
+  const result = await runModel(config.ai, MODELS.image, {
     prompt
   });
 
@@ -157,7 +163,7 @@ export async function transcribeAudio(
     throw new Error('AI binding not available');
   }
 
-  const result = await config.ai.run(MODELS.audio, {
+  const result = await runModel(config.ai, MODELS.audio, {
     audio: [...new Uint8Array(audio)]
   });
 
@@ -173,7 +179,7 @@ export async function classifyText(
     throw new Error('AI binding not available');
   }
 
-  const result = await config.ai.run(MODELS.classification, {
+  const result = await runModel(config.ai, MODELS.classification, {
     text
   });
 

@@ -41,7 +41,7 @@ export const GOOGLE_DRIVE_CONNECTOR = {
         `https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType,size`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
-      const meta = await res.json();
+      const meta = await res.json() as any;
       return `[PDF: ${meta.name} — Upload to R2 for full text extraction]`;
     }
     return '';
@@ -53,7 +53,7 @@ export const GOOGLE_DRIVE_CONNECTOR = {
       `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,mimeType,size,modifiedTime)&pageSize=20`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
-    const data = await res.json();
+    const data = await res.json() as any;
     return data.files || [];
   },
 
@@ -96,7 +96,7 @@ export const NOTION_CONNECTOR = {
         page_size: 20,
       }),
     });
-    const data = await res.json();
+    const data: any = await res.json();
     return data.results || [];
   },
 
@@ -107,7 +107,7 @@ export const NOTION_CONNECTOR = {
         'Notion-Version': '2022-06-28',
       },
     });
-    const data = await res.json();
+    const data: any = await res.json();
     
     // Extract text from blocks
     const lines: string[] = [];

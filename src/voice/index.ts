@@ -7,8 +7,10 @@
  * Handles voice messages from WhatsApp/Telegram and responds with audio.
  */
 
+import { runModel } from '../ai';
+
 export interface VoiceEnv {
-  AI: any;
+  AI: Ai;
   DB: D1Database;
 }
 
@@ -135,13 +137,13 @@ export async function processVoiceMessage(
     { role: 'user', content: transcription },
   ];
 
-  const aiResult = await env.AI.run('@cf/meta/llama-3.1-8b-instruct-fp8', {
+  const aiResult: any = await runModel(env.AI, '@cf/meta/llama-3.1-8b-instruct-fp8', {
     messages,
     temperature: 0.7,
     max_tokens: 512,
   });
 
-  const responseText = aiResult.response;
+  const responseText = aiResult.response as string;
 
   // 3. Generate audio response
   const responseAudio = await generateSpeech(env.AI, responseText);
@@ -173,16 +175,16 @@ export async function processWhatsAppVoice(
     { role: 'user', content: transcription },
   ];
 
-  const aiResult = await env.AI.run('@cf/meta/llama-3.1-8b-instruct-fp8', {
+  const aiResult: any = await runModel(env.AI, '@cf/meta/llama-3.1-8b-instruct-fp8', {
     messages,
     temperature: 0.7,
     max_tokens: 512,
   });
 
-  const audioBase64 = await generateSpeechBase64(env.AI, aiResult.response);
+  const audioBase64 = await generateSpeechBase64(env.AI, aiResult.response as string);
 
   return {
-    text: aiResult.response,
+    text: aiResult.response as string,
     audioBase64,
   };
 }
@@ -202,16 +204,16 @@ export async function processTelegramVoice(
     { role: 'user', content: transcription },
   ];
 
-  const aiResult = await env.AI.run('@cf/meta/llama-3.1-8b-instruct-fp8', {
+  const aiResult: any = await runModel(env.AI, '@cf/meta/llama-3.1-8b-instruct-fp8', {
     messages,
     temperature: 0.7,
     max_tokens: 512,
   });
 
-  const audio = await generateSpeech(env.AI, aiResult.response);
+  const audio = await generateSpeech(env.AI, aiResult.response as string);
 
   return {
-    text: aiResult.response,
+    text: aiResult.response as string,
     audioBuffer: audio,
   };
 }

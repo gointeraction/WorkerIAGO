@@ -64,7 +64,7 @@ export class PaymentProcessor {
         ...Object.fromEntries(Object.entries(params.metadata || {}).map(([k, v]) => [`metadata[${k}]`, v])),
       }),
     });
-    const data = await res.json();
+    const data = await res.json() as any;
 
     return {
       id: data.id,
@@ -93,13 +93,13 @@ export class PaymentProcessor {
         description: params.description,
         payment_method_id: 'visa', // placeholder
         installments: 1,
-        notification_url: `${self.location?.origin}/api/webhooks/mercadopago`,
+        notification_url: 'https://workeriago.ibohorrez.workers.dev/api/webhooks/mercadopago',
       }),
     });
-    const data = await res.json();
+    const data: any = await res.json();
 
     return {
-      id: data.id?.toString(),
+      id: data.id?.toString() as string,
       amount: params.amount,
       currency: params.currency,
       status: data.status,
@@ -115,14 +115,14 @@ export class PaymentProcessor {
       const res = await fetch(`https://api.stripe.com/v1/payment_intents/${paymentId}`, {
         headers: { 'Authorization': `Bearer ${this.config.secretKey}` },
       });
-      const data = await res.json();
+      const data: any = await res.json();
       return { status: data.status, paid: data.status === 'succeeded' };
     }
 
     const res = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
       headers: { 'Authorization': `Bearer ${this.config.secretKey}` },
     });
-    const data = await res.json();
+    const data: any = await res.json();
     return { status: data.status, paid: data.status === 'approved' };
   }
 

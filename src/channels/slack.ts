@@ -34,7 +34,7 @@ export class SlackChannel {
         },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+      const data: any = await res.json();
       return data.ok;
     } catch (e) {
       console.error('Slack send error:', e);
@@ -56,7 +56,7 @@ export class SlackChannel {
         },
         body: JSON.stringify({ users: userId }),
       });
-      const openData = await openRes.json();
+      const openData: any = await openRes.json();
       if (!openData.ok) return false;
 
       return this.sendMessage(openData.channel.id, text);
@@ -83,7 +83,7 @@ export class SlackChannel {
         },
         body: JSON.stringify({ channel, ...message }),
       });
-      const data = await res.json();
+      const data: any = await res.json();
       return data.ok;
     } catch (e) {
       return false;
@@ -103,7 +103,7 @@ export class SlackChannel {
         },
         body: JSON.stringify({ channel, timestamp, name }),
       });
-      const data = await res.json();
+      const data: any = await res.json();
       return data.ok;
     } catch (e) {
       return false;
@@ -123,7 +123,7 @@ export class SlackChannel {
         },
         body: JSON.stringify({ channel, ts: timestamp, text }),
       });
-      const data = await res.json();
+      const data: any = await res.json();
       return data.ok;
     } catch (e) {
       return false;

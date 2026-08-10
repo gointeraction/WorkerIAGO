@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS agents (
   tools JSON,
   channel_config JSON,
   is_active INTEGER DEFAULT 1,
+  tenant_id TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );
@@ -35,6 +36,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   last_message_at TEXT,
   message_count INTEGER DEFAULT 0,
   tags JSON,
+  tenant_id TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (agent_id) REFERENCES agents(id)
@@ -47,6 +49,7 @@ CREATE TABLE IF NOT EXISTS messages (
   role TEXT NOT NULL,
   content TEXT NOT NULL,
   metadata JSON,
+  tenant_id TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (conversation_id) REFERENCES conversations(id)
 );
@@ -65,6 +68,7 @@ CREATE TABLE IF NOT EXISTS tickets (
   resolution TEXT,
   resolved_at TEXT,
   closed_at TEXT,
+  tenant_id TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (conversation_id) REFERENCES conversations(id),
@@ -91,6 +95,7 @@ CREATE TABLE IF NOT EXISTS knowledge_base (
   helpful_count INTEGER DEFAULT 0,
   not_helpful_count INTEGER DEFAULT 0,
   last_indexed_at TEXT, -- último embedding generado
+  tenant_id TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );
@@ -105,6 +110,7 @@ CREATE TABLE IF NOT EXISTS knowledge_chunks (
   content TEXT NOT NULL, -- texto del chunk
   token_count INTEGER, -- tokens estimados
   vector_id TEXT, -- ID en VectorizeIndex
+  tenant_id TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (kb_id) REFERENCES knowledge_base(id) ON DELETE CASCADE
 );
@@ -114,6 +120,7 @@ CREATE TABLE IF NOT EXISTS agent_knowledge (
   agent_id TEXT NOT NULL,
   kb_id TEXT NOT NULL,
   priority INTEGER DEFAULT 0, -- orden de relevancia
+  tenant_id TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   PRIMARY KEY (agent_id, kb_id),
   FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE,
@@ -142,6 +149,7 @@ CREATE TABLE IF NOT EXISTS mcp_tools (
   usage_count INTEGER DEFAULT 0,
   avg_latency_ms INTEGER DEFAULT 0,
   last_used_at TEXT,
+  tenant_id TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );
@@ -151,6 +159,7 @@ CREATE TABLE IF NOT EXISTS agent_tools (
   agent_id TEXT NOT NULL,
   tool_id TEXT NOT NULL,
   is_enabled INTEGER DEFAULT 1,
+  tenant_id TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   PRIMARY KEY (agent_id, tool_id),
   FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE,
@@ -169,6 +178,7 @@ CREATE TABLE IF NOT EXISTS tool_execution_logs (
   error_message TEXT,
   latency_ms INTEGER,
   tokens_used INTEGER DEFAULT 0,
+  tenant_id TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (tool_id) REFERENCES mcp_tools(id),
   FOREIGN KEY (agent_id) REFERENCES agents(id)
@@ -193,6 +203,7 @@ CREATE TABLE IF NOT EXISTS ai_logs (
   cache_hit INTEGER DEFAULT 0, -- 1 if response was cached
   channel TEXT,
   action TEXT,
+  tenant_id TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -213,6 +224,7 @@ CREATE TABLE IF NOT EXISTS leads (
   last_contact_at TEXT,
   next_followup_at TEXT,
   followup_count INTEGER DEFAULT 0,
+  tenant_id TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (conversation_id) REFERENCES conversations(id),
@@ -247,3 +259,289 @@ CREATE INDEX IF NOT EXISTS idx_ai_logs_date ON ai_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_ai_logs_model ON ai_logs(model);
 CREATE INDEX IF NOT EXISTS idx_leads_agent ON leads(agent_id);
 CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
+
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- Workflows & Connectors
+-- ═══════════════════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS workflows (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  trigger_type TEXT DEFAULT 'manual',
+  trigger_config JSON,
+  steps JSON NOT NULL,
+  is_active INTEGER DEFAULT 1,
+  tenant_id TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS workflow_runs (
+  id TEXT PRIMARY KEY,
+  workflow_id TEXT NOT NULL,
+  status TEXT DEFAULT 'running',
+  current_step TEXT,
+  context JSON,
+  started_at TEXT,
+  completed_at TEXT,
+  error TEXT,
+  tenant_id TEXT,
+  FOREIGN KEY (workflow_id) REFERENCES workflows(id)
+);
+
+CREATE TABLE IF NOT EXISTS connectors (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL,
+  is_active INTEGER DEFAULT 0,
+  config JSON,
+  auth_token TEXT,
+  last_sync_at TEXT,
+  sync_status TEXT,
+  items_synced INTEGER DEFAULT 0,
+  tenant_id TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_runs_workflow ON workflow_runs(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_runs_status ON workflow_runs(status);
+CREATE INDEX IF NOT EXISTS idx_connectors_type ON connectors(type);
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- User Memories (persistent memory)
+-- ═══════════════════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS user_memories (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  memory_type TEXT NOT NULL, -- fact, preference, summary, sentiment
+  content TEXT NOT NULL,
+  source_conversation_id INTEGER,
+  confidence REAL DEFAULT 0.8,
+  tenant_id TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  last_recalled_at TEXT,
+  recall_count INTEGER DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_memories_user ON user_memories(user_id);
+CREATE INDEX IF NOT EXISTS idx_memories_type ON user_memories(memory_type);
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- A/B Testing
+-- ═══════════════════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS ab_tests (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  variants JSON NOT NULL,
+  traffic_split JSON NOT NULL,
+  status TEXT DEFAULT 'draft',
+  primary_metric TEXT DEFAULT 'conversion',
+  start_date TEXT,
+  end_date TEXT,
+  tenant_id TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS ab_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  test_id TEXT NOT NULL,
+  variant_id TEXT NOT NULL,
+  conversation_id INTEGER,
+  event_type TEXT NOT NULL,
+  value REAL,
+  tenant_id TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (test_id) REFERENCES ab_tests(id)
+);
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- Webhooks
+-- ═══════════════════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS webhooks (
+  id TEXT PRIMARY KEY,
+  url TEXT NOT NULL,
+  events JSON NOT NULL,
+  secret TEXT NOT NULL,
+  is_active INTEGER DEFAULT 1,
+  last_triggered_at TEXT,
+  fail_count INTEGER DEFAULT 0,
+  tenant_id TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- Channels Configuration
+-- ═══════════════════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS channel_configs (
+  id TEXT PRIMARY KEY,
+  channel_type TEXT NOT NULL,
+  config JSON NOT NULL,
+  is_active INTEGER DEFAULT 1,
+  tenant_id TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- Usage & Health (v5 missing tables)
+-- ═══════════════════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS usage_logs (
+  id TEXT PRIMARY KEY,
+  date TEXT NOT NULL,
+  input_tokens INTEGER DEFAULT 0,
+  output_tokens INTEGER DEFAULT 0,
+  cost REAL DEFAULT 0,
+  tenant_id TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS health_logs (
+  id TEXT PRIMARY KEY,
+  service TEXT NOT NULL,
+  status TEXT NOT NULL,
+  latency_ms INTEGER,
+  message TEXT,
+  tenant_id TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS actions (
+  id TEXT PRIMARY KEY,
+  type TEXT NOT NULL,
+  payload JSON,
+  status TEXT DEFAULT 'pending',
+  tenant_id TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS campaigns (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  channel TEXT NOT NULL,
+  message TEXT NOT NULL,
+  segment TEXT,
+  status TEXT DEFAULT 'draft',
+  sent_count INTEGER DEFAULT 0,
+  opened_count INTEGER DEFAULT 0,
+  tenant_id TEXT,
+  started_at TEXT,
+  completed_at TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_campaigns_status ON campaigns(status);
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- Tenants & Users (admin core)
+-- ═══════════════════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS tenants (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  slug TEXT UNIQUE NOT NULL,
+  plan TEXT DEFAULT 'free',
+  status TEXT DEFAULT 'active',
+  config JSON,
+  limits JSON,
+  owner_email TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS admin_users (
+  id TEXT PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  password_hash TEXT,
+  role TEXT DEFAULT 'viewer',
+  permissions JSON,
+  last_login_at TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
+  user_email TEXT,
+  action TEXT NOT NULL,
+  resource_type TEXT NOT NULL,
+  resource_id TEXT,
+  details JSON,
+  ip_address TEXT,
+  tenant_id TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS monitoring_alerts (
+  id TEXT PRIMARY KEY,
+  service TEXT NOT NULL,
+  alert_type TEXT NOT NULL,
+  message TEXT NOT NULL,
+  status TEXT DEFAULT 'active',
+  resolved_at TEXT,
+  tenant_id TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- Additional Tenant Indexes
+-- ═══════════════════════════════════════════════════════════════════════════════
+CREATE INDEX IF NOT EXISTS idx_agents_tenant ON agents(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_tenant ON conversations(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_messages_tenant ON messages(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_tenant ON tickets(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_leads_tenant ON leads(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_base_tenant ON knowledge_base(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_tenant ON knowledge_chunks(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_agent_knowledge_tenant ON agent_knowledge(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_mcp_tools_tenant ON mcp_tools(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_agent_tools_tenant ON agent_tools(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_tool_logs_tenant ON tool_execution_logs(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_ai_logs_tenant ON ai_logs(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_tenant ON audit_logs(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_tenant ON monitoring_alerts(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_workflows_tenant ON workflows(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_runs_tenant ON workflow_runs(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_connectors_tenant ON connectors(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_user_memories_tenant ON user_memories(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_ab_tests_tenant ON ab_tests(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_ab_events_tenant ON ab_events(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_webhooks_tenant ON webhooks(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_channel_configs_tenant ON channel_configs(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_config_tenant ON config(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_usage_logs_tenant ON usage_logs(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_health_logs_tenant ON health_logs(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_actions_tenant ON actions(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_campaigns_tenant ON campaigns(tenant_id);
+-- v6_missing_followups.sql
+
+CREATE TABLE IF NOT EXISTS followups (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  conversation_id INTEGER NOT NULL,
+  agent_id TEXT NOT NULL,
+  message TEXT NOT NULL,
+  status TEXT DEFAULT 'pending', -- pending, sent, failed
+  scheduled_for DATETIME,
+  sent_at DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_followups_status ON followups(status);
+CREATE INDEX IF NOT EXISTS idx_followups_tenant ON followups(tenant_id);
+
+CREATE TABLE IF NOT EXISTS backup_logs (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT DEFAULT 'default',
+  type TEXT NOT NULL,
+  status TEXT NOT NULL,
+  tables TEXT,
+  total_rows INTEGER,
+  total_size_bytes INTEGER,
+  error TEXT,
+  started_at DATETIME,
+  completed_at DATETIME
+);
+
+CREATE INDEX IF NOT EXISTS idx_backup_logs_tenant ON backup_logs(tenant_id);

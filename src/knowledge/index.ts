@@ -8,7 +8,7 @@ export interface KnowledgeEnv {
   DB: D1Database;
   VECTORIZE: VectorizeIndex;
   STORAGE?: R2Bucket;
-  AI: any;
+  AI: Ai;
 }
 
 export interface KbDocument {
@@ -173,6 +173,7 @@ export async function processUrl(
 
     // Store raw content in R2
     const r2Key = `knowledge/${kbId}/source.txt`;
+    if (!env.STORAGE) throw new Error("STORAGE not configured");
     await env.STORAGE.put(r2Key, text, {
       httpMetadata: { contentType: 'text/plain' },
     });
@@ -199,6 +200,7 @@ export async function processUploadedFile(
   tenantId: string = 'default'
 ): Promise<{ chunkCount: number; errors: string[] }> {
   try {
+    if (!env.STORAGE) throw new Error('STORAGE not configured');
     const obj = await env.STORAGE.get(r2Key);
     if (!obj) throw new Error('File not found in R2');
 
@@ -238,10 +240,15 @@ export async function semanticSearch(
   const queryVector = await generateEmbedding(env.AI, query);
 
   // 2. Query Vectorize with tenant filter
+  const filter: any = { tenantId: { $eq: tenantId } };
+  if (agentId) {
+    filter.agentId = { $eq: agentId };
+  }
+  
   const options: any = {
     topK: topK * 3,
     returnMetadata: true,
-    filter: { tenantId: { $eq: tenantId } },
+    filter,
   };
 
   // 3. Query Vectorize
@@ -254,9 +261,6 @@ export async function semanticSearch(
 
     // Tenant isolation (belt + suspenders — also checked via Vectorize filter)
     if (meta?.tenantId && meta.tenantId !== tenantId) continue;
-
-    // Match by agentId in metadata (works for both new and old inserts)
-    if (agentId && meta?.agentId !== agentId) continue;
 
     // Get document title from D1 if available
     let docTitle: string | undefined = meta?.title;
@@ -333,7 +337,8 @@ export async function deleteDocument(
     `SELECT r2_key FROM knowledge_base WHERE id = ?`
   ).bind(kbId).first<{ r2_key: string }>();
   if (doc?.r2_key) {
-    await env.STORAGE.delete(doc.r2_key);
+    if (!env.STORAGE) throw new Error("STORAGE not configured");
+      await env.STORAGE.delete(doc.r2_key);
   }
 
   // Delete from knowledge_base

@@ -10,7 +10,7 @@
 
 export interface MemoryEnv {
   DB: D1Database;
-  AI: any;
+  AI: Ai;
 }
 
 export interface UserMemory {

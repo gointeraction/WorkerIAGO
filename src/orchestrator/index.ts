@@ -12,11 +12,11 @@ import { executeTool, getAgentToolDefinitions, type McpTool } from '../mcp';
 import { aiWithFallback, logAiRequest, type AiGatewayEnv } from '../gateway';
 
 interface Env {
-  AI: any;
+  AI: Ai;
   DB: D1Database;
   VECTORIZE: VectorizeIndex;
   CACHE: KVNamespace;
-  STORAGE: R2Bucket;
+  STORAGE?: R2Bucket;
   AGENT_STATE: DurableObjectNamespace;
 }
 
@@ -111,7 +111,7 @@ export class AgentOrchestrator {
       let response: string;
       try {
         const toolsPrompt = toolDefs.length > 0
-          ? `\n\nHERRAMIENTAS DISPONIBLES:\n${toolDefs.map(t => `- ${t.name}: ${t.description}. Parámetros: ${JSON.stringify(t.parameters_schema)}`).join('\n')}\n\nSi necesitas usar una herramienta, responde SOLO con: TOOL_CALL: <tool_id> <json_params>\nEjemplo: TOOL_CALL: echo {"message":"hola"}`
+          ? `\n\nHERRAMIENTAS DISPONIBLES:\n${toolDefs.map(t => `- ${t.name}: ${t.description}. Parámetros: ${JSON.stringify(t.parameters_schema)}`).join('\n')}\n\nSi necesitas usar una herramienta, DEBES responder ÚNICAMENTE con un JSON en este formato:\n{"tool_call": {"name": "<nombre_herramienta>", "params": {<json_params>}}}\nEjemplo:\n{"tool_call": {"name": "echo", "params": {"message":"hola"}}}`
           : '';
         response = await generateAgentResponse(
           this.aiConfig,
@@ -122,20 +122,28 @@ export class AgentOrchestrator {
         );
 
         // Si el LLM decide llamar un tool, ejecutar y generar respuesta final
-        if (response.startsWith('TOOL_CALL:')) {
-          const match = response.match(/^TOOL_CALL:\s*(\S+)\s*(.*)$/);
-          console.log('TOOL_CALL detected:', response, 'match:', match ? [match[1], match[2]] : null, 'mcpTools:', mcpTools.map(t => ({ id: t.id, name: t.name })));
-          if (match) {
-            const toolIdent = match[1].toLowerCase();
-            const tool = mcpTools.find(t =>
-              t.id?.toLowerCase() === toolIdent ||
-              t.name?.toLowerCase() === toolIdent ||
-              t.id?.toLowerCase().includes(toolIdent) ||
-              toolIdent.includes(t.id?.toLowerCase() || '###')
-            );
-            if (tool) {
-              let params: any = {};
-              try { params = JSON.parse(match[2] || '{}'); } catch (e) {}
+        let toolCallAttempt: { name: string, params: any } | null = null;
+        try {
+          const cleanResponse = response.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
+          const parsed = JSON.parse(cleanResponse);
+          if (parsed && parsed.tool_call && parsed.tool_call.name) {
+            toolCallAttempt = parsed.tool_call;
+          }
+        } catch (e) {
+          // No es un JSON estructurado de tool call, continuar como respuesta normal
+        }
+
+        if (toolCallAttempt) {
+          console.log('TOOL_CALL detected (JSON):', toolCallAttempt, 'mcpTools:', mcpTools.map(t => ({ id: t.id, name: t.name })));
+          const toolIdent = toolCallAttempt.name.toLowerCase();
+          const tool = mcpTools.find(t =>
+            t.id?.toLowerCase() === toolIdent ||
+            t.name?.toLowerCase() === toolIdent ||
+            t.id?.toLowerCase().includes(toolIdent) ||
+            toolIdent.includes(t.id?.toLowerCase() || '###')
+          );
+          if (tool) {
+            let params: any = toolCallAttempt.params || {};
               const { executeTool } = await import('../mcp');
               const toolResult = await executeTool(this.env.DB, tool as any, params, agent.id, parseInt(chatId) || undefined);
               // Re-generar respuesta con el resultado del tool
@@ -147,7 +155,6 @@ export class AgentOrchestrator {
                 this.buildContext(context, []) + toolContext,
                 history
               );
-            }
           }
         }
       } catch (e) {
