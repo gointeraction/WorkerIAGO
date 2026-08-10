@@ -25,7 +25,7 @@ admin.get('/', async (c) => {
             <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/20">
               <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 12h8M8 8h8m-8 8h5m2-13a9 9 0 11-9 9 9 9 0 019-9z"/></svg>
             </div>
-            <span class="text-green-500 text-sm font-semibold">Ôåæ 12%</span>
+            <span class="text-green-500 text-sm font-semibold">↑ 12%</span>
           </div>
           <div class="text-3xl font-extrabold text-gim-neutral-900 mb-1" id="stats-conversations">-</div>
           <div class="text-gim-neutral-500 text-sm">Conversaciones (24h)</div>
@@ -36,7 +36,7 @@ admin.get('/', async (c) => {
             <div class="w-12 h-12 bg-gradient-cyan rounded-xl flex items-center justify-center shadow-lg shadow-gim-cyan-500/20">
               <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
             </div>
-            <span class="text-green-500 text-sm font-semibold">Ôåæ 8%</span>
+            <span class="text-green-500 text-sm font-semibold">↑ 8%</span>
           </div>
           <div class="text-3xl font-extrabold text-gim-neutral-900 mb-1" id="stats-leads">-</div>
           <div class="text-gim-neutral-500 text-sm">Leads Nuevos (24h)</div>
@@ -58,7 +58,7 @@ admin.get('/', async (c) => {
             <div class="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/20">
               <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             </div>
-            <span class="text-gim-neutral-400 text-sm">Proyecci├│n</span>
+            <span class="text-gim-neutral-400 text-sm">Proyección</span>
           </div>
           <div class="text-3xl font-extrabold text-gim-neutral-900 mb-1" id="stats-cost">$0.00</div>
           <div class="text-gim-neutral-500 text-sm">Costo IA (24h)</div>
@@ -71,7 +71,7 @@ admin.get('/', async (c) => {
         <div class="lg:col-span-2 bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
           <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-bold text-gim-neutral-900">Conversaciones Recientes</h2>
-            <a href="/admin/conversations" class="text-gim-orange-500 hover:text-gim-orange-600 text-sm font-semibold transition-colors">Ver todas ÔåÆ</a>
+            <a href="/admin/conversations" class="text-gim-orange-500 hover:text-gim-orange-600 text-sm font-semibold transition-colors">Ver todas →</a>
           </div>
           <div id="recent-conversations" class="space-y-4">
             <div class="text-gim-neutral-400 text-center py-8">Cargando...</div>
@@ -82,7 +82,7 @@ admin.get('/', async (c) => {
         <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
           <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-bold text-gim-neutral-900">Tickets Activos</h2>
-            <a href="/admin/tickets" class="text-gim-orange-500 hover:text-gim-orange-600 text-sm font-semibold transition-colors">Ver todos ÔåÆ</a>
+            <a href="/admin/tickets" class="text-gim-orange-500 hover:text-gim-orange-600 text-sm font-semibold transition-colors">Ver todos →</a>
           </div>
           <div id="active-tickets" class="space-y-4">
             <div class="text-gim-neutral-400 text-center py-8">Cargando...</div>
@@ -92,7 +92,7 @@ admin.get('/', async (c) => {
       
       <!-- Quick Actions -->
       <div class="mt-6 bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
-        <h2 class="text-xl font-bold text-gim-neutral-900 mb-6">Acciones R├ípidas</h2>
+        <h2 class="text-xl font-bold text-gim-neutral-900 mb-6">Acciones Rápidas</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <a href="/admin/agents" class="gradient-border rounded-xl p-4 flex items-center gap-4 card-hover">
             <div class="w-12 h-12 bg-gradient-orange rounded-xl flex items-center justify-center shadow-lg shadow-gim-orange-500/15">
@@ -119,7 +119,7 @@ admin.get('/', async (c) => {
               <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5.882V19.118a1 1 0 01-1.707.707L4.414 15H2a1 1 0 01-1-1v-4a1 1 0 011-1h2.414l4.879-4.825A1 1 0 0111 5.882zM15 9a3 3 0 010 6"/></svg>
             </div>
             <div>
-              <div class="font-semibold text-gim-neutral-900">Nueva Campa├▒a</div>
+              <div class="font-semibold text-gim-neutral-900">Nueva Campaña</div>
               <div class="text-sm text-gim-neutral-500">Enviar mensajes</div>
             </div>
           </a>
@@ -186,8 +186,8 @@ admin.get('/', async (c) => {
                     '<span class="text-lg">' + (c.channel === 'telegram' ? 'TG' : c.channel === 'whatsapp' ? 'WA' : 'WEB') + '</span>' +
                   '</div>' +
                   '<div>' +
-                    '<div class="font-semibold text-gim-neutral-900">' + (c.user_name || 'An├│nimo') + '</div>' +
-                    '<div class="text-sm text-gim-neutral-500">' + c.channel + ' ┬À ' + (c.intent || 'sin clasificar') + '</div>' +
+                    '<div class="font-semibold text-gim-neutral-900">' + (c.user_name || 'Anónimo') + '</div>' +
+                    '<div class="text-sm text-gim-neutral-500">' + c.channel + ' · ' + (c.intent || 'sin clasificar') + '</div>' +
                   '</div>' +
                 '</div>' +
                 '<span class="px-3 py-1 rounded-full text-xs font-medium ' + 
@@ -301,12 +301,12 @@ admin.get('/insights', async (c) => {
         <h1 class="text-4xl font-extrabold mb-2">
           <span class="text-gradient-orange">Insights</span>
         </h1>
-        <p class="text-gim-neutral-500">Analytics y m├®tricas de rendimiento</p>
+        <p class="text-gim-neutral-500">Analytics y métricas de rendimiento</p>
       </div>
       
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div class="stat-card-green rounded-2xl p-6">
-          <div class="text-gim-neutral-500 text-sm mb-2">Tasa de Resoluci├│n</div>
+          <div class="text-gim-neutral-500 text-sm mb-2">Tasa de Resolución</div>
           <div class="text-4xl font-extrabold text-green-500">${resolutionRate}%</div>
           <div class="text-sm text-gim-neutral-400 mt-2">${stats.resolvedTickets}/${stats.totalTickets} tickets resueltos</div>
         </div>
@@ -316,7 +316,7 @@ admin.get('/insights', async (c) => {
           <div class="text-sm text-gim-neutral-400 mt-2">Tiempo de respuesta de IA</div>
         </div>
         <div class="stat-card-cyan rounded-2xl p-6">
-          <div class="text-gim-neutral-500 text-sm mb-2">Conversi├│n de Leads</div>
+          <div class="text-gim-neutral-500 text-sm mb-2">Conversión de Leads</div>
           <div class="text-4xl font-extrabold text-gradient-cyan">${conversionRate}%</div>
           <div class="text-sm text-gim-neutral-400 mt-2">${stats.convertedLeads}/${stats.totalLeads} leads convertidos</div>
         </div>
@@ -342,7 +342,7 @@ admin.get('/insights', async (c) => {
       </div>
       
       <div class="bg-white rounded-2xl p-8 border border-gim-neutral-200 shadow-sm">
-        <h2 class="text-xl font-bold text-gim-neutral-900 mb-6">Conversaciones por d├¡a (ultimos 7 dias)</h2>
+        <h2 class="text-xl font-bold text-gim-neutral-900 mb-6">Conversaciones por día (ultimos 7 dias)</h2>
         <div class="space-y-3">
           ${dailyData.map((d: any) => {
             const maxVal = Math.max(...dailyData.map((x: any) => x.conversations), 1);
@@ -398,7 +398,7 @@ admin.get('/costs', async (c) => {
       
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div class="stat-card-green rounded-2xl p-6">
-          <div class="text-gim-neutral-500 text-sm mb-2">Costo Total (30 d├¡as)</div>
+          <div class="text-gim-neutral-500 text-sm mb-2">Costo Total (30 días)</div>
           <div class="text-4xl font-extrabold text-green-500">$${totalCost.toFixed(4)}</div>
         </div>
         <div class="stat-card-orange rounded-2xl p-6">
@@ -406,7 +406,7 @@ admin.get('/costs', async (c) => {
           <div class="text-4xl font-extrabold text-gradient-orange">${(totalTokens / 1000).toFixed(1)}K</div>
         </div>
         <div class="stat-card-cyan rounded-2xl p-6">
-          <div class="text-gim-neutral-500 text-sm mb-2">Proyecci├│n Mensual</div>
+          <div class="text-gim-neutral-500 text-sm mb-2">Proyección Mensual</div>
           <div class="text-4xl font-extrabold text-gradient-cyan">$${((totalCost / 30) * 30).toFixed(2)}</div>
         </div>
       </div>

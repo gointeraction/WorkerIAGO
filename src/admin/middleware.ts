@@ -35,10 +35,10 @@ export const auth = async (c: any, next: any) => {
   return c.redirect('/admin/login');
 };
 
-// CSRF middleware ÔÇö verify on POSTs
+// CSRF middleware — verify on POSTs
 export const csrfCheck = async (c: any, next: any) => {
   if (c.req.method !== 'POST') return next();
-  // No CSRF requirement in demo mode (ADMIN_PASSWORD not set) ÔÇö skip entirely to avoid consuming formData
+  // No CSRF requirement in demo mode (ADMIN_PASSWORD not set) — skip entirely to avoid consuming formData
   if (!c.env.ADMIN_PASSWORD) return next();
   const cookieToken = getCookie(c, 'admin_csrf');
   // JSON APIs check header; form check formData field
@@ -56,5 +56,5 @@ export const csrfCheck = async (c: any, next: any) => {
   if (cookieToken && token && cookieToken === token) {
     return next();
   }
-  return c.json({ error: 'CSRF token inv├ílido o faltante' }, 403);
+  return c.json({ error: 'CSRF token inválido o faltante' }, 403);
 };

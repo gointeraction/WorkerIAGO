@@ -13,12 +13,12 @@ export type Bindings = {
   ENVIRONMENT?: string;
 };
 
-// Tenant ID helper ÔÇö extracts from Hono context (set by tenantMiddleware)
+// Tenant ID helper — extracts from Hono context (set by tenantMiddleware)
 export function tId(c: any): string {
   return c.get('tenantId') || c.req.header('X-Tenant-ID') || getCookie(c, 'tenant_id') || 'default';
 }
 
-// Tenant info helper ÔÇö loads tenant name + list for the sidebar selector
+// Tenant info helper — loads tenant name + list for the sidebar selector
 export async function tInfo(c: any): Promise<{ id: string; name: string; tenants: { id: string; name: string; slug: string }[] }> {
   const id = tId(c);
   let name = 'Default';
@@ -33,7 +33,7 @@ export async function tInfo(c: any): Promise<{ id: string; name: string; tenants
   return { id, name, tenants };
 }
 
-// Render helper ÔÇö async wrapper that auto-injects tenant info into layout
+// Render helper — async wrapper that auto-injects tenant info into layout
 export async function renderPage(c: any, title: string, activeTab: string, body: string): Promise<Response> {
   const ti = await tInfo(c);
   return c.html(layout(title, activeTab, body, ti));
@@ -130,7 +130,7 @@ export interface UsageRow {
 }
 
 
-// Session token helper ÔÇö HMAC-signed cookie value "<id>:<hmac>"
+// Session token helper — HMAC-signed cookie value "<id>:<hmac>"
 export const SESSION_SECRET = 'workeriago-session-secret-v2'; // overridden by ADMIN_PASSWORD if set
 
 export function signSession(id: string, secret: string): string {
@@ -152,7 +152,7 @@ export function getSessionSecret(env: Bindings): string {
   return env.ADMIN_PASSWORD || SESSION_SECRET;
 }
 
-// CSRF helper ÔÇö issue and verify tokens. Stored in cookie `admin_csrf`.
+// CSRF helper — issue and verify tokens. Stored in cookie `admin_csrf`.
 export function issueCsrfToken(c: any): string {
   const existing = getCookie(c, 'admin_csrf');
   if (existing) return existing;
@@ -315,7 +315,7 @@ export const layout = (title: string, activeTab: string, body: string, tenantInf
         </a>
         <a href="/admin/campaigns" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'campaigns' ? 'active' : ''}">
           <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5.882V19.118a1 1 0 01-1.707.707L4.414 15H2a1 1 0 01-1-1v-4a1 1 0 011-1h2.414l4.879-4.825A1 1 0 0111 5.882zM15 9a3 3 0 010 6M19.418 4.582a9 9 0 010 12.836"/></svg>
-          <span>Campa├▒as</span>
+          <span>Campañas</span>
         </a>
         <a href="/admin/costs" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'costs' ? 'active' : ''}">
           <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -355,7 +355,7 @@ export const layout = (title: string, activeTab: string, body: string, tenantInf
         </a>
         <a href="/admin/config" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gim-neutral-600 ${activeTab === 'config' ? 'active' : ''}">
           <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-          <span>Configuraci├│n</span>
+          <span>Configuración</span>
         </a>
       </nav>
       
@@ -377,11 +377,11 @@ export const layout = (title: string, activeTab: string, body: string, tenantInf
           <span>Sistema activo</span>
         </div>
         <div class="mt-2 text-xs text-gim-neutral-400">
-          ├Ültima actualizaci├│n: <span id="last-update">--</span>
+          Última actualización: <span id="last-update">--</span>
         </div>
         <a href="/admin/logout" class="mt-3 flex items-center gap-2 text-sm text-gim-neutral-400 hover:text-red-500 transition-colors">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-          Cerrar sesi├│n
+          Cerrar sesión
         </a>
       </div>
     </aside>
@@ -406,9 +406,9 @@ export const layout = (title: string, activeTab: string, body: string, tenantInf
       updateLastUpdate();
       setInterval(updateLastUpdate, 30000);
 
-      // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
-      // TENANT INTERCEPTOR ÔÇö injects X-Tenant-ID into ALL fetch() and htmx calls
-      // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+      // ═══════════════════════════════════════════════════════════════════════════════
+      // TENANT INTERCEPTOR — injects X-Tenant-ID into ALL fetch() and htmx calls
+      // ═══════════════════════════════════════════════════════════════════════════════
       (function() {
         var TENANT_ID = '${currentTenantId}';
 

@@ -6,9 +6,9 @@ import { Bindings, tId, renderPage, auditLog, getSessionSecret, signSession, ver
 export function registerIntegrationsRoutes(admin: Hono<{ Bindings: Bindings }>) {
   
 
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
-// AI GATEWAY ÔÇö Analytics & Observability
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// ═══════════════════════════════════════════════════════════════════════════════
+// AI GATEWAY — Analytics & Observability
+// ═══════════════════════════════════════════════════════════════════════════════
 
 admin.get('/ai-gateway', async (c) => {
   const modelFilter = c.req.query('model') || '';
@@ -92,7 +92,7 @@ admin.get('/ai-gateway', async (c) => {
       <!-- Token Usage -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
-          <h3 class="font-bold text-gim-neutral-900 mb-4">Tokens (30 d├¡as)</h3>
+          <h3 class="font-bold text-gim-neutral-900 mb-4">Tokens (30 días)</h3>
           <div class="space-y-3">
             <div class="flex justify-between"><span class="text-gim-neutral-500">Input</span><span class="font-semibold">${stats.totalTokensIn.toLocaleString()}</span></div>
             <div class="flex justify-between"><span class="text-gim-neutral-500">Output</span><span class="font-semibold">${stats.totalTokensOut.toLocaleString()}</span></div>
@@ -106,17 +106,17 @@ admin.get('/ai-gateway', async (c) => {
               <div class="flex justify-between items-center">
                 <span class="text-sm text-gim-neutral-700">${model}</span>
                 <div class="text-right">
-                  <span class="text-xs text-gim-neutral-500">${data.requests} reqs ┬À $${data.cost.toFixed(4)}</span>
+                  <span class="text-xs text-gim-neutral-500">${data.requests} reqs · $${data.cost.toFixed(4)}</span>
                 </div>
               </div>
-            `).join('') || '<div class="text-sm text-gim-neutral-400">Sin datos a├║n</div>'}
+            `).join('') || '<div class="text-sm text-gim-neutral-400">Sin datos aún</div>'}
           </div>
         </div>
       </div>
 
       <!-- Recent Logs -->
       <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
-        <h3 class="font-bold text-gim-neutral-900 ├▒mb-4">Logs Recientes</h3>
+        <h3 class="font-bold text-gim-neutral-900 ñmb-4">Logs Recientes</h3>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
@@ -134,14 +134,14 @@ admin.get('/ai-gateway', async (c) => {
                 <tr class="border-b border-gim-neutral-50 hover:bg-gim-neutral-50">
                   <td class="py-3 text-gim-neutral-700">${l.created_at}</td>
                   <td class="py-3 font-mono text-xs text-gim-neutral-600">${l.model?.split('/').pop()}</td>
-                  <td class="py-3 text-gim-neutral-700">${l.tokens_input || 0} ÔåÆ ${l.tokens_output || 0}</td>
+                  <td class="py-3 text-gim-neutral-700">${l.tokens_input || 0} → ${l.tokens_output || 0}</td>
                   <td class="py-3 text-gim-neutral-700">${l.latency_ms || 0}ms</td>
                   <td class="py-3 text-gim-neutral-700">$${(l.cost_usd || 0).toFixed(6)}</td>
                   <td class="py-3">
                     <span class="px-2 py-0.5 rounded-full text-xs ${l.status === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}">${l.status}</span>
                   </td>
                 </tr>
-              `).join('') || '<tr><td colspan="6" class="py-8 text-center text-gim-neutral-400">Sin logs a├║n</td></tr>'}
+              `).join('') || '<tr><td colspan="6" class="py-8 text-center text-gim-neutral-400">Sin logs aún</td></tr>'}
             </tbody>
           </table>
         </div>
@@ -162,9 +162,9 @@ admin.post('/ai-gateway/purge', async (c) => {
 
   
 
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
-// CONNECTORS ÔÇö External service integrations
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONNECTORS — External service integrations
+// ═══════════════════════════════════════════════════════════════════════════════
 
 admin.get('/connectors', async (c) => {
   let connectors: any[] = [];
@@ -174,8 +174,8 @@ admin.get('/connectors', async (c) => {
 
   const available = [
     { type: 'google_drive', name: 'Google Drive', icon: 'GDrive', description: 'Documentos, PDFs, Sheets de Google Drive' },
-    { type: 'notion', name: 'Notion', icon: 'Notion', description: 'P├íginas y bases de datos de Notion' },
-    { type: 'rss', name: 'RSS Feed', icon: 'RSS', description: 'Sigue feeds RSS y sincroniza art├¡culos' },
+    { type: 'notion', name: 'Notion', icon: 'Notion', description: 'Páginas y bases de datos de Notion' },
+    { type: 'rss', name: 'RSS Feed', icon: 'RSS', description: 'Sigue feeds RSS y sincroniza artículos' },
     { type: 'webhook', name: 'Webhook', icon: 'Hook', description: 'Recibe datos de cualquier API externa' },
   ];
 
@@ -198,7 +198,7 @@ admin.get('/connectors', async (c) => {
               <div class="font-semibold text-gim-neutral-900 mb-1">${a.name}</div>
               <div class="text-xs text-gim-neutral-500 mb-4">${a.description}</div>
               ${configuredTypes.includes(a.type)
-                ? `<span class="px-3 py-1 rounded-full text-xs bg-green-100 text-green-600 font-medium">Ô£ô Configurado</span>`
+                ? `<span class="px-3 py-1 rounded-full text-xs bg-green-100 text-green-600 font-medium">✓ Configurado</span>`
                 : `<button onclick="configureConnector('${a.type}')" class="bg-gradient-cyan rounded-lg px-4 py-2 text-xs font-semibold text-white hover:opacity-90 transition">+ Configurar</button>`
               }
             </div>
@@ -227,7 +227,7 @@ admin.get('/connectors', async (c) => {
                   <div class="text-gim-neutral-500 text-sm mb-3">${avail?.description || conn.type}</div>
                   <div class="space-y-2 mb-4">
                     <div class="flex justify-between text-sm">
-                      <span class="text-gim-neutral-500">├Ültima sync</span>
+                      <span class="text-gim-neutral-500">Última sync</span>
                       <span class="text-gim-neutral-700">${conn.last_sync_at || 'Nunca'}</span>
                     </div>
                     <div class="flex justify-between text-sm">
@@ -242,7 +242,7 @@ admin.get('/connectors', async (c) => {
                   <div class="flex gap-2">
                     <button onclick="syncConnector('${conn.id}')" class="flex-1 bg-gim-cyan-50 hover:bg-gim-cyan-100 rounded-xl py-2 text-sm font-semibold text-gim-cyan-600 transition">Sincronizar</button>
                     <button class="bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-700"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></button>
-                    <button hx-delete="/admin/connectors/${conn.id}" hx-confirm="┬┐Eliminar conector?" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-3 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                    <button hx-delete="/admin/connectors/${conn.id}" hx-confirm="¿Eliminar conector?" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-3 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                   </div>
                 </div>
               `;
@@ -340,9 +340,9 @@ admin.delete('/connectors/:id', async (c) => {
 
   
 
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
-// CHANNELS ÔÇö Configure 8 communication channels
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// ═══════════════════════════════════════════════════════════════════════════════
+// CHANNELS — Configure 8 communication channels
+// ═══════════════════════════════════════════════════════════════════════════════
 
 admin.get('/channels', async (c) => {
   let channels: any[] = [];
@@ -366,7 +366,7 @@ admin.get('/channels', async (c) => {
     <div class="fade-in">
       <div class="mb-8">
         <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-cyan">Canales</span></h1>
-        <p class="text-gim-neutral-500">Configura los canales de comunicaci├│n</p>
+        <p class="text-gim-neutral-500">Configura los canales de comunicación</p>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -420,7 +420,7 @@ admin.get('/channels', async (c) => {
 
         function configureChannel(type, name) {
           document.getElementById('channel-modal-title').textContent = 'Configurar ' + name;
-          const fields = channelConfigs[type] || '<p class="text-gim-neutral-500">Configuraci├│n no disponible</p>';
+          const fields = channelConfigs[type] || '<p class="text-gim-neutral-500">Configuración no disponible</p>';
           document.getElementById('channel-modal-content').innerHTML =
             '<form method="POST" action="/admin/channels/save" class="space-y-4">' +
               '<input type="hidden" name="channel_type" value="' + type + '">' +
@@ -482,9 +482,9 @@ admin.post('/channels/:type/deactivate', async (c) => {
 
   
 
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
-// VOICE ÔÇö Voice Agent settings
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// ═══════════════════════════════════════════════════════════════════════════════
+// VOICE — Voice Agent settings
+// ═══════════════════════════════════════════════════════════════════════════════
 
 admin.get('/voice', async (c) => {
   let voiceConfig: any = {};
@@ -516,16 +516,16 @@ admin.get('/voice', async (c) => {
               <div>
                 <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Modelo STT</label>
                 <select name="stt_model" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400">
-                  <option value="whisper-tiny" ${voiceConfig.stt_model === 'whisper-tiny' ? 'selected' : ''}>Whisper Tiny (r├ípido, ~$0.001/min)</option>
+                  <option value="whisper-tiny" ${voiceConfig.stt_model === 'whisper-tiny' ? 'selected' : ''}>Whisper Tiny (rápido, ~$0.001/min)</option>
                   <option value="whisper-large" ${voiceConfig.stt_model === 'whisper-large' ? 'selected' : ''}>Whisper Large (mejor calidad, ~$0.006/min)</option>
                 </select>
               </div>
               <div>
                 <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Idioma por defecto</label>
                 <select name="stt_language" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400">
-                  <option value="es" ${voiceConfig.stt_language === 'es' ? 'selected' : ''}>Espa├▒ol</option>
+                  <option value="es" ${voiceConfig.stt_language === 'es' ? 'selected' : ''}>Español</option>
                   <option value="en" ${voiceConfig.stt_language === 'en' ? 'selected' : ''}>English</option>
-                  <option value="pt" ${voiceConfig.stt_language === 'pt' ? 'selected' : ''}>Portugu├®s</option>
+                  <option value="pt" ${voiceConfig.stt_language === 'pt' ? 'selected' : ''}>Portugués</option>
                   <option value="auto" ${voiceConfig.stt_language === 'auto' ? 'selected' : ''}>Auto-detect</option>
                 </select>
               </div>
@@ -570,7 +570,7 @@ admin.get('/voice', async (c) => {
 
         <div class="flex justify-end">
           <button type="submit" class="bg-gradient-orange rounded-xl px-8 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
-            Guardar Configuraci├│n
+            Guardar Configuración
           </button>
         </div>
       </form>
@@ -580,7 +580,7 @@ admin.get('/voice', async (c) => {
         <div class="flex gap-3 mb-4">
           <input id="tts-test-text" placeholder="Escribe texto para sintetizar..." class="flex-1 bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400">
           <button onclick="playTTS()" class="bg-gradient-cyan rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition">Probar TTS</button>
-          <button onclick="stopTTS()" class="bg-gim-neutral-100 rounded-xl px-6 py-3 font-semibold text-gim-neutral-600 hover:bg-gim-neutral-200 transition">ÔÅ╣´©Å Stop</button>
+          <button onclick="stopTTS()" class="bg-gim-neutral-100 rounded-xl px-6 py-3 font-semibold text-gim-neutral-600 hover:bg-gim-neutral-200 transition">⏹️ Stop</button>
         </div>
         <div id="tts-status" class="text-sm text-gim-neutral-500"></div>
       </div>
@@ -643,12 +643,12 @@ admin.post('/voice/save', async (c) => {
 admin.post('/voice/test-tts', async (c) => {
   const form = await c.req.formData();
   const text = String(form.get('text') || '').trim();
-  if (!text) return c.html(layout('Error', 'voice', '<div class="p-8 text-center text-red-500">Texto vac├¡o</div>'), 400);
+  if (!text) return c.html(layout('Error', 'voice', '<div class="p-8 text-center text-red-500">Texto vacío</div>'), 400);
 
-  // Piper TTS no est├í disponible en Workers AI directamente; usamos el sintetizador m├ís cercano
+  // Piper TTS no está disponible en Workers AI directamente; usamos el sintetizador más cercano
   try {
     if (c.env.AI) {
-      // Workers AI no tiene TTS de textoÔåÆaudio, devolvemos confirmaci├│n de que el texto se procesar├¡a
+      // Workers AI no tiene TTS de texto→audio, devolvemos confirmación de que el texto se procesaría
       return renderPage(c, 'Test TTS', 'voice', `
         <div class="fade-in">
           <div class="bg-white rounded-2xl p-8 border border-gim-neutral-200 shadow-sm max-w-2xl mx-auto mt-8">
@@ -656,8 +656,8 @@ admin.post('/voice/test-tts', async (c) => {
             <div class="bg-gim-neutral-50 rounded-xl p-6 mb-4">
               <p class="text-gim-neutral-700">${text}</p>
             </div>
-            <p class="text-sm text-gim-neutral-500 mb-4">Texto procesado con voces Piper. El audio se reproducir├¡a autom├íticamente en producci├│n.</p>
-            <a href="/admin/voice" class="inline-block bg-gradient-cyan rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition">ÔåÉ Volver</a>
+            <p class="text-sm text-gim-neutral-500 mb-4">Texto procesado con voces Piper. El audio se reproduciría automáticamente en producción.</p>
+            <a href="/admin/voice" class="inline-block bg-gradient-cyan rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition">← Volver</a>
           </div>
         </div>
       `);

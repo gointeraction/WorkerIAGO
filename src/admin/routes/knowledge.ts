@@ -58,7 +58,7 @@ admin.delete('/kb/:id', async (c) => {
           <button onclick="editDocument('${d.id}', '${d.title}', '${d.category || ''}', '${(d.content || '').replace(/'/g, "\\'")}')"
                   class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
           <button hx-delete="/admin/kb/${d.id}"
-                  hx-confirm="â”¬â”Eliminar este documento?"
+                  hx-confirm="¿Eliminar este documento?"
                   hx-target="#kb-list"
                   class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-red-100 transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
         </div>
@@ -66,20 +66,20 @@ admin.delete('/kb/:id', async (c) => {
       <div class="font-semibold text-gim-neutral-900 mb-2">${d.title}</div>
       <div class="text-sm text-gim-neutral-500 mb-4 line-clamp-2">${(d.content || '').substring(0, 150)}...</div>
       <div class="flex gap-2">
-        <span class="px-3 py-1 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600">${d.category || 'Sin categorâ”œÂ¡a'}</span>
+        <span class="px-3 py-1 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600">${d.category || 'Sin categoría'}</span>
         <span class="text-xs text-gim-neutral-400">${d.view_count || 0} vistas</span>
       </div>
     </div>
-  `).join('') || '<div class="col-span-3 text-gim-neutral-400 text-center py-12">No hay documentos. â”¬Ã­Crea el primero!</div>';
+  `).join('') || '<div class="col-span-3 text-gim-neutral-400 text-center py-12">No hay documentos. ¡Crea el primero!</div>';
 
   return c.html(html);
 });
 
   
 
-// Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰
-// KNOWLEDGE BASE Ã”Ã‡Ã¶ RAG Management
-// Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰Ã”Ã²Ã‰
+// ═══════════════════════════════════════════════════════════════════════════════
+// KNOWLEDGE BASE — RAG Management
+// ═══════════════════════════════════════════════════════════════════════════════
 
 admin.get('/knowledge', async (c) => {
   let docs: any[] = [];
@@ -112,7 +112,7 @@ admin.get('/knowledge', async (c) => {
           <button onclick="searchKB()" class="bg-gim-cyan-500 hover:bg-gim-cyan-600 text-white rounded-xl px-6 py-3 font-semibold transition">Buscar</button>
         </div>
         <div id="kb-search-results" class="hidden mt-4 bg-white rounded-2xl border border-gim-neutral-200 p-6 shadow-sm">
-          <h3 class="text-sm font-semibold text-gim-neutral-700 mb-3">Resultados de bâ”œâ•‘squeda semâ”œÃ­ntica</h3>
+          <h3 class="text-sm font-semibold text-gim-neutral-700 mb-3">Resultados de búsqueda semántica</h3>
           <div id="kb-search-list"></div>
         </div>
       </div>
@@ -165,12 +165,12 @@ admin.get('/knowledge', async (c) => {
           <div id="upload-file" class="upload-tab">
             <form hx-post="/admin/knowledge/upload" hx-target="#kb-docs-grid" hx-swap="innerHTML" enctype="multipart/form-data">
               <div class="mb-4">
-                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Tâ”œÂ¡tulo</label>
+                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Título</label>
                 <input type="text" name="title" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors" placeholder="Nombre del documento">
               </div>
               <div class="mb-4">
-                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Categorâ”œÂ¡a</label>
-                <input type="text" name="category" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors" placeholder="ej: productos, FAQ, polâ”œÂ¡ticas">
+                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Categoría</label>
+                <input type="text" name="category" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors" placeholder="ej: productos, FAQ, políticas">
               </div>
               <div class="mb-4">
                 <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Archivo</label>
@@ -186,7 +186,7 @@ admin.get('/knowledge', async (c) => {
           <div id="upload-url" class="upload-tab hidden">
             <form hx-post="/admin/knowledge/import-url" hx-target="#kb-docs-grid" hx-swap="innerHTML">
               <div class="mb-4">
-                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Tâ”œÂ¡tulo</label>
+                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Título</label>
                 <input type="text" name="title" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors">
               </div>
               <div class="mb-4">
@@ -194,7 +194,7 @@ admin.get('/knowledge', async (c) => {
                 <input type="url" name="url" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors" placeholder="https://...">
               </div>
               <div class="mb-4">
-                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Categorâ”œÂ¡a</label>
+                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Categoría</label>
                 <input type="text" name="category" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors">
               </div>
               <button type="submit" class="w-full bg-gradient-cyan rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">Importar y Procesar</button>
@@ -205,16 +205,16 @@ admin.get('/knowledge', async (c) => {
           <div id="upload-text" class="upload-tab hidden">
             <form hx-post="/admin/knowledge/save-text" hx-target="#kb-docs-grid" hx-swap="innerHTML">
               <div class="mb-4">
-                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Tâ”œÂ¡tulo</label>
+                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Título</label>
                 <input type="text" name="title" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors">
               </div>
               <div class="mb-4">
-                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Categorâ”œÂ¡a</label>
+                <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Categoría</label>
                 <input type="text" name="category" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors">
               </div>
               <div class="mb-4">
                 <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Contenido</label>
-                <textarea name="content" rows="8" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-gim-cyan-400 transition-colors" placeholder="Pega o escribe el contenido aquâ”œÂ¡..."></textarea>
+                <textarea name="content" rows="8" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-gim-cyan-400 transition-colors" placeholder="Pega o escribe el contenido aquí..."></textarea>
               </div>
               <button type="submit" class="w-full bg-gradient-cyan rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">Guardar y Procesar</button>
             </form>

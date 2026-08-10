@@ -42,10 +42,10 @@ const auth = async (c: any, next: any) => {
 
   
 
-// CSRF middleware ÔÇö verify on POSTs
+// CSRF middleware — verify on POSTs
 const csrfCheck = async (c: any, next: any) => {
   if (c.req.method !== 'POST') return next();
-  // No CSRF requirement in demo mode (ADMIN_PASSWORD not set) ÔÇö skip entirely to avoid consuming formData
+  // No CSRF requirement in demo mode (ADMIN_PASSWORD not set) — skip entirely to avoid consuming formData
   if (!c.env.ADMIN_PASSWORD) return next();
   const cookieToken = getCookie(c, 'admin_csrf');
   // JSON APIs check header; form check formData field
@@ -63,7 +63,7 @@ const csrfCheck = async (c: any, next: any) => {
   if (cookieToken && token && cookieToken === token) {
     return next();
   }
-  return c.json({ error: 'CSRF token inv├ílido o faltante' }, 403);
+  return c.json({ error: 'CSRF token inválido o faltante' }, 403);
 };
 
   
@@ -86,17 +86,17 @@ admin.get('/config', async (c) => {
     settings = result.results || [];
   } catch (e) { settings = []; }
   
-  return renderPage(c, 'Configuraci├│n', 'config', `
+  return renderPage(c, 'Configuración', 'config', `
     <div class="fade-in">
       <div class="mb-8">
         <h1 class="text-4xl font-extrabold mb-2">
-          <span class="text-gradient-orange">Configuraci├│n</span>
+          <span class="text-gradient-orange">Configuración</span>
         </h1>
         <p class="text-gim-neutral-500">Ajustes generales del bot</p>
       </div>
       
       <div class="bg-white rounded-2xl p-8 border border-gim-neutral-200 shadow-sm">
-        <h2 class="text-xl font-bold text-gim-neutral-900 mb-6">Configuraci├│n General</h2>
+        <h2 class="text-xl font-bold text-gim-neutral-900 mb-6">Configuración General</h2>
         
         <form hx-post="/admin/config/save" hx-swap="none">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -108,16 +108,16 @@ admin.get('/config', async (c) => {
             <div>
               <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Idioma</label>
               <select name="language" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors">
-                <option value="es" selected>Espa├▒ol</option>
+                <option value="es" selected>Español</option>
                 <option value="en">English</option>
-                <option value="pt">Portugu├¬s</option>
+                <option value="pt">Português</option>
               </select>
             </div>
             <div>
               <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Modelo por Defecto</label>
               <select name="default_model" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors">
                 <option value="@cf/meta/llama-3.1-8b-instruct-fp8" selected>Llama 3.1 8B</option>
-                <option value="@cf/meta/llama-3.2-3b-instruct">Llama 3.2 3B (R├ípido)</option>
+                <option value="@cf/meta/llama-3.2-3b-instruct">Llama 3.2 3B (Rápido)</option>
                 <option value="@cf/meta/llama-3.3-70b-instruct-fp8-fast">Llama 3.3 70B (Mejor)</option>
               </select>
             </div>
@@ -132,11 +132,11 @@ admin.get('/config', async (c) => {
           <div class="mb-6">
             <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">System Prompt por Defecto</label>
             <textarea name="system_prompt" rows="4"
-                      class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-gim-orange-400 transition-colors">${settings.find((s: any) => s.key === 'system_prompt')?.value || 'Eres un asistente ├║til y amigable.'}</textarea>
+                      class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-gim-orange-400 transition-colors">${settings.find((s: any) => s.key === 'system_prompt')?.value || 'Eres un asistente útil y amigable.'}</textarea>
           </div>
           
           <button type="submit" class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
-            Guardar Configuraci├│n
+            Guardar Configuración
           </button>
         </form>
       </div>
@@ -169,9 +169,9 @@ admin.post('/config/save', async (c) => {
 
   
 
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// ═══════════════════════════════════════════════════════════════════════════════
 // A/B TESTING
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// ═══════════════════════════════════════════════════════════════════════════════
 
 admin.get('/ab-testing', async (c) => {
   let tests: any[] = [];
@@ -201,7 +201,7 @@ admin.get('/ab-testing', async (c) => {
               <input name="name" required class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-purple-400 outline-none" placeholder="Test de bienvenida">
             </div>
             <div>
-              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Descripci├│n</label>
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Descripción</label>
               <textarea name="description" rows="2" class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-purple-400 outline-none" placeholder="Comparar respuesta formal vs informal"></textarea>
             </div>
             <div class="grid grid-cols-2 gap-3">
@@ -237,19 +237,19 @@ admin.get('/ab-testing', async (c) => {
                   ${t.status}
                 </span>
               </div>
-              <div class="text-gim-neutral-500 text-sm mb-4">${t.description || 'Sin descripci├│n'}</div>
+              <div class="text-gim-neutral-500 text-sm mb-4">${t.description || 'Sin descripción'}</div>
               <div class="space-y-2 mb-4">
                 ${variants.map((v: any) => `
                   <div class="flex justify-between text-sm bg-gim-neutral-50 rounded-lg px-3 py-2">
                     <span class="text-gim-neutral-700">${v.name}</span>
-                    <span class="text-gim-neutral-500">${v.impressions || 0} imp ┬À ${v.conversions || 0} conv</span>
+                    <span class="text-gim-neutral-500">${v.impressions || 0} imp · ${v.conversions || 0} conv</span>
                   </div>
                 `).join('')}
               </div>
               <div class="flex gap-2">
-                ${t.status === 'draft' ? `<form method="POST" action="/admin/ab-testing/${t.id}/start" class="flex-1"><button class="w-full bg-green-100 hover:bg-green-200 rounded-xl py-2 text-sm font-medium transition text-green-600">ÔûÂ´©Å Iniciar</button></form>` : ''}
-                ${t.status === 'running' ? `<form method="POST" action="/admin/ab-testing/${t.id}/stop" class="flex-1"><button class="w-full bg-yellow-100 hover:bg-yellow-200 rounded-xl py-2 text-sm font-medium transition text-yellow-600">ÔÅ╣´©Å Parar</button></form>` : ''}
-                <form method="POST" action="/admin/ab-testing/${t.id}/delete" onsubmit="return confirm('┬┐Eliminar este test?')">
+                ${t.status === 'draft' ? `<form method="POST" action="/admin/ab-testing/${t.id}/start" class="flex-1"><button class="w-full bg-green-100 hover:bg-green-200 rounded-xl py-2 text-sm font-medium transition text-green-600">▶️ Iniciar</button></form>` : ''}
+                ${t.status === 'running' ? `<form method="POST" action="/admin/ab-testing/${t.id}/stop" class="flex-1"><button class="w-full bg-yellow-100 hover:bg-yellow-200 rounded-xl py-2 text-sm font-medium transition text-yellow-600">⏹️ Parar</button></form>` : ''}
+                <form method="POST" action="/admin/ab-testing/${t.id}/delete" onsubmit="return confirm('¿Eliminar este test?')">
                   <button class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                 </form>
               </div>
@@ -329,9 +329,9 @@ admin.post('/ab-testing/:id/delete', async (c) => {
 
   
 
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
-// MONITORING ÔÇö Health checks + alertas
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// ═══════════════════════════════════════════════════════════════════════════════
+// MONITORING — Health checks + alertas
+// ═══════════════════════════════════════════════════════════════════════════════
 
 admin.get('/monitoring', async (c) => {
   let alerts: any[] = [];
@@ -348,10 +348,10 @@ admin.get('/monitoring', async (c) => {
       <div class="flex justify-between items-center mb-8">
         <div>
           <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-orange">Monitoring</span></h1>
-          <p class="text-gim-neutral-500">Health checks, alertas y m├®tricas del sistema</p>
+          <p class="text-gim-neutral-500">Health checks, alertas y métricas del sistema</p>
         </div>
         <button onclick="runHealthCheck()" class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
-          ­ƒ®║ Health Check
+          🩺 Health Check
         </button>
       </div>
 
@@ -359,23 +359,23 @@ admin.get('/monitoring', async (c) => {
       <div id="health-status" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         <div class="bg-white rounded-xl p-4 border border-gim-neutral-200 shadow-sm text-center">
           <div class="text-sm text-gim-neutral-500 mb-1">D1</div>
-          <div id="h-d1" class="text-2xl font-bold text-green-500">ÔùÅ</div>
+          <div id="h-d1" class="text-2xl font-bold text-green-500">●</div>
         </div>
         <div class="bg-white rounded-xl p-4 border border-gim-neutral-200 shadow-sm text-center">
           <div class="text-sm text-gim-neutral-500 mb-1">KV</div>
-          <div id="h-kv" class="text-2xl font-bold text-green-500">ÔùÅ</div>
+          <div id="h-kv" class="text-2xl font-bold text-green-500">●</div>
         </div>
         <div class="bg-white rounded-xl p-4 border border-gim-neutral-200 shadow-sm text-center">
           <div class="text-sm text-gim-neutral-500 mb-1">Vectorize</div>
-          <div id="h-vec" class="text-2xl font-bold text-green-500">ÔùÅ</div>
+          <div id="h-vec" class="text-2xl font-bold text-green-500">●</div>
         </div>
         <div class="bg-white rounded-xl p-4 border border-gim-neutral-200 shadow-sm text-center">
           <div class="text-sm text-gim-neutral-500 mb-1">AI</div>
-          <div id="h-ai" class="text-2xl font-bold text-green-500">ÔùÅ</div>
+          <div id="h-ai" class="text-2xl font-bold text-green-500">●</div>
         </div>
         <div class="bg-white rounded-xl p-4 border border-gim-neutral-200 shadow-sm text-center">
           <div class="text-sm text-gim-neutral-500 mb-1">R2</div>
-          <div id="h-r2" class="text-2xl font-bold text-green-500">ÔùÅ</div>
+          <div id="h-r2" class="text-2xl font-bold text-green-500">●</div>
         </div>
       </div>
 
@@ -404,7 +404,7 @@ admin.get('/monitoring', async (c) => {
                   <td class="py-3 text-gim-neutral-700 max-w-xs truncate">${a.message}</td>
                   <td class="py-3">
                     ${a.acknowledged
-                      ? '<span class="text-xs text-gim-neutral-400">Ô£ô Ack</span>'
+                      ? '<span class="text-xs text-gim-neutral-400">✓ Ack</span>'
                       : `<form method="POST" action="/admin/monitoring/${a.id}/ack" class="inline"><button class="text-xs text-gim-orange-500 hover:text-gim-orange-600 font-medium">Ack</button></form>`
                     }
                   </td>
@@ -433,14 +433,14 @@ admin.get('/monitoring', async (c) => {
 
       <script>
         async function runHealthCheck() {
-          document.querySelectorAll('#health-status .text-2xl').forEach(el => { el.textContent = 'Ôùï'; el.className = 'text-2xl font-bold text-gim-neutral-300'; });
+          document.querySelectorAll('#health-status .text-2xl').forEach(el => { el.textContent = '○'; el.className = 'text-2xl font-bold text-gim-neutral-300'; });
           try {
             const res = await fetch('/admin/api/health-check', { method: 'POST' });
             const data = await res.json();
             ['d1','kv','vec','ai','r2'].forEach(s => {
               const el = document.getElementById('h-' + s);
               const ok = data[s] === 'ok' || data[s] === true;
-              el.textContent = ok ? 'ÔùÅ' : 'Ôùï';
+              el.textContent = ok ? '●' : '○';
               el.className = 'text-2xl font-bold ' + (ok ? 'text-green-500' : 'text-red-500');
             });
             alert('Health check completado: ' + JSON.stringify(data));
@@ -496,7 +496,7 @@ admin.post('/api/health-check', async (c) => {
     if (downServices.length > 0) {
       await c.env.DB.prepare(
         'INSERT INTO monitoring_alerts (id, type, severity, message) VALUES (?, ?, ?, ?)'
-      ).bind(crypto.randomUUID(), 'health_check', 'critical', `Servicios ca├¡dos: ${downServices.join(', ')}`).run();
+      ).bind(crypto.randomUUID(), 'health_check', 'critical', `Servicios caídos: ${downServices.join(', ')}`).run();
     }
   } catch (e) {}
 
@@ -515,9 +515,9 @@ admin.post('/monitoring/:id/ack', async (c) => {
 
   
 
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// ═══════════════════════════════════════════════════════════════════════════════
 // BACKUPS
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// ═══════════════════════════════════════════════════════════════════════════════
 
 admin.get('/backups', async (c) => {
   let backups: any[] = [];
@@ -530,7 +530,7 @@ admin.get('/backups', async (c) => {
       <div class="flex justify-between items-center mb-8">
         <div>
           <h1 class="text-4xl font-extrabold mb-2"><span class="text-gradient-cyan">Backups</span></h1>
-          <p class="text-gim-neutral-500">Backup autom├ítico de D1 ÔåÆ R2</p>
+          <p class="text-gim-neutral-500">Backup automático de D1 → R2</p>
         </div>
         <div class="flex gap-3">
           <button onclick="createBackup()" class="bg-gradient-cyan rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-cyan-500/20">
@@ -541,7 +541,7 @@ admin.get('/backups', async (c) => {
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
-          <div class="text-gim-neutral-500 text-sm mb-2">├Ültimo Backup</div>
+          <div class="text-gim-neutral-500 text-sm mb-2">Último Backup</div>
           <div class="text-2xl font-extrabold text-gim-cyan-500">${backups[0]?.completed_at || 'Nunca'}</div>
         </div>
         <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
@@ -550,7 +550,7 @@ admin.get('/backups', async (c) => {
         </div>
         <div class="bg-white rounded-2xl p-6 border border-gim-neutral-200 shadow-sm">
           <div class="text-gim-neutral-500 text-sm mb-2">Retention</div>
-          <div class="text-2xl font-extrabold text-gim-purple-500">30 d├¡as</div>
+          <div class="text-2xl font-extrabold text-gim-purple-500">30 días</div>
         </div>
       </div>
 
@@ -565,7 +565,7 @@ admin.get('/backups', async (c) => {
                 <th class="text-left py-3 text-gim-neutral-500 font-medium">Status</th>
                 <th class="text-left py-3 text-gim-neutral-500 font-medium">Tablas</th>
                 <th class="text-left py-3 text-gim-neutral-500 font-medium">Filas</th>
-                <th class="text-left py-3 text-gim-neutral-500 font-medium">Tama├▒o</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Tamaño</th>
                 <th class="text-left py-3 text-gim-neutral-500 font-medium">Inicio</th>
               </tr>
             </thead>
@@ -583,16 +583,16 @@ admin.get('/backups', async (c) => {
                   <td class="py-3 text-gim-neutral-700 text-xs">${b.started_at}</td>
                   <td class="py-3">
                     <div class="flex gap-1">
-                      <form method="POST" action="/admin/api/backup/${b.id}/restore" onsubmit="return confirm('┬┐Restaurar este backup? Esto sobrescribir├í los datos actuales.')">
-                        <button class="text-xs text-gim-cyan-500 hover:text-gim-cyan-600 font-medium">Ôå║ Restaurar</button>
+                      <form method="POST" action="/admin/api/backup/${b.id}/restore" onsubmit="return confirm('¿Restaurar este backup? Esto sobrescribirá los datos actuales.')">
+                        <button class="text-xs text-gim-cyan-500 hover:text-gim-cyan-600 font-medium">↺ Restaurar</button>
                       </form>
-                      <form method="POST" action="/admin/api/backup/${b.id}/delete" onsubmit="return confirm('┬┐Eliminar este backup?')">
+                      <form method="POST" action="/admin/api/backup/${b.id}/delete" onsubmit="return confirm('¿Eliminar este backup?')">
                         <button class="text-xs text-red-500 hover:text-red-600 font-medium ml-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                       </form>
                     </div>
                   </td>
                 </tr>
-              `).join('') || '<tr><td colspan="7" class="py-8 text-center text-gim-neutral-400">Sin backups a├║n</td></tr>'}
+              `).join('') || '<tr><td colspan="7" class="py-8 text-center text-gim-neutral-400">Sin backups aún</td></tr>'}
             </tbody>
           </table>
         </div>
@@ -600,10 +600,10 @@ admin.get('/backups', async (c) => {
 
       <script>
         async function createBackup() {
-          if (!confirm('┬┐Crear backup completo de todas las tablas?')) return;
+          if (!confirm('¿Crear backup completo de todas las tablas?')) return;
           const btn = event.target;
           btn.disabled = true;
-          btn.textContent = 'ÔÅ│ Creando...';
+          btn.textContent = '⏳ Creando...';
           try {
             const res = await fetch('/admin/api/backup', { method: 'POST' });
             const data = await res.json();
@@ -715,9 +715,9 @@ admin.post('/api/backup/:id/delete', async (c) => {
 
   
 
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
-// TENANTS ÔÇö Multi-tenant management
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// ═══════════════════════════════════════════════════════════════════════════════
+// TENANTS — Multi-tenant management
+// ═══════════════════════════════════════════════════════════════════════════════
 
 admin.get('/tenants', async (c) => {
   let tenants: any[] = [];
@@ -755,7 +755,7 @@ admin.get('/tenants', async (c) => {
               <input name="owner_email" type="email" required class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none" placeholder="admin@empresa.com">
             </div>
             <div>
-              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Slug (identificador ├║nico)</label>
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Slug (identificador único)</label>
               <input name="slug" required pattern="[a-z0-9-]+" class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none font-mono" placeholder="mi-empresa">
             </div>
             <div>
@@ -801,18 +801,18 @@ admin.get('/tenants', async (c) => {
                 </div>
                 <div class="flex justify-between text-sm">
                   <span class="text-gim-neutral-500">Max Agentes</span>
-                  <span class="text-gim-neutral-700">${limits.max_agents === -1 ? 'Ôê×' : limits.max_agents}</span>
+                  <span class="text-gim-neutral-700">${limits.max_agents === -1 ? '∞' : limits.max_agents}</span>
                 </div>
               </div>
               <div class="flex gap-2">
                 <button onclick="editTenant('${t.id}', '${t.name}', '${t.owner_email}', '${t.slug}', '${t.plan}')" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">Editar</button>
-                <form method="POST" action="/admin/tenants/${t.id}/delete" onsubmit="return confirm('┬┐Eliminar este tenant?')">
+                <form method="POST" action="/admin/tenants/${t.id}/delete" onsubmit="return confirm('¿Eliminar este tenant?')">
                   <button class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                 </form>
               </div>
             </div>
           `;
-        }).join('') || '<div class="col-span-3 text-gim-neutral-400 text-center py-12">No hay tenants. La instancia est├í en modo single-tenant.</div>'}
+        }).join('') || '<div class="col-span-3 text-gim-neutral-400 text-center py-12">No hay tenants. La instancia está en modo single-tenant.</div>'}
       </div>
 
       <script>
@@ -897,9 +897,9 @@ admin.post('/tenants/:id/delete', async (c) => {
 
   
 
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
-// USERS ÔÇö RBAC management
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// ═══════════════════════════════════════════════════════════════════════════════
+// USERS — RBAC management
+// ═══════════════════════════════════════════════════════════════════════════════
 
 admin.get('/users', async (c) => {
   let users: any[] = [];
@@ -940,7 +940,7 @@ admin.get('/users', async (c) => {
           <div class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Nombre</label>
-              <input name="name" required class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none" placeholder="Juan P├®rez">
+              <input name="name" required class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none" placeholder="Juan Pérez">
             </div>
             <div>
               <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Email</label>
@@ -972,7 +972,7 @@ admin.get('/users', async (c) => {
           </div>
           <div class="p-4 bg-gim-neutral-50 rounded-xl">
             <div class="font-semibold text-sm text-gim-neutral-900">Admin</div>
-            <div class="text-xs text-gim-neutral-500 mt-1">Gesti├│n completa excepto usuarios</div>
+            <div class="text-xs text-gim-neutral-500 mt-1">Gestión completa excepto usuarios</div>
           </div>
           <div class="p-4 bg-gim-neutral-50 rounded-xl">
             <div class="font-semibold text-sm text-gim-neutral-900">Editor</div>
@@ -994,7 +994,7 @@ admin.get('/users', async (c) => {
                 <th class="text-left py-3 text-gim-neutral-500 font-medium">Nombre</th>
                 <th class="text-left py-3 text-gim-neutral-500 font-medium">Email</th>
                 <th class="text-left py-3 text-gim-neutral-500 font-medium">Rol</th>
-                <th class="text-left py-3 text-gim-neutral-500 font-medium">├Ültimo Login</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Último Login</th>
                 <th class="text-left py-3 text-gim-neutral-500 font-medium">Acciones</th>
               </tr>
             </thead>
@@ -1008,7 +1008,7 @@ admin.get('/users', async (c) => {
                   <td class="py-3">
                     <div class="flex gap-2">
                       <button onclick="editUser('${u.id}', '${u.name}', '${u.email}', '${u.role}')" class="text-gim-orange-500 hover:text-gim-orange-600 text-sm font-medium">Editar</button>
-                      <form method="POST" action="/admin/users/${u.id}/delete" onsubmit="return confirm('┬┐Eliminar este usuario?')" class="inline">
+                      <form method="POST" action="/admin/users/${u.id}/delete" onsubmit="return confirm('¿Eliminar este usuario?')" class="inline">
                         <button class="text-red-500 hover:text-red-600 text-sm font-medium">Eliminar</button>
                       </form>
                     </div>
@@ -1081,9 +1081,9 @@ admin.post('/users/:id/delete', async (c) => {
 
   
 
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// ═══════════════════════════════════════════════════════════════════════════════
 // AUDIT LOG
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// ═══════════════════════════════════════════════════════════════════════════════
 
 admin.get('/audit', async (c) => {
   let logs: any[] = [];
@@ -1118,7 +1118,7 @@ admin.get('/audit', async (c) => {
               <tr class="border-b border-gim-neutral-100">
                 <th class="text-left py-3 text-gim-neutral-500 font-medium">Fecha</th>
                 <th class="text-left py-3 text-gim-neutral-500 font-medium">Usuario</th>
-                <th class="text-left py-3 text-gim-neutral-500 font-medium">Acci├│n</th>
+                <th class="text-left py-3 text-gim-neutral-500 font-medium">Acción</th>
                 <th class="text-left py-3 text-gim-neutral-500 font-medium">Recurso</th>
                 <th class="text-left py-3 text-gim-neutral-500 font-medium">ID</th>
                 <th class="text-left py-3 text-gim-neutral-500 font-medium">IP</th>
@@ -1131,10 +1131,10 @@ admin.get('/audit', async (c) => {
                   <td class="py-3 text-gim-neutral-900">${l.user_email}</td>
                   <td class="py-3"><span class="px-2 py-0.5 rounded-full text-xs ${actionColors[l.action] || ''}">${actionLabels[l.action] || l.action}</span></td>
                   <td class="py-3 text-gim-neutral-700">${l.resource_type}</td>
-                  <td class="py-3 font-mono text-xs text-gim-neutral-500">${l.resource_id?.slice(0, 8) || 'ÔÇö'}</td>
-                  <td class="py-3 text-gim-neutral-500 text-xs">${l.ip_address || 'ÔÇö'}</td>
+                  <td class="py-3 font-mono text-xs text-gim-neutral-500">${l.resource_id?.slice(0, 8) || '—'}</td>
+                  <td class="py-3 text-gim-neutral-500 text-xs">${l.ip_address || '—'}</td>
                 </tr>
-              `).join('') || '<tr><td colspan="6" class="py-8 text-center text-gim-neutral-400">Sin logs de auditor├¡a</td></tr>'}
+              `).join('') || '<tr><td colspan="6" class="py-8 text-center text-gim-neutral-400">Sin logs de auditoría</td></tr>'}
             </tbody>
           </table>
         </div>

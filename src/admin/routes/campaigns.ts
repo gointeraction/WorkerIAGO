@@ -13,23 +13,23 @@ admin.get('/campaigns', async (c) => {
     campaigns = (await c.env.DB.prepare('SELECT * FROM campaigns WHERE tenant_id = ? ORDER BY created_at DESC').bind(tId(c)).all()).results || [];
   } catch (e) { campaigns = []; }
 
-  return renderPage(c, 'Campa├▒as', 'campaigns', `
+  return renderPage(c, 'Campañas', 'campaigns', `
     <div class="fade-in">
       <div class="flex justify-between items-center mb-8">
         <div>
           <h1 class="text-4xl font-extrabold mb-2">
-            <span class="text-gradient-orange">Campa├▒as</span>
+            <span class="text-gradient-orange">Campañas</span>
           </h1>
-          <p class="text-gim-neutral-500">${campaigns.length} campa├▒as creadas</p>
+          <p class="text-gim-neutral-500">${campaigns.length} campañas creadas</p>
         </div>
         <button onclick="document.getElementById('modal-campaign').classList.remove('hidden')" class="bg-gradient-orange rounded-xl px-6 py-3 font-semibold text-white hover:opacity-90 transition shadow-lg shadow-gim-orange-500/20">
-          + Nueva Campa├▒a
+          + Nueva Campaña
         </button>
       </div>
 
       <div id="modal-campaign" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <form method="POST" action="/admin/campaigns/save" class="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl border border-gim-neutral-200">
-          <h2 class="text-2xl font-bold mb-6"><span class="text-gradient-orange">Nueva Campa├▒a</span></h2>
+          <h2 class="text-2xl font-bold mb-6"><span class="text-gradient-orange">Nueva Campaña</span></h2>
           <div class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Nombre</label>
@@ -54,7 +54,7 @@ admin.get('/campaigns', async (c) => {
             </div>
           </div>
           <div class="flex gap-3 mt-6">
-            <button type="submit" class="flex-1 bg-gradient-orange rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">Crear Campa├▒a</button>
+            <button type="submit" class="flex-1 bg-gradient-orange rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">Crear Campaña</button>
             <button type="button" onclick="document.getElementById('modal-campaign').classList.add('hidden')" class="px-6 py-3 rounded-xl border border-gim-neutral-300 text-gim-neutral-600 hover:bg-gim-neutral-50 transition">Cancelar</button>
           </div>
         </form>
@@ -76,7 +76,7 @@ admin.get('/campaigns', async (c) => {
             <div class="space-y-2 mb-4">
               <div class="flex justify-between text-sm">
                 <span class="text-gim-neutral-500">Canal</span>
-                <span class="text-gim-neutral-700">${cmp.channel || 'ÔÇö'}</span>
+                <span class="text-gim-neutral-700">${cmp.channel || '—'}</span>
               </div>
               <div class="flex justify-between text-sm">
                 <span class="text-gim-neutral-500">Enviados</span>
@@ -88,14 +88,14 @@ admin.get('/campaigns', async (c) => {
               </div>
             </div>
             <div class="flex gap-2">
-              ${cmp.status === 'draft' ? `<form method="POST" action="/admin/campaigns/${cmp.id}/start" class="inline"><button class="flex-1 bg-green-50 hover:bg-green-100 rounded-xl py-2 text-sm font-semibold text-green-600 transition">ÔûÂ Iniciar</button></form>` : ''}
-              ${cmp.status === 'active' ? `<form method="POST" action="/admin/campaigns/${cmp.id}/stop" class="inline"><button class="flex-1 bg-red-50 hover:bg-red-100 rounded-xl py-2 text-sm font-semibold text-red-600 transition">ÔÅ╣ Detener</button></form>` : ''}
-              <form method="POST" action="/admin/campaigns/${cmp.id}/delete" onsubmit="return confirm('┬┐Eliminar campa├▒a?')" class="inline">
+              ${cmp.status === 'draft' ? `<form method="POST" action="/admin/campaigns/${cmp.id}/start" class="inline"><button class="flex-1 bg-green-50 hover:bg-green-100 rounded-xl py-2 text-sm font-semibold text-green-600 transition">▶ Iniciar</button></form>` : ''}
+              ${cmp.status === 'active' ? `<form method="POST" action="/admin/campaigns/${cmp.id}/stop" class="inline"><button class="flex-1 bg-red-50 hover:bg-red-100 rounded-xl py-2 text-sm font-semibold text-red-600 transition">⏹ Detener</button></form>` : ''}
+              <form method="POST" action="/admin/campaigns/${cmp.id}/delete" onsubmit="return confirm('¿Eliminar campaña?')" class="inline">
                 <button class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
               </form>
             </div>
           </div>
-        `).join('') || '<div class="col-span-2 bg-white rounded-2xl p-12 border border-gim-neutral-200 text-center shadow-sm"><div class="mb-4"><svg class="w-12 h-12 text-gim-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div><h2 class="text-xl font-bold text-gim-neutral-900 mb-2">Sin campa├▒as</h2><p class="text-gim-neutral-500">Crea tu primera campa├▒a masiva.</p></div>'}
+        `).join('') || '<div class="col-span-2 bg-white rounded-2xl p-12 border border-gim-neutral-200 text-center shadow-sm"><div class="mb-4"><svg class="w-12 h-12 text-gim-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div><h2 class="text-xl font-bold text-gim-neutral-900 mb-2">Sin campañas</h2><p class="text-gim-neutral-500">Crea tu primera campaña masiva.</p></div>'}
       </div>
     </div>
   `);

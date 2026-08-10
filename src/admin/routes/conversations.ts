@@ -70,9 +70,9 @@ admin.get('/conversations', async (c) => {
                   <span class="text-sm font-bold text-white">${c.channel === 'telegram' ? 'TG' : c.channel === 'whatsapp' ? 'WA' : 'WEB'}</span>
                 </div>
                 <div>
-                  <div class="font-semibold text-lg text-gim-neutral-900">${c.user_name || 'An├│nimo'}</div>
-                  <div class="text-gim-neutral-500">${c.channel} ┬À ${c.intent || 'sin clasificar'}</div>
-                  <div class="text-sm text-gim-neutral-400 mt-1">${c.message_count} mensajes ┬À ${new Date(c.updated_at).toLocaleString()}</div>
+                  <div class="font-semibold text-lg text-gim-neutral-900">${c.user_name || 'Anónimo'}</div>
+                  <div class="text-gim-neutral-500">${c.channel} · ${c.intent || 'sin clasificar'}</div>
+                  <div class="text-sm text-gim-neutral-400 mt-1">${c.message_count} mensajes · ${new Date(c.updated_at).toLocaleString()}</div>
                 </div>
               </div>
               <div class="flex items-center gap-3">
@@ -90,9 +90,9 @@ admin.get('/conversations', async (c) => {
       
       <!-- Pagination -->
       <div class="flex justify-center gap-2 mt-8">
-        ${page > 1 ? `<a href="/admin/conversations?page=${page - 1}" class="px-4 py-2 bg-white border border-gim-neutral-200 rounded-xl hover:bg-gim-neutral-50 transition font-medium text-sm">ÔåÉ Anterior</a>` : ''}
-        <span class="px-4 py-2 text-gim-neutral-500 text-sm">P├ígina ${page} de ${Math.ceil((total || 0) / limit)}</span>
-        ${page < Math.ceil((total || 0) / limit) ? `<a href="/admin/conversations?page=${page + 1}" class="px-4 py-2 bg-white border border-gim-neutral-200 rounded-xl hover:bg-gim-neutral-50 transition font-medium text-sm">Siguiente ÔåÆ</a>` : ''}
+        ${page > 1 ? `<a href="/admin/conversations?page=${page - 1}" class="px-4 py-2 bg-white border border-gim-neutral-200 rounded-xl hover:bg-gim-neutral-50 transition font-medium text-sm">← Anterior</a>` : ''}
+        <span class="px-4 py-2 text-gim-neutral-500 text-sm">Página ${page} de ${Math.ceil((total || 0) / limit)}</span>
+        ${page < Math.ceil((total || 0) / limit) ? `<a href="/admin/conversations?page=${page + 1}" class="px-4 py-2 bg-white border border-gim-neutral-200 rounded-xl hover:bg-gim-neutral-50 transition font-medium text-sm">Siguiente →</a>` : ''}
       </div>
       
       <!-- Thread Panel -->
@@ -116,7 +116,7 @@ admin.get('/conversations/:id/thread', async (c) => {
     ).bind(id, tId(c)).first();
     
     if (!conversation) {
-      return c.html('<div class="p-6 text-red-500">Conversaci├│n no encontrada</div>');
+      return c.html('<div class="p-6 text-red-500">Conversación no encontrada</div>');
     }
     
     const result = await c.env.DB.prepare(
@@ -124,7 +124,7 @@ admin.get('/conversations/:id/thread', async (c) => {
     ).bind(id).all<MessageRow>();
     messages = result.results || [];
   } catch (e) {
-    return c.html('<div class="p-6 text-red-500">Error al cargar conversaci├│n</div>');
+    return c.html('<div class="p-6 text-red-500">Error al cargar conversación</div>');
   }
   
   return c.html(`
@@ -135,8 +135,8 @@ admin.get('/conversations/:id/thread', async (c) => {
             <span class="text-sm font-bold text-white">${conversation.channel === 'telegram' ? 'TG' : 'WA'}</span>
           </div>
           <div>
-            <div class="font-semibold text-lg text-gim-neutral-900">${conversation.user_name || 'An├│nimo'}</div>
-            <div class="text-sm text-gim-neutral-500">${conversation.channel} ┬À ${conversation.intent}</div>
+            <div class="font-semibold text-lg text-gim-neutral-900">${conversation.user_name || 'Anónimo'}</div>
+            <div class="text-sm text-gim-neutral-500">${conversation.channel} · ${conversation.intent}</div>
           </div>
         </div>
         <button onclick="document.getElementById('thread-panel').classList.add('hidden')" 
@@ -155,7 +155,7 @@ admin.get('/conversations/:id/thread', async (c) => {
         </button>
         <button class="bg-gim-neutral-100 rounded-xl py-3 px-4 font-semibold hover:bg-gim-neutral-200 transition text-gim-neutral-700"
                 hx-post="/admin/conversations/${id}/pause">
-          ÔÅ©´©Å Pausar
+          ⏸️ Pausar
         </button>
         <button class="bg-red-50 rounded-xl py-3 px-4 font-semibold hover:bg-red-100 transition border border-red-200 text-red-600"
                 hx-post="/admin/conversations/${id}/escalate">
@@ -181,7 +181,7 @@ admin.get('/conversations/:id/thread', async (c) => {
               m.role === 'owner' ? 'bg-gradient-orange text-white' :
               'bg-gim-neutral-200 text-gim-neutral-900'
             }">
-              <div class="text-xs ${m.role === 'owner' ? 'text-white/70' : 'text-gim-neutral-500'} mb-2">${m.role} ┬À ${new Date(m.created_at).toLocaleTimeString()}</div>
+              <div class="text-xs ${m.role === 'owner' ? 'text-white/70' : 'text-gim-neutral-500'} mb-2">${m.role} · ${new Date(m.created_at).toLocaleTimeString()}</div>
               <div class="text-sm">${m.content}</div>
             </div>
           </div>
@@ -240,7 +240,7 @@ admin.get('/tickets', async (c) => {
             <div class="flex justify-between items-start">
               <div class="flex-1">
                 <div class="font-semibold text-lg text-gim-neutral-900 mb-2">${t.title}</div>
-                <div class="text-gim-neutral-500 mb-4">${t.description || 'Sin descripci├│n'}</div>
+                <div class="text-gim-neutral-500 mb-4">${t.description || 'Sin descripción'}</div>
                 <div class="flex gap-3">
                   <span class="px-3 py-1 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600">${t.category || 'general'}</span>
                   <span class="px-3 py-1 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600">${t.agent_name || 'N/A'}</span>
@@ -326,8 +326,8 @@ admin.get('/leads', async (c) => {
                   <svg class="w-5 h-5 text-gim-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                 </div>
                 <div>
-                  <div class="font-semibold text-lg text-gim-neutral-900">${l.name || 'An├│nimo'}</div>
-                  <div class="text-gim-neutral-500">${l.interest || 'Sin inter├®s definido'}</div>
+                  <div class="font-semibold text-lg text-gim-neutral-900">${l.name || 'Anónimo'}</div>
+                  <div class="text-gim-neutral-500">${l.interest || 'Sin interés definido'}</div>
                   <div class="flex gap-2 mt-2">
                     ${l.phone ? `<span class="px-3 py-1 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600"><svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg> ${l.phone}</span>` : ''}
                     ${l.email ? `<span class="px-3 py-1 rounded-full text-xs bg-gim-neutral-100 text-gim-neutral-600"><svg class="w-3 h-3 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg> ${l.email}</span>` : ''}
@@ -473,7 +473,7 @@ admin.post('/conversations/:id/reply', async (c) => {
   ).bind(id, tId(c)).first() as any;
   
   if (!conversation) {
-    return c.html('<span class="text-red-500">Conversaci├│n no encontrada</span>');
+    return c.html('<span class="text-red-500">Conversación no encontrada</span>');
   }
   
   await c.env.DB.prepare(
@@ -484,7 +484,7 @@ admin.post('/conversations/:id/reply', async (c) => {
     'UPDATE conversations SET updated_at = datetime("now") WHERE id = ? AND tenant_id = ?'
   ).bind(id, tId(c)).run();
   
-  return c.html('<span class="text-green-500 font-medium">Ô£ô Mensaje enviado</span>');
+  return c.html('<span class="text-green-500 font-medium">✓ Mensaje enviado</span>');
 });
 
   
@@ -516,8 +516,8 @@ admin.post('/conversations/:id/escalate', async (c) => {
     await c.env.DB.prepare(
       `INSERT INTO tickets (conversation_id, agent_id, title, description, priority, category, tenant_id)
        VALUES (?, ?, ?, ?, 2, 'escalation', ?)`
-    ).bind(id, conversation.agent_id, `Escalaci├│n de ${conversation.user_name || 'An├│nimo'}`, 
-           'Conversaci├│n escalada por el sistema', tId(c)).run();
+    ).bind(id, conversation.agent_id, `Escalación de ${conversation.user_name || 'Anónimo'}`, 
+           'Conversación escalada por el sistema', tId(c)).run();
   }
   
   return c.json({ ok: true });

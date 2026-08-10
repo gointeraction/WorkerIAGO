@@ -39,7 +39,7 @@ admin.post('/api/login', async (c) => {
     return c.redirect('/admin');
   }
 
-  return c.html(loginPage('Contrase├▒a incorrecta. Intenta de nuevo.'));
+  return c.html(loginPage('Contraseña incorrecta. Intenta de nuevo.'));
 });
 
   
@@ -59,7 +59,7 @@ function loginPage(error: string) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Iniciar Sesi├│n - WorkerIAGO Admin</title>
+  <title>Iniciar Sesión - WorkerIAGO Admin</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <script>
@@ -125,10 +125,10 @@ function loginPage(error: string) {
 
       <form method="POST" action="/admin/api/login">
         <div class="mb-6">
-          <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Contrase├▒a</label>
+          <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Contraseña</label>
           <div class="relative">
             <input type="password" name="password" id="password" required autofocus
-                   placeholder="ÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇó"
+                   placeholder="••••••••"
                    class="w-full px-4 py-3.5 rounded-xl border-2 border-gim-neutral-200 bg-gim-neutral-50 text-gim-neutral-900 text-sm font-medium placeholder-gim-neutral-400 focus:outline-none focus:border-gim-orange-400 focus:bg-white transition-all">
             <button type="button" onclick="togglePassword()" class="absolute right-3 top-1/2 -translate-y-1/2 text-gim-neutral-400 hover:text-gim-neutral-600 transition-colors">
               <svg id="eye-open" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -139,14 +139,14 @@ function loginPage(error: string) {
 
         <button type="submit" 
                 class="w-full py-3.5 rounded-xl bg-gradient-to-r from-gim-orange-500 to-gim-orange-600 text-white font-bold text-sm shadow-lg shadow-gim-orange-500/25 hover:shadow-xl hover:shadow-gim-orange-500/35 hover:from-gim-orange-600 hover:to-gim-orange-700 transition-all active:scale-[0.98]">
-          Iniciar Sesi├│n
+          Iniciar Sesión
         </button>
       </form>
     </div>
 
     <!-- Footer -->
     <p class="text-center text-xs text-gim-neutral-400 mt-6">
-      Powered by <span class="font-semibold text-gim-orange-500">WorkerIAGO</span> ┬À Cloudflare Workers
+      Powered by <span class="font-semibold text-gim-orange-500">WorkerIAGO</span> · Cloudflare Workers
     </p>
   </div>
 

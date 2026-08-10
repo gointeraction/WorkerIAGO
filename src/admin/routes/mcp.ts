@@ -6,9 +6,9 @@ import { Bindings, tId, renderPage, auditLog, getSessionSecret, signSession, ver
 export function registerMcpRoutes(admin: Hono<{ Bindings: Bindings }>) {
   
 
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
-// MCP TOOLS ÔÇö Tool Registry & Management
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// ═══════════════════════════════════════════════════════════════════════════════
+// MCP TOOLS — Tool Registry & Management
+// ═══════════════════════════════════════════════════════════════════════════════
 
 admin.get('/mcp-tools', async (c) => {
   let tools: any[] = [];
@@ -41,7 +41,7 @@ admin.get('/mcp-tools', async (c) => {
               <input type="text" name="name" id="tool-name" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-purple-400 transition-colors" placeholder="send_email">
             </div>
             <div>
-              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Categor├¡a</label>
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Categoría</label>
               <select name="category" id="tool-category" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-purple-400 transition-colors">
                 <option value="custom">Custom</option>
                 <option value="email">Email</option>
@@ -57,7 +57,7 @@ admin.get('/mcp-tools', async (c) => {
               <input type="url" name="endpoint_url" id="tool-endpoint" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-purple-400 transition-colors" placeholder="https://api.example.com/tool">
             </div>
             <div>
-              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">M├®todo</label>
+              <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Método</label>
               <select name="method" id="tool-method" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-purple-400 transition-colors">
                 <option value="POST">POST</option>
                 <option value="GET">GET</option>
@@ -79,11 +79,11 @@ admin.get('/mcp-tools', async (c) => {
             </div>
           </div>
           <div class="mb-6">
-            <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Descripci├│n</label>
-            <input type="text" name="description" id="tool-description" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-purple-400 transition-colors" placeholder="Env├¡a un email al destinatario especificado">
+            <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Descripción</label>
+            <input type="text" name="description" id="tool-description" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-purple-400 transition-colors" placeholder="Envía un email al destinatario especificado">
           </div>
           <div class="mb-6">
-            <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Par├ímetros (JSON Schema)</label>
+            <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Parámetros (JSON Schema)</label>
             <textarea name="parameters_schema" id="tool-params" rows="4" required class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-gim-purple-400 transition-colors" placeholder='{"type":"object","properties":{"to":{"type":"string"},"subject":{"type":"string"},"body":{"type":"string"}},"required":["to","subject","body"]}'></textarea>
           </div>
           <div class="flex gap-3">
@@ -109,11 +109,11 @@ admin.get('/mcp-tools', async (c) => {
             <div class="text-gim-neutral-500 text-sm mb-3">${t.description}</div>
             <div class="space-y-2 mb-4">
               <div class="flex justify-between text-sm">
-                <span class="text-gim-neutral-500">Categor├¡a</span>
+                <span class="text-gim-neutral-500">Categoría</span>
                 <span class="px-2 py-0.5 rounded-full text-xs bg-gim-purple-50 text-gim-purple-600">${t.category}</span>
               </div>
               <div class="flex justify-between text-sm">
-                <span class="text-gim-neutral-500">M├®todo</span>
+                <span class="text-gim-neutral-500">Método</span>
                 <span class="text-xs font-mono text-gim-neutral-700">${t.method}</span>
               </div>
               <div class="flex justify-between text-sm">
@@ -128,7 +128,7 @@ admin.get('/mcp-tools', async (c) => {
             <div class="flex gap-2">
               <button onclick="editTool('${t.id}', '${t.name}', '${t.description}', '${t.category}', '${t.endpoint_url || ''}', '${t.method}', '${t.auth_type}', ${t.timeout_ms}, '${btoa(JSON.stringify(t.parameters_schema || {}))}')" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">Editar</button>
               <button onclick="testTool('${t.id}', '${t.name}')" class="bg-gim-purple-50 hover:bg-gim-purple-100 rounded-xl py-2 px-3 text-sm transition text-gim-purple-600" title="Test"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714a2.25 2.25 0 00.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5"/></svg></button>
-              <button hx-delete="/admin/mcp-tools/${t.id}" hx-target="#tools-grid" hx-swap="innerHTML" hx-confirm="┬┐Eliminar tool?" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-3 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+              <button hx-delete="/admin/mcp-tools/${t.id}" hx-target="#tools-grid" hx-swap="innerHTML" hx-confirm="¿Eliminar tool?" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-3 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
             </div>
           </div>
         `).join('') || '<div class="col-span-3 text-gim-neutral-400 text-center py-12">No hay tools configurados. Crea tu primer tool MCP.</div>'}
@@ -143,7 +143,7 @@ admin.get('/mcp-tools', async (c) => {
             <button onclick="hideTestModal()" class="w-8 h-8 bg-gim-neutral-100 rounded-lg flex items-center justify-center hover:bg-gim-neutral-200 transition text-gim-neutral-500"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
           </div>
           <div class="mb-4">
-            <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Par├ímetros (JSON)</label>
+            <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Parámetros (JSON)</label>
             <textarea id="test-params" rows="6" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-gim-purple-400 transition-colors" placeholder='{"to":"test@example.com","subject":"Test","body":"Hello"}'></textarea>
           </div>
           <button onclick="runTest()" class="w-full bg-gradient-purple rounded-xl py-3 font-semibold text-white hover:opacity-90 transition">Ejecutar Test</button>

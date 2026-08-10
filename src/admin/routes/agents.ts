@@ -63,7 +63,7 @@ admin.get('/agents', async (c) => {
               <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Modelo</label>
               <select name="model" id="agent-model" class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors">
                 <option value="@cf/meta/llama-3.1-8b-instruct-fp8">Llama 3.1 8B</option>
-                <option value="@cf/meta/llama-3.2-3b-instruct">Llama 3.2 3B (R├ípido)</option>
+                <option value="@cf/meta/llama-3.2-3b-instruct">Llama 3.2 3B (Rápido)</option>
                 <option value="@cf/meta/llama-3.3-70b-instruct-fp8-fast">Llama 3.3 70B (Mejor)</option>
               </select>
             </div>
@@ -75,10 +75,10 @@ admin.get('/agents', async (c) => {
           </div>
           
           <div class="mb-6">
-            <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Descripci├│n</label>
+            <label class="block text-sm font-semibold text-gim-neutral-700 mb-2">Descripción</label>
             <input type="text" name="description" id="agent-description"
                    class="w-full bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gim-orange-400 transition-colors"
-                   placeholder="Breve descripci├│n del agente">
+                   placeholder="Breve descripción del agente">
           </div>
           
           <div class="mb-6">
@@ -113,7 +113,7 @@ admin.get('/agents', async (c) => {
             </div>
             
             <div class="font-semibold text-lg text-gim-neutral-900 mb-2">${a.name}</div>
-            <div class="text-gim-neutral-500 text-sm mb-4">${a.description || 'Sin descripci├│n'}</div>
+            <div class="text-gim-neutral-500 text-sm mb-4">${a.description || 'Sin descripción'}</div>
             
             <div class="space-y-3 mb-6">
               <div class="flex justify-between text-sm">
@@ -139,7 +139,7 @@ admin.get('/agents', async (c) => {
             
             <div class="flex gap-3">
               <button onclick="editAgent('${a.id}', '${a.name}', '${a.type}', '${a.model}', ${a.temperature}, '${(a.description || '').replace(/'/g, "\\'")}', \`${(a.system_prompt || '').replace(/`/g, '\\`')}\`)" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">Editar</button>
-              <button hx-delete="/admin/agents/${a.id}" hx-confirm="┬┐Eliminar este agente?" hx-target="#agent-list" hx-swap="innerHTML" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+              <button hx-delete="/admin/agents/${a.id}" hx-confirm="¿Eliminar este agente?" hx-target="#agent-list" hx-swap="innerHTML" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
             </div>
           </div>
         `).join('') || '<div class="col-span-3 text-gim-neutral-400 text-center py-12">No hay agentes configurados</div>'}
@@ -173,9 +173,9 @@ admin.get('/agents', async (c) => {
             <form hx-post="/admin/agents/kb/link" hx-target="#kb-linked-list" hx-swap="innerHTML">
               <input type="hidden" name="agent_id" id="kb-modal-agent-id">
               <div class="grid grid-cols-2 gap-4 mb-4">
-                <input type="text" name="title" placeholder="T├¡tulo" required
+                <input type="text" name="title" placeholder="Título" required
                        class="bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors">
-                <input type="text" name="category" placeholder="Categor├¡a"
+                <input type="text" name="category" placeholder="Categoría"
                        class="bg-gim-neutral-50 border-2 border-gim-neutral-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gim-cyan-400 transition-colors">
               </div>
               <textarea name="content" rows="3" placeholder="Contenido del documento..." required
@@ -232,9 +232,9 @@ admin.get('/agents', async (c) => {
               '<div class="flex items-center justify-between p-3 bg-gim-cyan-50 rounded-xl border border-gim-cyan-200">' +
                 '<div>' +
                   '<div class="font-semibold text-sm text-gim-neutral-900">' + d.title + '</div>' +
-                  '<div class="text-xs text-gim-neutral-500">' + (d.category || 'Sin categor├¡a') + '</div>' +
+                  '<div class="text-xs text-gim-neutral-500">' + (d.category || 'Sin categoría') + '</div>' +
                 '</div>' +
-                '<button hx-delete="/admin/agents/' + agentId + '/kb/' + d.id + '" hx-target="#kb-linked-list" hx-swap="innerHTML" hx-confirm="┬┐Desvincular documento?" class="text-red-500 hover:text-red-600 text-sm font-medium"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>' +
+                '<button hx-delete="/admin/agents/' + agentId + '/kb/' + d.id + '" hx-target="#kb-linked-list" hx-swap="innerHTML" hx-confirm="¿Desvincular documento?" class="text-red-500 hover:text-red-600 text-sm font-medium"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>' +
               '</div>'
             ).join('') : '<div class="text-sm text-gim-neutral-400 text-center py-4">No hay documentos vinculados</div>';
             document.getElementById('kb-linked-list').innerHTML = linkedHtml;
@@ -251,7 +251,7 @@ admin.get('/agents', async (c) => {
               '<div class="flex items-center justify-between p-3 bg-gim-neutral-50 rounded-xl border border-gim-neutral-200">' +
                 '<div>' +
                   '<div class="font-semibold text-sm text-gim-neutral-900">' + d.title + '</div>' +
-                  '<div class="text-xs text-gim-neutral-500">' + (d.category || 'Sin categor├¡a') + '</div>' +
+                  '<div class="text-xs text-gim-neutral-500">' + (d.category || 'Sin categoría') + '</div>' +
                 '</div>' +
                 '<button hx-post="/admin/agents/' + agentId + '/kb/attach/' + d.id + '" hx-target="#kb-linked-list" hx-swap="innerHTML" class="bg-gim-cyan-500 hover:bg-gim-cyan-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition">Vincular</button>' +
               '</div>'
@@ -324,7 +324,7 @@ admin.post('/agents/save', async (c) => {
         </span>
       </div>
       <div class="font-semibold text-lg text-gim-neutral-900 mb-2">${a.name}</div>
-      <div class="text-gim-neutral-500 text-sm mb-4">${a.description || 'Sin descripci├│n'}</div>
+      <div class="text-gim-neutral-500 text-sm mb-4">${a.description || 'Sin descripción'}</div>
       <div class="space-y-3 mb-6">
         <div class="flex justify-between text-sm">
           <span class="text-gim-neutral-500">Tipo</span>
@@ -346,7 +346,7 @@ admin.post('/agents/save', async (c) => {
       </div>
       <div class="flex gap-3">
         <button onclick="editAgent('${a.id}', '${a.name}', '${a.type}', '${a.model}', ${a.temperature}, '${(a.description || '').replace(/'/g, "\\'")}', \`${(a.system_prompt || '').replace(/`/g, '\\`')}\`)" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">Editar</button>
-        <button hx-delete="/admin/agents/${a.id}" hx-confirm="┬┐Eliminar este agente?" hx-target="#agent-list" hx-swap="innerHTML" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+        <button hx-delete="/admin/agents/${a.id}" hx-confirm="¿Eliminar este agente?" hx-target="#agent-list" hx-swap="innerHTML" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
       </div>
     </div>
   `).join('');
@@ -376,7 +376,7 @@ admin.delete('/agents/:id', async (c) => {
         </span>
       </div>
       <div class="font-semibold text-lg text-gim-neutral-900 mb-2">${a.name}</div>
-      <div class="text-gim-neutral-500 text-sm mb-4">${a.description || 'Sin descripci├│n'}</div>
+      <div class="text-gim-neutral-500 text-sm mb-4">${a.description || 'Sin descripción'}</div>
       <div class="space-y-3 mb-6">
         <div class="flex justify-between text-sm">
           <span class="text-gim-neutral-500">Tipo</span>
@@ -398,7 +398,7 @@ admin.delete('/agents/:id', async (c) => {
       </div>
       <div class="flex gap-3">
         <button onclick="editAgent('${a.id}', '${a.name}', '${a.type}', '${a.model}', ${a.temperature}, '${(a.description || '').replace(/'/g, "\\'")}', \`${(a.system_prompt || '').replace(/`/g, '\\`')}\`)" class="flex-1 bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 text-sm font-medium transition text-gim-neutral-700">Editar</button>
-        <button hx-delete="/admin/agents/${a.id}" hx-confirm="┬┐Eliminar este agente?" hx-target="#agent-list" hx-swap="innerHTML" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+        <button hx-delete="/admin/agents/${a.id}" hx-confirm="¿Eliminar este agente?" hx-target="#agent-list" hx-swap="innerHTML" class="bg-gim-neutral-100 hover:bg-red-100 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-500 hover:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
       </div>
     </div>
   `).join('');
@@ -440,7 +440,7 @@ admin.post('/agents/:id/kb/attach/:kbId', async (c) => {
       `INSERT OR IGNORE INTO agent_knowledge (agent_id, kb_id) VALUES (?, ?)`
     ).bind(agentId, kbId).run();
   } catch (e) {
-    // Table may not exist yet ÔÇö create it
+    // Table may not exist yet — create it
     try {
       await c.env.DB.prepare(`CREATE TABLE IF NOT EXISTS agent_knowledge (
         agent_id TEXT NOT NULL, kb_id TEXT NOT NULL,
@@ -462,8 +462,8 @@ admin.post('/agents/:id/kb/attach/:kbId', async (c) => {
     const linked = result.results || [];
     const html = linked.length > 0 ? linked.map((d: KnowledgeRow) =>
       `<div class="flex items-center justify-between p-3 bg-gim-cyan-50 rounded-xl border border-gim-cyan-200">
-        <div><div class="font-semibold text-sm text-gim-neutral-900">${d.title}</div><div class="text-xs text-gim-neutral-500">${d.category || 'Sin categor├¡a'}</div></div>
-        <button hx-delete="/admin/agents/${agentId}/kb/${d.id}" hx-target="#kb-linked-list" hx-swap="innerHTML" hx-confirm="┬┐Desvincular?" class="text-red-500 hover:text-red-600 text-sm font-medium"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+        <div><div class="font-semibold text-sm text-gim-neutral-900">${d.title}</div><div class="text-xs text-gim-neutral-500">${d.category || 'Sin categoría'}</div></div>
+        <button hx-delete="/admin/agents/${agentId}/kb/${d.id}" hx-target="#kb-linked-list" hx-swap="innerHTML" hx-confirm="¿Desvincular?" class="text-red-500 hover:text-red-600 text-sm font-medium"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
       </div>`
     ).join('') : '<div class="text-sm text-gim-neutral-400 text-center py-4">No hay documentos vinculados</div>';
     c.header('Content-Type', 'text/html');
@@ -498,8 +498,8 @@ admin.delete('/agents/:agentId/kb/:kbId', async (c) => {
     const linked = result.results || [];
     const html = linked.length > 0 ? linked.map((d: KnowledgeRow) =>
       `<div class="flex items-center justify-between p-3 bg-gim-cyan-50 rounded-xl border border-gim-cyan-200">
-        <div><div class="font-semibold text-sm text-gim-neutral-900">${d.title}</div><div class="text-xs text-gim-neutral-500">${d.category || 'Sin categor├¡a'}</div></div>
-        <button hx-delete="/admin/agents/${agentId}/kb/${d.id}" hx-target="#kb-linked-list" hx-swap="innerHTML" hx-confirm="┬┐Desvincular?" class="text-red-500 hover:text-red-600 text-sm font-medium"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+        <div><div class="font-semibold text-sm text-gim-neutral-900">${d.title}</div><div class="text-xs text-gim-neutral-500">${d.category || 'Sin categoría'}</div></div>
+        <button hx-delete="/admin/agents/${agentId}/kb/${d.id}" hx-target="#kb-linked-list" hx-swap="innerHTML" hx-confirm="¿Desvincular?" class="text-red-500 hover:text-red-600 text-sm font-medium"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
       </div>`
     ).join('') : '<div class="text-sm text-gim-neutral-400 text-center py-4">No hay documentos vinculados</div>';
     c.header('Content-Type', 'text/html');
@@ -559,8 +559,8 @@ admin.post('/agents/kb/link', async (c) => {
     const linked = result.results || [];
     const html = linked.length > 0 ? linked.map((d: KnowledgeRow) =>
       `<div class="flex items-center justify-between p-3 bg-gim-cyan-50 rounded-xl border border-gim-cyan-200">
-        <div><div class="font-semibold text-sm text-gim-neutral-900">${d.title}</div><div class="text-xs text-gim-neutral-500">${d.category || 'Sin categor├¡a'}</div></div>
-        <button hx-delete="/admin/agents/${agentId}/kb/${d.id}" hx-target="#kb-linked-list" hx-swap="innerHTML" hx-confirm="┬┐Desvincular?" class="text-red-500 hover:text-red-600 text-sm font-medium"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+        <div><div class="font-semibold text-sm text-gim-neutral-900">${d.title}</div><div class="text-xs text-gim-neutral-500">${d.category || 'Sin categoría'}</div></div>
+        <button hx-delete="/admin/agents/${agentId}/kb/${d.id}" hx-target="#kb-linked-list" hx-swap="innerHTML" hx-confirm="¿Desvincular?" class="text-red-500 hover:text-red-600 text-sm font-medium"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
       </div>`
     ).join('') : '<div class="text-sm text-gim-neutral-400 text-center py-4">No hay documentos vinculados</div>';
     c.header('Content-Type', 'text/html');

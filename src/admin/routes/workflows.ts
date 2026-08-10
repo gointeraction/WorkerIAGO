@@ -6,9 +6,9 @@ import { Bindings, tId, renderPage, auditLog, getSessionSecret, signSession, ver
 export function registerWorkflowsRoutes(admin: Hono<{ Bindings: Bindings }>) {
   
 
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
-// WORKFLOWS ÔÇö Multi-agent flow engine
-// ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+// ═══════════════════════════════════════════════════════════════════════════════
+// WORKFLOWS — Multi-agent flow engine
+// ═══════════════════════════════════════════════════════════════════════════════
 
 admin.get('/workflows', async (c) => {
   let workflows: any[] = [];
@@ -22,9 +22,9 @@ admin.get('/workflows', async (c) => {
   } catch (e) { runs = []; }
 
   const templates = [
-    { name: 'Atenci├│n al Cliente', description: 'Clasificar ÔåÆ Buscar KB ÔåÆ Responder ÔåÆ Escalar', icon: 'CS' },
-    { name: 'Generador de Contenido', description: 'Investigar ÔåÆ Escribir ÔåÆ Revisar ÔåÆ Publicar', icon: 'CW' },
-    { name: 'Lead Qualification', description: 'Capture ÔåÆ Score ÔåÆ Route ÔåÆ Follow-up', icon: 'LQ' },
+    { name: 'Atención al Cliente', description: 'Clasificar → Buscar KB → Responder → Escalar', icon: 'CS' },
+    { name: 'Generador de Contenido', description: 'Investigar → Escribir → Revisar → Publicar', icon: 'CW' },
+    { name: 'Lead Qualification', description: 'Capture → Score → Route → Follow-up', icon: 'LQ' },
   ];
 
   return renderPage(c, 'Workflows', 'workflows', `
@@ -70,14 +70,14 @@ admin.get('/workflows', async (c) => {
                 </span>
               </div>
               <div class="font-semibold text-gim-neutral-900 mb-1">${w.name}</div>
-              <div class="text-gim-neutral-500 text-sm mb-3">${w.description || 'Sin descripci├│n'}</div>
+              <div class="text-gim-neutral-500 text-sm mb-3">${w.description || 'Sin descripción'}</div>
               <div class="flex items-center gap-4 mb-4 text-xs text-gim-neutral-500">
                 <span>${steps.length} pasos</span>
                 <span>${wfRuns.length} ejecuciones</span>
-                ${lastRun ? `<span>├Ültima: ${lastRun.status}</span>` : ''}
+                ${lastRun ? `<span>Última: ${lastRun.status}</span>` : ''}
               </div>
               <div class="flex gap-2">
-                <button onclick="runWorkflow('${w.id}')" class="flex-1 bg-green-50 hover:bg-green-100 rounded-xl py-2 text-sm font-semibold text-green-600 transition">ÔûÂ Ejecutar</button>
+                <button onclick="runWorkflow('${w.id}')" class="flex-1 bg-green-50 hover:bg-green-100 rounded-xl py-2 text-sm font-semibold text-green-600 transition">▶ Ejecutar</button>
                 <button class="bg-gim-neutral-100 hover:bg-gim-neutral-200 rounded-xl py-2 px-4 text-sm transition text-gim-neutral-700"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
               </div>
             </div>
@@ -108,7 +108,7 @@ admin.get('/workflows', async (c) => {
                     <span class="px-2 py-0.5 rounded-full text-xs ${r.status === 'completed' ? 'bg-green-100 text-green-600' : r.status === 'running' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}">${r.status}</span>
                   </td>
                   <td class="py-3 text-gim-neutral-700">${r.started_at}</td>
-                  <td class="py-3 text-gim-neutral-700">${r.completed_at || 'ÔÇö'}</td>
+                  <td class="py-3 text-gim-neutral-700">${r.completed_at || '—'}</td>
                 </tr>
               `).join('') || '<tr><td colspan="5" class="py-8 text-center text-gim-neutral-400">Sin ejecuciones</td></tr>'}
             </tbody>
@@ -122,14 +122,14 @@ admin.get('/workflows', async (c) => {
           <div class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Nombre</label>
-              <input name="name" required class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none" placeholder="Atenci├│n al Cliente">
+              <input name="name" required class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none" placeholder="Atención al Cliente">
             </div>
             <div>
-              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Descripci├│n</label>
-              <input name="description" class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none" placeholder="Clasificar ÔåÆ Responder ÔåÆ Escalar">
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Descripción</label>
+              <input name="description" class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none" placeholder="Clasificar → Responder → Escalar">
             </div>
             <div>
-              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Pasos (uno por l├¡nea)</label>
+              <label class="block text-sm font-medium text-gim-neutral-700 mb-1">Pasos (uno por línea)</label>
               <textarea name="steps" rows="5" required class="w-full border border-gim-neutral-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-gim-orange-400 focus:border-gim-orange-400 outline-none font-mono text-sm" placeholder="Clasificar intencion&#10;Buscar en KB&#10;Responder&#10;Escalar si necesario"></textarea>
             </div>
           </div>
@@ -143,7 +143,7 @@ admin.get('/workflows', async (c) => {
       <script>
         function showCreateWorkflow() { document.getElementById('workflow-modal').classList.remove('hidden'); }
         async function runWorkflow(id) {
-          if (!confirm('┬┐Ejecutar este workflow?')) return;
+          if (!confirm('¿Ejecutar este workflow?')) return;
           const res = await fetch('/admin/api/workflows/' + id + '/run', { method: 'POST' });
           const result = await res.json();
           alert(result.id ? 'Workflow iniciado: ' + result.id : 'Error: ' + (result.error || 'Unknown'));
