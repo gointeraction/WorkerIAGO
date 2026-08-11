@@ -17,12 +17,9 @@
 - [x] T011: Create webhook API contract (`specs/workeriago/contracts/webhook-api.md`)
 - [x] T012: Create MCP API contract (`specs/workeriago/contracts/mcp-api.md`)
 - [x] T013: Create tasks file (`specs/workeriago/tasks.md`)
-
-## Pending
-
-- [ ] T014: Git commit + push all spec-kit documentation
-- [ ] T015: Update README.md to reference spec-kit docs
-- [ ] T016: Add `.specify/` and `specs/` to `.gitignore` review (keep tracked, they're documentation)
+- [x] T014: Git commit all spec-kit documentation (commits `ff3fdc1`..`e0c6dad`; push pending user decision)
+- [x] T015: Update README.md to reference spec-kit docs (commit `cc0666d`)
+- [x] T016: `.gitignore` review — `specs/` (10 files) and `.specify/` (17 files) remain tracked, they are documentation and must NOT be ignored
 
 ## Notes
 
