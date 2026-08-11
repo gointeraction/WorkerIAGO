@@ -668,12 +668,36 @@ Las **vars estáticas** ( en `wrangler.toml`): `ENVIRONMENT`, `BOT_NAME`, `BUSIN
 pnpm install
 pnpm run dev          # wrangler dev local con emuladores
 pnpm run typecheck    # tsc --noEmit
-pnpm test             # tests ( si existen)
+pnpm test             # vitest run — 104 tests / 14 archivos
 wrangler deploy       # Deploy a Cloudflare production
 wrangler tail         # Ver logs en tiempo real
 wrangler d1 execute workeriago-db --remote --command "SELECT * FROM agents"
 wrangler vectorize list
 wrangler r2 bucket list
+```
+
+### Tests (vitest)
+
+Suite completa de **104 tests / 14 archivos** — todos los módulos core con cobertura:
+
+| Archivo | Módulo | Cobertura |
+|---------|--------|-----------|
+| `test/orchestrator.test.ts` | AgentOrchestrator | Pipeline completo con mocks |
+| `test/admin.test.ts` | AdminPanel | 88 rutas runtime, demo-mode, auth redirect |
+| `test/rag.test.ts` | knowledge | chunkText edge cases, buildRagContext |
+| `test/actions.test.ts` | ActionEngine | Handlers puros + DB, custom, errores |
+| `test/workflows.test.ts` | WorkflowEngine | Interpolación, branching, fallos |
+| `test/webhooks.test.ts` | WebhookEngine | HMAC, filtrado de eventos, fail_count |
+| `test/memory.test.ts` | memoria | extractFacts, dedupe, contexto |
+| `test/ab-testing.test.ts` | A/B testing | Asignación, winner detection |
+| `test/monitoring.test.ts` | Monitoring | Health checks, alertas, métricas |
+| `test/mcp.test.ts` | MCP + connectors | executeTool, auth, retry, conectores |
+| `test/voice.test.ts` | Voice | STT/TTS pipeline completo |
+| `test/channels.test.ts` | Canales | WhatsApp/Telegram/Web/Slack/SMS |
+
+```bash
+pnpm test              # suite completa (104 tests, ~9s)
+pnpm exec vitest run test/<archivo>.test.ts   # test individual
 ```
 
 ### Documentación técnica (spec-kit)
@@ -720,15 +744,20 @@ Las decisiones de desarrollo siguen la [constitución del proyecto](.specify/mem
 | Insights | ✅ Real D1 | Resolución, latencia, conversión, trends |
 | Campañas | ✅ CRUD completo | Create/start/stop/delete |
 | Conectores | ✅ CRUD completo | Configure/sync/delete |
+| Test suite | ✅ 104 tests | 14 archivos, 0 errores typecheck |
 | Worker live | ✅ Deploy | `https://workeriago.ibohorquez.workers.dev` |
 
 ### Commits recientes
 
+- `947bf73` — Mark spec-kit doc tasks T014-T016 complete (gitignore review)
+- `6477249` — Add voice pipeline and channel adapter tests
+- `4a0b9aa` — Add AbTestEngine, MonitoringEngine, and MCP module tests
+- `0ab297e` — Add memory module tests: fact extraction, dedupe, recall stats
+- `e7fa17e` — Add WebhookEngine tests: registration, event filtering, HMAC signatures
+- `219f2f9` — Add ActionEngine, WorkflowEngine tests + chunkText edge cases
+- `cc0666d` — Add admin route-parity test + reference spec-kit docs in README
 - `e0c6dad` — Fix double-encoding mojibake in admin panel text
 - `ff3fdc1` — Modular admin refactor + 0 TS errors + green vitest suite
-- `2761588` — Complete tenant isolation: AB-testing, voice, config + visual improvements
-- `945e827` — Fix security + routing + complete all 22 admin pages
-- `a495a52` — Update README: full architecture + 28 DB tables + 22 admin pages
 
 ---
 
