@@ -676,6 +676,24 @@ wrangler vectorize list
 wrangler r2 bucket list
 ```
 
+### Documentación técnica (spec-kit)
+
+La plataforma completa está documentada en `specs/workeriago/`:
+
+| Documento | Contenido |
+|-----------|-----------|
+| [`spec.md`](specs/workeriago/spec.md) | Feature spec — 5 user stories, 20 FRs, edge cases, success criteria |
+| [`plan.md`](specs/workeriago/plan.md) | Plan de implementación + diagrama de arquitectura |
+| [`data-model.md`](specs/workeriago/data-model.md) | Esquema de las 28+ tablas D1 |
+| [`research.md`](specs/workeriago/research.md) | Decisiones tecnológicas |
+| [`quickstart.md`](specs/workeriago/quickstart.md) | Guía rápida de inicio |
+| [`contracts/admin-api.md`](specs/workeriago/contracts/admin-api.md) | Admin API — 22 páginas, 48+ routes |
+| [`contracts/chat-api.md`](specs/workeriago/contracts/chat-api.md) | Chat API pública |
+| [`contracts/webhook-api.md`](specs/workeriago/contracts/webhook-api.md) | Webhooks de canales |
+| [`contracts/mcp-api.md`](specs/workeriago/contracts/mcp-api.md) | MCP server endpoints |
+
+Las decisiones de desarrollo siguen la [constitución del proyecto](.specify/memory/constitution.md).
+
 ### Recursos Cloudflare
 
 | Recurso | Nombre | ID |
@@ -706,11 +724,11 @@ wrangler r2 bucket list
 
 ### Commits recientes
 
+- `e0c6dad` — Fix double-encoding mojibake in admin panel text
+- `ff3fdc1` — Modular admin refactor + 0 TS errors + green vitest suite
+- `2761588` — Complete tenant isolation: AB-testing, voice, config + visual improvements
 - `945e827` — Fix security + routing + complete all 22 admin pages
 - `a495a52` — Update README: full architecture + 28 DB tables + 22 admin pages
-- `fa290dc` — Integrate MCP tools in orchestrator
-- `2a20d37` — Fix RAG: agentId routing + 768-dim embedding match
-- `003a3a8` — Add POST routes for all 5 new pages
 
 ---
 
